@@ -74,8 +74,8 @@ body{display:flex;justify-content:center;}
 
 /* CARD FRONT - minimal info, big art */
 .card-front-inner{position:relative;}
-.card-front-art{width:100%;height:auto;min-height:600px;max-height:700px;object-fit:contain;object-position:top center;display:block;background:#000;}
-.card-front-art-svg{width:100%;min-height:600px;display:block;}
+.card-front-art{width:100%;height:680px;object-fit:cover;object-position:top center;display:block;}
+.card-front-art-svg{width:100%;height:680px;display:block;}
 .card-front-overlay{position:absolute;bottom:0;left:0;right:0;
   background:linear-gradient(transparent,rgba(0,0,0,.85));padding:12px 14px 14px;}
 .card-front-name{font-size:18px;font-weight:900;letter-spacing:1px;margin-bottom:6px;}
@@ -838,8 +838,8 @@ function elemColor(e){return{火:'#ef4444',水:'#38bdf8',木:'#4ade80',土:'#fbb
 
 function artHTML(char,h){
   if(char.artImg)return`<img src="${char.artImg}" style="width:100%;height:${h}px;object-fit:cover;object-position:top center;display:block" alt="">`;
-  if(char.artType==='pixel'||char.rarity==='C'||char.rarity==='N')return`<div style="height:${h}px;overflow:hidden">${generatePixelArt(char)}</div>`;
-  return`<div style="height:${h}px;overflow:hidden">${kanjiOnlyDisplay(char)}</div>`;
+  if(char.artType==='pixel'||char.rarity==='C'||char.rarity==='N')return`<div style="height:${h}px;overflow:hidden;flex-shrink:0">${generatePixelArt(char)}</div>`;
+  return`<div style="height:${h}px;overflow:hidden;flex-shrink:0">${kanjiOnlyDisplay(char)}</div>`;
 }
 
 function tagsHTML(char,rc){
@@ -872,7 +872,7 @@ function flipCardHTML(char,showBattleBtn=true){
   const frontHTML=`<div class="flip-face flip-front" style="background:${cardBg};border:1px solid ${cardBorder}55;box-shadow:0 0 ${char.rarity==='SSR'?40:char.rarity==='SR'?30:22}px ${cardGlow};position:relative;overflow:hidden">
     ${shineEl}
     <div class="card-front-inner" style="position:relative;z-index:2">
-      ${artHTML(char,300)}
+      ${artHTML(char,680)}
       <div class="card-front-rarity">
         <span class="rarity-badge" style="background:${rc.color}1a;color:${rc.color};border:1px solid ${rc.color}55">${char.rarity}</span>
         <span class="stars">${starsHTML(rc.stars,rc.color)}</span>
