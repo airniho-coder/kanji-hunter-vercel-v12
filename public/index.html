@@ -201,7 +201,7 @@ body{display:flex;justify-content:center;}
 .affinity-info{text-align:center;font-size:10px;opacity:.45;margin-bottom:7px;letter-spacing:1px;min-height:14px;}
 
 /* EQUIP SELECT MODAL */
-.modal-overlay{position:fixed;inset:0;z-index:250;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;backdrop-filter:blur(4px);}
+.modal-overlay{position:fixed;inset:0;z-index:270;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;backdrop-filter:blur(4px);}
 .modal-sheet{width:100%;max-width:480px;margin:0 auto;background:#0d0d18;border-radius:18px 18px 0 0;padding:20px 16px 80px;max-height:80vh;overflow-y:auto;}
 .modal-title{font-size:14px;font-weight:700;letter-spacing:2px;margin-bottom:14px;text-align:center;color:var(--gold);}
 .modal-close{position:absolute;top:12px;right:16px;font-size:18px;opacity:.5;cursor:pointer;background:none;border:none;color:var(--text);}
@@ -1280,11 +1280,14 @@ function registerCard(){
   if(type==='character')characters.push(card);
   else itemCards.push(card);
   saveState();updateHeaderCount();clearNewCard();clearImage();
+  const isChar=type==='character';
+  const cardId=card.id;
   showTab('collection');
-  setCollTab(type==='character'?'char':['skill','magic'].includes(type)?type:'item');
-  // Auto-open detail modal after registering a character
-  if(type==='character'){
-    setTimeout(()=>openCharDetail(card.id),200);
+  setCollTab(isChar?'char':['skill','magic'].includes(type)?type:'item');
+  // Open detail modal after render completes
+  if(isChar){
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(()=>requestAnimationFrame(()=>openCharDetail(cardId)));
   }
 }
 
