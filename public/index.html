@@ -910,13 +910,13 @@ function charDetailHTML(char,showBattleBtn=true){
     const item=itemId?itemCards.find(c=>c.id===itemId):null;
     if(item){
       const irc=RARITY[item.rarity]||RARITY.C;
-      return`<div class="equip-slot filled" style="border-color:${irc.color}66;background:${irc.color}0a" onclick="openEquipModal(${char.id},${i})">
+      return`<div class="equip-slot filled" style="border-color:${irc.color}66;background:${irc.color}0a" onclick="openEquipModal(${char.id},${i},event)">
         <div class="equip-slot-icon">${CARD_TYPE_ICONS[item.cardType]||'📦'}</div>
         <div class="equip-slot-name">${item.name||item.kanji}</div>
         <div class="equip-slot-rarity" style="color:${irc.color}">${item.rarity}</div>
       </div>`;
     }
-    return`<div class="equip-slot" onclick="openEquipModal(${char.id},${i})">
+    return`<div class="equip-slot" onclick="openEquipModal(${char.id},${i},event)">
       <div style="font-size:14px;opacity:.25">＋</div>
       <div class="equip-slot-empty-label">装備</div>
     </div>`;
@@ -974,7 +974,10 @@ function openCharDetail(id){
   document.getElementById('detail-modal').classList.add('open');
 }
 function closeDetailModal(evt){
-  if(evt&&evt.target!==document.getElementById('detail-modal'))return;
+  if(evt){
+    // Only close if clicking the backdrop directly
+    if(evt.target!==document.getElementById('detail-modal'))return;
+  }
   document.getElementById('detail-modal').classList.remove('open');
 }
 // Refresh detail modal content (after equip change)
@@ -1039,7 +1042,8 @@ function itemCardHTML(item,showEquipBtn=false,equippedCharId=null){
 }
 
 // ===== EQUIPMENT MODAL =====
-function openEquipModal(charId,slotIdx){
+function openEquipModal(charId,slotIdx,evt){
+  if(evt)evt.stopPropagation();
   const char=characters.find(c=>c.id===charId);if(!char)return;
   equipModalTarget={charId,slotIdx};
   const modal=document.getElementById('equip-modal');
@@ -1271,11 +1275,17 @@ function showNewCard(card,type){
 function clearNewCard(){document.getElementById('new-card-area').innerHTML='';pendingCard=null;pendingType=null;}
 function registerCard(){
   if(!pendingCard)return;
-  if(pendingType==='character')characters.push(pendingCard);
-  else itemCards.push(pendingCard);
+  const card=pendingCard;
+  const type=pendingType;
+  if(type==='character')characters.push(card);
+  else itemCards.push(card);
   saveState();updateHeaderCount();clearNewCard();clearImage();
   showTab('collection');
-  setCollTab(pendingType==='character'?'char':['skill','magic'].includes(pendingType)?pendingType:'item');
+  setCollTab(type==='character'?'char':['skill','magic'].includes(type)?type:'item');
+  // Auto-open detail modal after registering a character
+  if(type==='character'){
+    setTimeout(()=>openCharDetail(card.id),200);
+  }
 }
 
 // ===== COLLECTION RENDER =====
@@ -1483,14 +1493,16 @@ async function startBattle(){
     const[first,second]=[aFirst?a:b,aFirst?b:a];
     const[fLv,sLv]=[aFirst?lvA:lvB,aFirst?lvB:lvA];
     const[fSide,sSide]=[aFirst?'a':'b',aFirst?'b':'a'];
-    const act1=await getAction(first,fSide);
+    const act1=await getAction(first);
     first._defUp=false;
     await doAction(first,second,act1,fLv,sLv,fSide,sSide);
     updateSlots(a,b,null);
     if(second._bHp<=0)break;
     await sleep(battleMode==='manual'?120:260);
     second._defUp=false;
-    await doAction(second,first,autoAct(second,sLv),sLv,fLv,sSide,fSide);
+    // Second attacker: if it's the player char (rare case), still manual; else auto
+    const act2=await getAction(second);
+    await doAction(second,first,act2,sLv,fLv,sSide,fSide);
     updateSlots(a,b,null);
     if(first._bHp<=0)break;
     await sleep(260);
@@ -1498,7 +1510,8 @@ async function startBattle(){
       const fast=spdA>spdB?a:b,fastLv=spdA>spdB?lvA:lvB,fastSide=spdA>spdB?'a':'b';
       const slow=spdA>spdB?b:a,slowSide=spdA>spdB?'b':'a',slowLv=spdA>spdB?lvB:lvA;
       addLog(`💨 ${fast.kanji}はスピードで追加攻撃！`);
-      await doAction(fast,slow,autoAct(fast,fastLv),fastLv,slowLv,fastSide,slowSide);
+      const extraAct=await getAction(fast);
+      await doAction(fast,slow,extraAct,fastLv,slowLv,fastSide,slowSide);
       updateSlots(a,b,null);
       if(slow._bHp<=0)break;
       await sleep(180);
@@ -1608,9 +1621,9 @@ function resumeRecoveryTimers(){
   characters.forEach(c=>{if(c._recoverStart!==undefined)startRecoveryInterval(c.id);});
 }
 
-async function getAction(char,side){
-  // Check by char ID - player is always battlePair[0]
-  const isPlayerChar=battlePair[0]&&char.id===battlePair[0].id;
+async function getAction(char){
+  // Player char is always battlePair[0] - check by ID regardless of turn order
+  const isPlayerChar=!!(battlePair[0]&&char.id===battlePair[0].id);
   if(isPlayerChar&&battleMode==='manual'){
     return await waitForManual(char);
   }
