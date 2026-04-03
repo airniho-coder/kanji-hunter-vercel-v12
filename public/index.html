@@ -869,7 +869,7 @@ function flipCardHTML(char,showBattleBtn=true){
   const cardBorder=char.rarity==='SR'?'#FFD700':char.rarity==='SSR'?'#ff88ff':rc.color;
   const cardGlow=char.rarity==='SSR'?'rgba(255,100,255,.4)':char.rarity==='SR'?'rgba(255,215,0,.35)':rc.glow+'20';
   const shineEl=char.rarity==='SR'?'<div class="card-sr-shine"></div>':char.rarity==='SSR'?'<div class="card-ssr-holo"></div><div class="card-ssr-holo2"></div>':'';
-  const frontHTML=`<div class="flip-face flip-front" style="background:${cardBg};border:1px solid ${cardBorder}55;box-shadow:0 0 ${char.rarity==='SSR'?40:char.rarity==='SR'?30:22}px ${cardGlow};position:relative;overflow:hidden">
+  const frontHTML=`<div class="flip-face flip-front" style="background:${cardBg};border:1px solid ${cardBorder}55;box-shadow:0 0 ${char.rarity==='SSR'?40:char.rarity==='SR'?30:22}px ${cardGlow};position:relative;overflow:hidden;cursor:pointer" onclick="flipCard(${char.id})">
     ${shineEl}
     <div class="card-front-inner" style="position:relative;z-index:2">
       ${artHTML(char,680)}
@@ -911,7 +911,7 @@ function flipCardHTML(char,showBattleBtn=true){
 
   // BACK: partial art + all info
   const backHTML=`<div class="flip-face flip-back" style="background:${rc.bg};border:1px solid ${rc.color}44;box-shadow:0 0 22px ${rc.glow}20" onclick="event.stopPropagation()">
-    <div class="flip-hint" style="bottom:auto;top:8px" onclick="flipCard(${char.id})">← 戻る</div>
+    <div class="flip-hint" style="bottom:auto;top:8px;cursor:pointer" onclick="event.stopPropagation();flipCard(${char.id})">← 戻る</div>
     <div class="card-back-art-wrap">
       ${char.artImg?`<img src="${char.artImg}" class="card-back-art" alt="">`:`<div style="height:160px;overflow:hidden;filter:brightness(.5)">${generatePixelArt(char)}</div>`}
       <div class="card-back-art-overlay"><div class="card-back-kanji" style="color:${rc.color}">${char.kanji}</div></div>
@@ -956,7 +956,7 @@ function flipCardHTML(char,showBattleBtn=true){
     ${showBattleBtn?`<button class="battle-btn" onclick="event.stopPropagation();selectForBattle(${char.id},event)">⚔️ バトルに出す</button>`:''}
   </div>`;
 
-  return`<div class="flip-card-wrap"><div class="flip-card" id="fc-${char.id}" onclick="flipCard(${char.id})">${frontHTML}${backHTML}</div></div>`;
+  return`<div class="flip-card-wrap"><div class="flip-card" id="fc-${char.id}">${frontHTML}${backHTML}</div></div>`;
 }
 
 function flipCard(id){
@@ -1442,6 +1442,7 @@ async function startBattle(){
   await sleep(100);
   battleResult=null;battleLogs=[];
   const[a,b]=battlePair;
+  const playerCharId=a.id; // Player's char is always battlePair[0]
   const lvA=getLevel(a.exp||0),lvB=getLevel(b.exp||0);
   // Player char (a) uses current HP; opponent (b) always starts fully healed
   // Save opponent's pre-battle state to restore after
@@ -1591,9 +1592,9 @@ function resumeRecoveryTimers(){
 }
 
 async function getAction(char,side){
-  // side==='a' is always the player's character (left slot)
-  // battleMode must be respected regardless of which char is selected
-  if(side==='a'&&battleMode==='manual'){
+  // Check by char ID - player is always battlePair[0]
+  const isPlayerChar=battlePair[0]&&char.id===battlePair[0].id;
+  if(isPlayerChar&&battleMode==='manual'){
     return await waitForManual(char);
   }
   return autoAct(char,getLevel(char.exp||0));
