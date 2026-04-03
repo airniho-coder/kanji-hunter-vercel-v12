@@ -74,7 +74,7 @@ body{display:flex;justify-content:center;}
 
 /* CARD FRONT - minimal info, big art */
 .card-front-inner{position:relative;}
-.card-front-art{width:100%;height:680px;object-fit:contain;object-position:center center;display:block;padding:8px;border-radius:12px;}
+.card-front-art{width:100%;height:680px;object-fit:contain;object-position:center center;display:block;}
 .card-front-art-svg{width:100%;height:680px;display:block;}
 .card-front-overlay{position:absolute;bottom:0;left:0;right:0;
   background:linear-gradient(transparent,rgba(0,0,0,.85));padding:12px 14px 14px;}
@@ -837,7 +837,7 @@ function statRow(label,val,color,max){return`<div class="stat-row"><div class="s
 function elemColor(e){return{火:'#ef4444',水:'#38bdf8',木:'#4ade80',土:'#fbbf24',風:'#a3e635',金:'#f0abfc',闇:'#a78bfa',光:'#fde68a'}[e]||'#fff';}
 
 function artHTML(char,h){
-  if(char.artImg)return`<img src="${char.artImg}" style="width:100%;height:${h}px;object-fit:contain;object-position:center center;display:block;padding:8px;border-radius:12px" alt="">`;
+  if(char.artImg)return`<img src="${char.artImg}" style="width:100%;height:${h}px;object-fit:contain;object-position:center center;display:block" alt="">`;
   if(char.artType==='pixel'||char.rarity==='C'||char.rarity==='N')return`<div style="height:${h}px;overflow:hidden;flex-shrink:0">${generatePixelArt(char)}</div>`;
   return`<div style="height:${h}px;overflow:hidden;flex-shrink:0">${kanjiOnlyDisplay(char)}</div>`;
 }
@@ -871,7 +871,7 @@ function flipCardHTML(char,showBattleBtn=true){
   const shineEl=char.rarity==='SR'?'<div class="card-sr-shine"></div>':char.rarity==='SSR'?'<div class="card-ssr-holo"></div><div class="card-ssr-holo2"></div>':'';
   const frontHTML=`<div class="flip-face flip-front" style="background:${cardBg};border:1px solid ${cardBorder}55;box-shadow:0 0 ${char.rarity==='SSR'?40:char.rarity==='SR'?30:22}px ${cardGlow};position:relative;overflow:hidden">
     ${shineEl}
-    <div class="card-front-inner" style="position:relative;z-index:2;background:rgba(0,0,0,.35);border-radius:14px;margin:6px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 0 20px rgba(0,0,0,.5)">
+    <div class="card-front-inner" style="position:relative;z-index:2">
       ${artHTML(char,680)}
       <div class="card-front-rarity">
         <span class="rarity-badge" style="background:${rc.color}1a;color:${rc.color};border:1px solid ${rc.color}55">${char.rarity}</span>
@@ -897,21 +897,21 @@ function flipCardHTML(char,showBattleBtn=true){
     const item=itemId?itemCards.find(c=>c.id===itemId):null;
     if(item){
       const irc=RARITY[item.rarity]||RARITY.C;
-      return`<div class="equip-slot filled" style="border-color:${irc.color}66;background:${irc.color}0a" onclick="openEquipModal(${char.id},${i},event)">
+      return`<div class="equip-slot filled" style="border-color:${irc.color}66;background:${irc.color}0a" onclick="event.stopPropagation();openEquipModal(${char.id},${i},event)">
         <div class="equip-slot-icon">${CARD_TYPE_ICONS[item.cardType]||'📦'}</div>
         <div class="equip-slot-name">${item.name||item.kanji}</div>
         <div class="equip-slot-rarity" style="color:${irc.color}">${item.rarity}</div>
       </div>`;
     }
-    return`<div class="equip-slot" onclick="openEquipModal(${char.id},${i},event)">
+    return`<div class="equip-slot" onclick="event.stopPropagation();openEquipModal(${char.id},${i},event)">
       <div style="font-size:14px;opacity:.25">＋</div>
       <div class="equip-slot-empty-label">装備</div>
     </div>`;
   }).join('');
 
   // BACK: partial art + all info
-  const backHTML=`<div class="flip-face flip-back" style="background:${rc.bg};border:1px solid ${rc.color}44;box-shadow:0 0 22px ${rc.glow}20">
-    <div class="flip-hint" style="bottom:auto;top:8px">← 戻る</div>
+  const backHTML=`<div class="flip-face flip-back" style="background:${rc.bg};border:1px solid ${rc.color}44;box-shadow:0 0 22px ${rc.glow}20" onclick="event.stopPropagation()">
+    <div class="flip-hint" style="bottom:auto;top:8px" onclick="flipCard(${char.id})">← 戻る</div>
     <div class="card-back-art-wrap">
       ${char.artImg?`<img src="${char.artImg}" class="card-back-art" alt="">`:`<div style="height:160px;overflow:hidden;filter:brightness(.5)">${generatePixelArt(char)}</div>`}
       <div class="card-back-art-overlay"><div class="card-back-kanji" style="color:${rc.color}">${char.kanji}</div></div>
@@ -953,7 +953,7 @@ function flipCardHTML(char,showBattleBtn=true){
       </div>
       <div class="equip-slots">${equipSlots}</div>
     </div>
-    ${showBattleBtn?`<button class="battle-btn" onclick="selectForBattle(${char.id},event)">⚔️ バトルに出す</button>`:''}
+    ${showBattleBtn?`<button class="battle-btn" onclick="event.stopPropagation();selectForBattle(${char.id},event)">⚔️ バトルに出す</button>`:''}
   </div>`;
 
   return`<div class="flip-card-wrap"><div class="flip-card" id="fc-${char.id}" onclick="flipCard(${char.id})">${frontHTML}${backHTML}</div></div>`;
@@ -1319,9 +1319,7 @@ function renderBattleSlot(el,char,isWinner,isLoser,isTurn){
 function selectForBattle(id,evt){
   evt&&evt.stopPropagation();
   const char=characters.find(c=>c.id===id);if(!char)return;
-  // Player selects their character (slot A)
   battlePair[0]=char;
-  // Auto-pick random opponent (any other character)
   const others=characters.filter(c=>c.id!==id);
   if(others.length>0){
     battlePair[1]=others[Math.floor(Math.random()*others.length)];
@@ -1330,6 +1328,9 @@ function selectForBattle(id,evt){
   }
   battleResult=null;
   showTab('battle');
+  // Re-apply battle mode UI state
+  document.getElementById('mode-auto').classList.toggle('active',battleMode==='auto');
+  document.getElementById('mode-manual').classList.toggle('active',battleMode==='manual');
 }
 
 function renderBattleSelect(){
@@ -1590,8 +1591,9 @@ function resumeRecoveryTimers(){
 }
 
 async function getAction(char,side){
-  if(battleMode==='manual'&&side==='a'){
-    // Always show manual actions for left-side character
+  // side==='a' is always the player's character (left slot)
+  // battleMode must be respected regardless of which char is selected
+  if(side==='a'&&battleMode==='manual'){
     return await waitForManual(char);
   }
   return autoAct(char,getLevel(char.exp||0));
