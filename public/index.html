@@ -74,7 +74,7 @@ body{display:flex;justify-content:center;}
 
 /* CARD FRONT - minimal info, big art */
 .card-front-inner{position:relative;}
-.card-front-art{width:100%;height:680px;object-fit:cover;object-position:top center;display:block;}
+.card-front-art{width:100%;height:680px;object-fit:contain;object-position:center center;display:block;padding:8px;border-radius:12px;}
 .card-front-art-svg{width:100%;height:680px;display:block;}
 .card-front-overlay{position:absolute;bottom:0;left:0;right:0;
   background:linear-gradient(transparent,rgba(0,0,0,.85));padding:12px 14px 14px;}
@@ -837,7 +837,7 @@ function statRow(label,val,color,max){return`<div class="stat-row"><div class="s
 function elemColor(e){return{火:'#ef4444',水:'#38bdf8',木:'#4ade80',土:'#fbbf24',風:'#a3e635',金:'#f0abfc',闇:'#a78bfa',光:'#fde68a'}[e]||'#fff';}
 
 function artHTML(char,h){
-  if(char.artImg)return`<img src="${char.artImg}" style="width:100%;height:${h}px;object-fit:cover;object-position:top center;display:block" alt="">`;
+  if(char.artImg)return`<img src="${char.artImg}" style="width:100%;height:${h}px;object-fit:contain;object-position:center center;display:block;padding:8px;border-radius:12px" alt="">`;
   if(char.artType==='pixel'||char.rarity==='C'||char.rarity==='N')return`<div style="height:${h}px;overflow:hidden;flex-shrink:0">${generatePixelArt(char)}</div>`;
   return`<div style="height:${h}px;overflow:hidden;flex-shrink:0">${kanjiOnlyDisplay(char)}</div>`;
 }
@@ -871,7 +871,7 @@ function flipCardHTML(char,showBattleBtn=true){
   const shineEl=char.rarity==='SR'?'<div class="card-sr-shine"></div>':char.rarity==='SSR'?'<div class="card-ssr-holo"></div><div class="card-ssr-holo2"></div>':'';
   const frontHTML=`<div class="flip-face flip-front" style="background:${cardBg};border:1px solid ${cardBorder}55;box-shadow:0 0 ${char.rarity==='SSR'?40:char.rarity==='SR'?30:22}px ${cardGlow};position:relative;overflow:hidden">
     ${shineEl}
-    <div class="card-front-inner" style="position:relative;z-index:2">
+    <div class="card-front-inner" style="position:relative;z-index:2;background:rgba(0,0,0,.35);border-radius:14px;margin:6px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 0 20px rgba(0,0,0,.5)">
       ${artHTML(char,680)}
       <div class="card-front-rarity">
         <span class="rarity-badge" style="background:${rc.color}1a;color:${rc.color};border:1px solid ${rc.color}55">${char.rarity}</span>
