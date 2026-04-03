@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>漢字ハンター</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --gold:#FFD700;--bg:#050508;--text:#e8e0d0;--muted:#6b6455;
+  --ssr-c:#FFD700;--ssr-g:#FF8C00;--ssr-bg:linear-gradient(135deg,#1a0a00,#3d2000);
+  --sr-c:#C084FC;--sr-g:#9333EA;--sr-bg:linear-gradient(135deg,#0d0020,#2d0060);
+  --r-c:#60A5FA;--r-g:#2563EB;--r-bg:linear-gradient(135deg,#00051a,#001060);
+  --n-c:#6EE7B7;--n-g:#10B981;--n-bg:linear-gradient(135deg,#001a0f,#003020);
+  --c-c:#9CA3AF;--c-g:#6B7280;--c-bg:linear-gradient(135deg,#0a0a0a,#1a1a1a);
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto Serif JP',serif;}
+body{display:flex;justify-content:center;}
+#app{width:100%;max-width:480px;min-height:100vh;position:relative;overflow-x:hidden;}
+.bg-deco{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse at 20% 10%,rgba(120,80,20,.15) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 90%,rgba(60,20,120,.15) 0%,transparent 60%);}
+.header{position:sticky;top:0;z-index:100;padding:12px 20px 8px;
+  background:linear-gradient(180deg,rgba(5,5,8,.98) 80%,transparent);
+  border-bottom:1px solid rgba(255,200,80,.15);
+  display:flex;align-items:center;justify-content:space-between;}
+.logo{font-size:22px;font-weight:900;letter-spacing:4px;
+  background:linear-gradient(90deg,#FFD700,#FF8C00,#FFD700);background-size:200% auto;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:shimmer 3s linear infinite;}
+.tabbar{display:flex;position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:480px;background:rgba(5,5,8,.97);
+  border-top:1px solid rgba(255,200,80,.12);z-index:100;backdrop-filter:blur(10px);}
+.tab{flex:1;padding:8px 2px 12px;text-align:center;cursor:pointer;font-size:9px;
+  letter-spacing:1px;color:var(--muted);border-top:2px solid transparent;
+  transition:all .2s;background:none;border-bottom:none;border-left:none;border-right:none;}
+.tab.active{color:var(--gold);border-top-color:var(--gold);}
+.tab-icon{font-size:18px;display:block;margin-bottom:2px;}
+.content{padding-bottom:80px;padding-top:8px;position:relative;z-index:1;}
+.page{display:none;}.page.active{display:block;}
+.sec-title{font-size:11px;letter-spacing:3px;opacity:.4;padding:10px 16px 5px;text-transform:uppercase;}
+
+/* CAMERA */
+.camera-section{padding:14px;}
+.camera-box{border:2px dashed rgba(255,200,80,.3);border-radius:14px;background:rgba(255,200,80,.03);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:175px;cursor:pointer;overflow:hidden;}
+#preview-img{width:100%;max-height:230px;object-fit:cover;border-radius:12px;display:none;}
+.btn{width:100%;padding:13px;border-radius:12px;margin-top:9px;font-family:'Noto Serif JP',serif;
+  font-weight:700;font-size:14px;letter-spacing:2px;border:none;cursor:pointer;transition:all .2s;}
+.btn:active{transform:scale(.97);}
+.btn-gold{background:linear-gradient(135deg,#B8860B,#FFD700,#B8860B);color:#0a0500;box-shadow:0 4px 20px rgba(255,200,80,.3);}
+.btn-green{background:linear-gradient(135deg,#1a3a1a,#2d6b2d,#1a3a1a);color:#7dff7d;}
+.btn-red{background:linear-gradient(135deg,#7f0000,#FF4444,#7f0000);color:#fff;box-shadow:0 4px 20px rgba(255,50,50,.3);}
+.btn-ghost{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#888;}
+.btn-row{display:flex;gap:8px;margin-top:9px;}
+.btn-row .btn{flex:1;margin-top:0;}
+.btn-sm{padding:7px 12px;font-size:11px;letter-spacing:1px;border-radius:8px;width:auto;}
+.btn-blue{background:linear-gradient(135deg,#0a2060,#3b6fd4,#0a2060);color:#a0c4ff;}
+.alert{margin:9px 0 0;padding:9px 12px;border-radius:9px;font-size:11px;line-height:1.7;}
+.alert-error{background:rgba(255,50,50,.1);border:1px solid rgba(255,50,50,.3);color:#ff7777;}
+.alert-warn{background:rgba(255,100,0,.1);border:1px solid rgba(255,150,0,.3);color:#ffaa44;}
+.alert-success{background:rgba(80,255,80,.08);border:1px solid rgba(80,255,80,.25);color:#7dff7d;}
+
+/* ===== FLIP CARD ===== */
+.flip-card-wrap{perspective:1200px;margin-bottom:14px;position:relative;}
+.flip-card{position:relative;transform-style:preserve-3d;transition:transform .55s cubic-bezier(.4,0,.2,1);cursor:pointer;}
+.flip-card.flipped{transform:rotateY(180deg);z-index:50;}
+.flip-card-wrap.active{z-index:50;position:relative;}
+.flip-face{backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:18px;overflow:hidden;}
+.flip-front{position:relative;}
+.flip-back{position:absolute;top:0;left:0;width:100%;transform:rotateY(180deg);}
+.flip-hint{position:absolute;bottom:8px;right:10px;font-size:9px;opacity:.35;letter-spacing:1px;z-index:2;}
+
+/* CARD FRONT - minimal info, big art */
+.card-front-inner{position:relative;}
+.card-front-art{width:100%;height:auto;min-height:300px;max-height:440px;object-fit:contain;object-position:top center;display:block;background:#000;}
+.card-front-art-svg{width:100%;min-height:300px;display:block;}
+.card-front-overlay{position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(transparent,rgba(0,0,0,.85));padding:12px 14px 14px;}
+.card-front-name{font-size:18px;font-weight:900;letter-spacing:1px;margin-bottom:6px;}
+.card-front-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;}
+.front-tag{padding:2px 8px;border-radius:12px;font-size:10px;border:1px solid;letter-spacing:1px;}
+.card-front-bars{display:flex;flex-direction:column;gap:3px;}
+.front-bar-row{display:flex;align-items:center;gap:6px;}
+.front-bar-label{font-size:9px;opacity:.6;width:22px;letter-spacing:1px;}
+.front-bar-track{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.15);overflow:hidden;}
+.front-bar-fill{height:100%;border-radius:2px;}
+.front-bar-val{font-size:9px;font-weight:700;width:30px;text-align:right;opacity:.8;}
+.card-front-rarity{position:absolute;top:10px;left:12px;display:flex;align-items:center;gap:6px;}
+.rarity-badge{padding:3px 9px;border-radius:16px;font-size:11px;font-weight:700;letter-spacing:2px;}
+.stars{letter-spacing:1px;font-size:11px;}
+.card-front-lv{position:absolute;top:10px;right:12px;font-size:11px;opacity:.7;letter-spacing:1px;
+  background:rgba(0,0,0,.5);padding:3px 8px;border-radius:10px;}
+
+/* CARD BACK - full info */
+.card-back-inner{padding:0;}
+.card-back-art-wrap{position:relative;overflow:hidden;height:130px;}
+.card-back-art{width:100%;height:130px;object-fit:cover;object-position:center center;display:block;filter:brightness(.55);}
+.card-back-art-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+.card-back-kanji{font-size:80px;font-weight:900;opacity:.6;}
+.card-back-body{padding:10px 14px 8px;}
+.char-name-back{font-size:16px;font-weight:700;margin-bottom:3px;letter-spacing:1px;}
+.char-sub-back{font-size:10px;opacity:.4;margin-bottom:5px;letter-spacing:1px;}
+.exp-bar-wrap{margin-bottom:6px;}
+.exp-label{display:flex;justify-content:space-between;font-size:9px;opacity:.4;letter-spacing:1px;margin-bottom:2px;}
+.exp-track{height:3px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden;}
+.exp-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#FFD700,#FF8C00);transition:width .8s;}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;}
+.stat-row{display:flex;flex-direction:column;gap:1px;}
+.stat-label{font-size:8px;opacity:.45;letter-spacing:1px;text-transform:uppercase;}
+.stat-top{display:flex;justify-content:space-between;}
+.stat-num{font-size:10px;font-weight:700;}
+.stat-track{height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:1px;}
+.stat-fill{height:100%;border-radius:2px;transition:width 1s;}
+.skills-section{padding:4px 14px 6px;}
+.skills-title{font-size:9px;opacity:.35;letter-spacing:2px;margin-bottom:4px;text-transform:uppercase;}
+.skills-row{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;}
+.skill-chip{padding:3px 8px;border-radius:16px;font-size:9px;letter-spacing:1px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);}
+.context-box{margin:0 14px 7px;padding:8px 11px;border-radius:9px;background:rgba(255,255,255,.04);font-size:10px;line-height:1.7;color:#b0a890;font-style:italic;border-left:3px solid rgba(255,200,80,.3);}
+.lore-text{padding:0 14px 7px;font-size:10px;opacity:.35;letter-spacing:1px;}
+
+/* EQUIPMENT SECTION on card back */
+.equip-section{padding:4px 14px 10px;}
+.equip-title{font-size:9px;opacity:.35;letter-spacing:2px;margin-bottom:6px;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;}
+.equip-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+.equip-slot{border-radius:8px;padding:6px 5px;text-align:center;border:1px dashed rgba(255,255,255,.15);cursor:pointer;transition:all .2s;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.equip-slot.filled{border-style:solid;}
+.equip-slot-icon{font-size:16px;margin-bottom:2px;}
+.equip-slot-name{font-size:8px;opacity:.6;letter-spacing:.5px;line-height:1.2;}
+.equip-slot-rarity{font-size:8px;font-weight:700;}
+.equip-slot-empty-label{font-size:8px;opacity:.3;letter-spacing:.5px;}
+.battle-btn{margin:0 14px 12px;width:calc(100% - 28px);padding:10px;border-radius:9px;
+  background:rgba(255,50,50,.15);border:1px solid rgba(255,50,50,.3);color:#ff8080;
+  font-size:11px;font-weight:700;letter-spacing:2px;cursor:pointer;font-family:'Noto Serif JP',serif;}
+
+/* ===== ITEM CARD ===== */
+.item-card{border-radius:16px;overflow:hidden;margin-bottom:12px;cursor:pointer;}
+.item-card-inner{padding:12px 14px;}
+.item-header{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.item-icon{font-size:32px;flex-shrink:0;}
+.item-header-info{flex:1;}
+.item-name{font-size:15px;font-weight:700;letter-spacing:1px;}
+.item-type-badge{font-size:9px;opacity:.5;letter-spacing:2px;margin-top:2px;}
+.item-kanji{font-size:26px;font-weight:900;flex-shrink:0;}
+.item-effects{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px;}
+.item-effect{display:flex;align-items:center;gap:4px;font-size:10px;}
+.item-effect-label{opacity:.5;font-size:9px;letter-spacing:1px;}
+.item-effect-val{font-weight:700;}
+.item-context{font-size:10px;opacity:.5;font-style:italic;border-left:2px solid rgba(255,200,80,.3);padding-left:8px;line-height:1.6;}
+.item-equip-btn{width:100%;padding:8px;border-radius:8px;margin-top:8px;font-size:11px;font-weight:700;letter-spacing:1px;
+  background:rgba(100,200,100,.15);border:1px solid rgba(100,200,100,.3);color:#7dff7d;cursor:pointer;font-family:'Noto Serif JP',serif;}
+.item-unequip-btn{background:rgba(255,100,50,.15);border-color:rgba(255,100,50,.3);color:#ff9977;}
+
+/* COLLECTION TABS */
+.coll-tabs{display:flex;gap:0;margin:0 14px 10px;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.1);}
+.coll-tab{flex:1;padding:8px 4px;text-align:center;font-size:10px;letter-spacing:1px;cursor:pointer;
+  background:rgba(255,255,255,.03);color:var(--muted);transition:all .2s;border:none;font-family:'Noto Serif JP',serif;}
+.coll-tab.active{background:rgba(255,200,80,.15);color:var(--gold);}
+
+/* BATTLE */
+.battle-arena{padding:14px;}
+.vs-row{display:flex;align-items:stretch;gap:8px;margin-bottom:10px;}
+.vs-label{font-size:20px;font-weight:900;color:#FF4444;text-shadow:0 0 20px rgba(255,0,0,.4);flex-shrink:0;display:flex;align-items:center;}
+.battle-slot{flex:1;border-radius:12px;padding:9px;text-align:center;transition:all .35s;position:relative;overflow:hidden;}
+.battle-slot-empty{flex:1;border-radius:12px;padding:12px;text-align:center;background:rgba(255,255,255,.03);border:2px dashed rgba(255,255,255,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.b-art{width:100%;height:90px;object-fit:cover;object-position:top center;border-radius:7px;margin-bottom:4px;display:block;}
+.b-art-fallback{height:90px;display:flex;align-items:center;justify-content:center;font-size:42px;font-weight:900;margin-bottom:3px;}
+.b-name{font-size:9px;opacity:.6;letter-spacing:1px;}
+.b-tag{font-size:8px;opacity:.4;margin-top:1px;}
+.b-hp-wrap{margin-top:4px;}
+.b-hp-label{display:flex;justify-content:space-between;font-size:8px;opacity:.4;margin-bottom:2px;}
+.b-hp{height:5px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden;}
+.b-hp-fill{height:100%;border-radius:3px;transition:width .4s;}
+.b-mp{height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:2px;}
+.b-mp-fill{height:100%;border-radius:2px;background:#818cf8;transition:width .4s;}
+.b-sp{height:3px;border-radius:2px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:2px;}
+.b-sp-fill{height:100%;border-radius:2px;background:#fbbf24;transition:width .4s;}
+.b-status{font-size:8px;margin-top:2px;min-height:12px;}
+.b-equip-bonus{font-size:8px;opacity:.4;margin-top:1px;}
+.winner-crown{position:absolute;top:3px;right:3px;font-size:14px;animation:bounce .5s infinite alternate;}
+.battle-mode-row{display:flex;gap:8px;margin-bottom:9px;}
+.mode-btn{flex:1;padding:9px;border-radius:9px;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Noto Serif JP',serif;transition:all .2s;border:none;}
+.mode-btn.auto-m{background:rgba(255,200,80,.15);border:1px solid rgba(255,200,80,.3);color:#FFD700;}
+.mode-btn.manual-m{background:rgba(100,200,255,.1);border:1px solid rgba(100,200,255,.3);color:#60A5FA;}
+.mode-btn.active{opacity:1;}
+.mode-btn:not(.active){opacity:.4;}
+.manual-wrap{background:rgba(0,0,0,.3);border-radius:11px;padding:9px;margin-bottom:9px;border:1px solid rgba(255,255,255,.07);}
+.manual-turn{font-size:10px;opacity:.5;text-align:center;margin-bottom:7px;letter-spacing:2px;}
+.act-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.aBtn{padding:9px 5px;border-radius:9px;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Noto Serif JP',serif;transition:all .15s;border:none;text-align:center;line-height:1.3;}
+.aBtn:active{transform:scale(.93);}
+.aBtn:disabled{opacity:.2;cursor:not-allowed;}
+.aAtk{background:rgba(251,146,60,.2);border:1px solid rgba(251,146,60,.4);color:#fb923c;}
+.aDef{background:rgba(56,189,248,.2);border:1px solid rgba(56,189,248,.4);color:#38bdf8;}
+.aMag{background:rgba(129,140,248,.2);border:1px solid rgba(129,140,248,.4);color:#818cf8;}
+.aSkl{background:rgba(255,215,0,.15);border:1px solid rgba(255,215,0,.35);color:#FFD700;}
+.skill-section-label{font-size:8px;opacity:.35;letter-spacing:2px;margin:6px 0 3px;text-transform:uppercase;}
+.skill-btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.battle-log{background:rgba(0,0,0,.35);border-radius:9px;padding:9px 11px;font-size:10px;line-height:2;color:#b0a890;min-height:55px;max-height:120px;overflow-y:auto;border:1px solid rgba(255,255,255,.05);margin-bottom:9px;}
+.affinity-info{text-align:center;font-size:10px;opacity:.45;margin-bottom:7px;letter-spacing:1px;min-height:14px;}
+
+/* EQUIP SELECT MODAL */
+.modal-overlay{position:fixed;inset:0;z-index:250;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;backdrop-filter:blur(4px);}
+.modal-sheet{width:100%;max-width:480px;margin:0 auto;background:#0d0d18;border-radius:18px 18px 0 0;padding:20px 16px 80px;max-height:80vh;overflow-y:auto;}
+.modal-title{font-size:14px;font-weight:700;letter-spacing:2px;margin-bottom:14px;text-align:center;color:var(--gold);}
+.modal-close{position:absolute;top:12px;right:16px;font-size:18px;opacity:.5;cursor:pointer;background:none;border:none;color:var(--text);}
+
+/* EFFECTS */
+.effect-overlay{position:fixed;inset:0;z-index:150;pointer-events:none;overflow:hidden;}
+.effect-text{position:absolute;font-size:28px;font-weight:900;pointer-events:none;animation:efloat 1.2s ease forwards;white-space:nowrap;}
+.shake{animation:shake .3s ease !important;}
+.flash-el{animation:flashEl .25s ease !important;}
+
+/* EXP POPUP */
+.exp-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(5,5,8,.96);border:1px solid rgba(255,200,80,.3);border-radius:14px;padding:20px 24px;text-align:center;z-index:300;display:none;min-width:220px;box-shadow:0 0 40px rgba(255,200,80,.2);}
+.exp-popup.show{display:block;animation:slideUp .3s ease;}
+.lv-flash{font-size:24px;font-weight:900;color:#FFD700;text-shadow:0 0 20px #FF8C00;margin-bottom:7px;}
+
+/* SETUP */
+.setup-page{padding:20px 16px;}
+.setup-title{font-size:18px;font-weight:700;letter-spacing:2px;margin-bottom:7px;background:linear-gradient(90deg,#FFD700,#FF8C00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.api-input{width:100%;padding:11px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,200,80,.2);color:var(--text);font-size:11px;font-family:monospace;margin-bottom:6px;}
+.api-input:focus{outline:none;border-color:var(--gold);}
+.setup-label{font-size:10px;opacity:.4;margin-bottom:3px;margin-top:7px;letter-spacing:1px;}
+
+/* LOADING */
+.loading-overlay{position:fixed;inset:0;z-index:200;background:rgba(5,5,8,.93);display:none;flex-direction:column;align-items:center;justify-content:center;backdrop-filter:blur(8px);}
+.loading-overlay.show{display:flex;}
+.spinner{width:50px;height:50px;border-radius:50%;border:3px solid rgba(255,200,80,.15);border-top-color:var(--gold);animation:spin 1s linear infinite;margin-bottom:14px;}
+.loading-text{font-size:12px;letter-spacing:3px;opacity:.7;color:var(--gold);}
+.loading-sub{font-size:10px;opacity:.3;margin-top:5px;letter-spacing:2px;}
+.empty-state{text-align:center;padding:45px 16px;opacity:.3;font-size:12px;line-height:2;}
+.guide-box{margin-top:12px;padding:12px;border-radius:11px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);}
+.guide-item{font-size:11px;line-height:2.1;opacity:.5;letter-spacing:1px;}
+.card-type-btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:6px 3px;font-size:15px;cursor:pointer;color:var(--text);font-family:'Noto Serif JP',serif;transition:all .2s;line-height:1.2;display:flex;flex-direction:column;align-items:center;gap:2px;}
+.card-type-btn span{font-size:8px;opacity:.6;letter-spacing:.5px;}
+.card-type-btn.active{background:rgba(255,200,80,.2);border-color:rgba(255,200,80,.5);color:var(--gold);}
+.card-type-btn:active{transform:scale(.93);}
+.card-sr-shine{position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,215,0,.2) 50%,transparent 70%);background-size:200% 100%;animation:srShine 2s linear infinite;pointer-events:none;border-radius:18px;z-index:1;}
+.card-ssr-holo{position:absolute;inset:0;background:linear-gradient(105deg,rgba(255,0,128,.12),rgba(255,200,0,.12),rgba(0,255,128,.12),rgba(0,128,255,.12),rgba(255,0,255,.12));background-size:400% 400%;animation:holoShift 3s ease infinite;pointer-events:none;border-radius:18px;mix-blend-mode:screen;z-index:1;}
+.card-ssr-holo2{position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,255,255,.04) 4px,rgba(255,255,255,.04) 8px);pointer-events:none;border-radius:18px;z-index:1;}
+.tooltip-wrap{position:relative;display:inline-block;}
+.tooltip-bubble{display:none;position:absolute;bottom:110%;left:50%;transform:translateX(-50%);background:rgba(10,10,20,.97);border:1px solid rgba(255,200,80,.3);border-radius:10px;padding:8px 12px;font-size:11px;line-height:1.6;z-index:200;color:var(--text);width:180px;box-shadow:0 4px 20px rgba(0,0,0,.5);white-space:normal;}
+.tooltip-bubble::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:rgba(255,200,80,.3);}
+.tooltip-wrap.open .tooltip-bubble{display:block;}
+.battle-fullscreen{position:fixed;inset:0;z-index:180;background:rgba(5,5,8,.98);display:none;flex-direction:column;align-items:center;padding:14px 14px 100px;overflow-y:auto;}
+.battle-fullscreen.active{display:flex;}
+.battle-vs-big{display:flex;gap:10px;width:100%;max-width:480px;margin-bottom:10px;}
+.battle-slot-big{flex:1;border-radius:14px;overflow:hidden;position:relative;}
+.battle-slot-big-art{width:100%;height:185px;object-fit:cover;object-position:top center;display:block;}
+.battle-slot-big-art-fb{height:185px;display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:900;}
+.battle-slot-big-info{padding:7px 9px 8px;}
+.battle-log-big{width:100%;max-width:480px;background:rgba(0,0,0,.4);border-radius:12px;padding:14px;margin-bottom:10px;min-height:60px;border:1px solid rgba(255,255,255,.08);text-align:center;}
+.battle-log-big-line{font-size:15px;line-height:1.9;opacity:0;transition:opacity .5s;margin-bottom:2px;}
+.battle-log-big-line.visible{opacity:1;}
+.battle-actions-big{width:100%;max-width:480px;display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px;}
+.action-big-btn{padding:13px;border-radius:12px;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Noto Serif JP',serif;border:none;transition:all .15s;}
+.action-big-btn:active{transform:scale(.94);}
+.action-big-btn:disabled{opacity:.22;cursor:not-allowed;}
+.skill-magic-grid-big{width:100%;max-width:480px;display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.skill-section-big{font-size:9px;opacity:.35;letter-spacing:2px;margin:5px 0 3px;text-transform:uppercase;width:100%;max-width:480px;}
+.action-flash-overlay{position:fixed;inset:0;z-index:190;pointer-events:none;display:flex;align-items:center;justify-content:center;}
+@keyframes srShine{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes holoShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+@keyframes actionFlashAnim{0%{opacity:0;transform:scale(.4)}25%{opacity:1;transform:scale(1.3)}60%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.7)}}
+.reveal{animation:slideUp .4s ease;}
+.tags-row{display:flex;gap:4px;flex-wrap:wrap;padding:0 14px 7px;}
+.tag{padding:2px 8px;border-radius:16px;font-size:9px;letter-spacing:1px;border:1px solid;}
+
+@keyframes shimmer{0%{background-position:0% center}100%{background-position:200% center}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes slideUp{from{transform:translateY(26px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-4px)}}
+@keyframes efloat{0%{opacity:1;transform:translateY(0) scale(1)}
+@keyframes battleIntro{0%{opacity:0;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}100%{opacity:0;transform:translateY(-70px) scale(1.2)}}
+@keyframes battleIntro{0%{opacity:0;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+@keyframes flashEl{0%,100%{opacity:1}50%{opacity:.08}}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:rgba(255,200,80,.3);border-radius:3px;}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="bg-deco"></div>
+<div class="effect-overlay" id="effect-overlay"></div>
+<div class="action-flash-overlay" id="action-flash-overlay"></div>
+<div class="battle-fullscreen" id="battle-fullscreen">
+  <div class="battle-vs-big" id="bfs-vs"></div>
+  <div class="battle-log-big" id="bfs-log"></div>
+  <div id="bfs-actions" style="width:100%;max-width:480px">
+    <div class="battle-actions-big">
+      <button class="action-big-btn" style="background:rgba(251,146,60,.25);border:1px solid rgba(251,146,60,.5);color:#fb923c" id="bfs-attack" onclick="manualAction('attack')">⚔️ 通常攻撃</button>
+      <button class="action-big-btn" style="background:rgba(56,189,248,.2);border:1px solid rgba(56,189,248,.4);color:#38bdf8" id="bfs-defend" onclick="manualAction('defend')">🛡️ 防御</button>
+    </div>
+    <div class="skill-section-big" id="bfs-skill-label" style="display:none">⚔️ スキル（SP）</div>
+    <div class="skill-magic-grid-big" id="bfs-skills"></div>
+    <div class="skill-section-big" id="bfs-magic-label" style="display:none">🔮 魔法（MP）</div>
+    <div class="skill-magic-grid-big" id="bfs-magics"></div>
+  </div>
+</div>
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">解析中...</div>
+  <div class="loading-sub" id="loading-sub">しばらくお待ちください</div>
+</div>
+<div class="exp-popup" id="exp-popup">
+  <div id="exp-popup-content"></div>
+  <button class="btn btn-gold btn-sm" style="margin-top:10px" onclick="closeExpPopup()">閉じる</button>
+</div>
+<!-- EQUIP MODAL -->
+<div class="modal-overlay" id="equip-modal" style="display:none" onclick="closeEquipModal(event)">
+  <div class="modal-sheet" style="position:relative">
+    <button class="modal-close" onclick="closeEquipModal()">✕</button>
+    <div class="modal-title" id="equip-modal-title">装備を選択</div>
+    <div id="equip-modal-list"></div>
+  </div>
+</div>
+
+<div class="header">
+  <div class="logo">漢字ハンター</div>
+  <div style="font-size:10px;opacity:.4;letter-spacing:2px" id="header-count">0体</div>
+</div>
+
+<div class="content">
+<!-- SETUP -->
+<div class="page active" id="page-setup">
+  <div class="setup-page">
+    <div class="setup-title">⚙️ 初期設定</div>
+    <div style="font-size:12px;opacity:.5;line-height:2;margin-bottom:10px">APIキーを設定してゲームを始めましょう</div>
+    <div class="setup-label">Anthropic APIキー（漢字解析用）</div>
+    <input type="password" class="api-input" id="api-key-input" placeholder="sk-ant-api03-...">
+    <div class="setup-label">Stability AI APIキー（キャラクター画像生成用）</div>
+    <input type="password" class="api-input" id="stability-key-input" placeholder="sk-...">
+    <button class="btn btn-gold" onclick="saveApiKey()">保存してゲームを始める →</button>
+    <div style="font-size:10px;opacity:.35;line-height:1.8;margin-top:9px;">
+      📌 Anthropic: console.anthropic.com<br>🎨 Stability: platform.stability.ai<br>※Stabilityなしでもドット絵で遊べます
+    </div>
+  </div>
+</div>
+
+<!-- CAPTURE -->
+<div class="page" id="page-capture">
+  <div class="camera-section">
+    <div class="sec-title">📚 本から漢字を探す</div>
+    <div class="camera-box" id="camera-box" onclick="document.getElementById('file-input').click()">
+      <div id="camera-placeholder" style="text-align:center;padding:18px">
+        <div style="font-size:38px;margin-bottom:8px">📷</div>
+        <div style="font-size:12px;opacity:.5;letter-spacing:2px">本を撮影する</div>
+        <div style="font-size:9px;opacity:.3;margin-top:3px;letter-spacing:1px">実物の本・書籍のみ有効</div>
+      </div>
+      <img id="preview-img" alt="">
+    </div>
+    <input type="file" id="file-input" accept="image/*" capture="environment" style="display:none" onchange="handleFile(event)">
+    <div id="btn-area" style="display:none">
+      <div style="margin-top:10px;margin-bottom:5px;font-size:10px;opacity:.45;letter-spacing:2px;text-align:center">カード種類を選択</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px" id="card-type-selector">
+        <button class="card-type-btn active" data-type="auto" onclick="setCardType('auto')">🎲<span>おまかせ</span></button>
+        <button class="card-type-btn" data-type="character" onclick="setCardType('character')">👤<span>キャラ</span></button>
+        <button class="card-type-btn" data-type="skill" onclick="setCardType('skill')">⚔️<span>スキル</span></button>
+        <button class="card-type-btn" data-type="magic" onclick="setCardType('magic')">🔮<span>魔法</span></button>
+        <button class="card-type-btn" data-type="weapon" onclick="setCardType('weapon')">🗡️<span>武器</span></button>
+        <button class="card-type-btn" data-type="armor" onclick="setCardType('armor')">🛡️<span>防具</span></button>
+        <button class="card-type-btn" data-type="tool" onclick="setCardType('tool')">🔧<span>道具</span></button>
+        <button class="card-type-btn" data-type="recovery" onclick="setCardType('recovery')">💉<span>回復</span></button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-gold" onclick="analyzeImage()">召喚解析</button>
+        <button class="btn btn-ghost" style="width:auto;padding:13px 14px;margin-top:0" onclick="clearImage()">✕</button>
+      </div>
+    </div>
+    <div id="alert-area"></div>
+    <div id="new-card-area"></div>
+    <div class="guide-box" id="guide-box">
+      <div class="guide-item">📖 実物の本から撮影してください</div>
+      <div class="guide-item">🃏 キャラ・スキル・武器・防具・アイテムが出現</div>
+      <div class="guide-item">🎨 レアリティが高いほど強力なカード</div>
+      <div class="guide-item">⚔️ カードをキャラに装備してバトル強化</div>
+    </div>
+  </div>
+</div>
+
+<!-- COLLECTION -->
+<div class="page" id="page-collection">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px 5px;">
+    <div style="font-size:11px;letter-spacing:3px;opacity:.4;text-transform:uppercase" id="coll-title">コレクション</div>
+  </div>
+  <div class="coll-tabs">
+    <button class="coll-tab active" id="ctab-char" onclick="setCollTab('char')">👤 キャラ</button>
+    <button class="coll-tab" id="ctab-skill" onclick="setCollTab('skill')">⚔️ スキル</button>
+    <button class="coll-tab" id="ctab-magic" onclick="setCollTab('magic')">🔮 魔法</button>
+    <button class="coll-tab" id="ctab-item" onclick="setCollTab('item')">🎒 その他</button>
+  </div>
+  <div id="coll-list"></div>
+</div>
+
+<!-- BATTLE -->
+<div class="page" id="page-battle">
+  <div class="battle-arena">
+    <div class="sec-title">⚔️ バトルアリーナ</div>
+    <div class="vs-row">
+      <div id="slot-a" class="battle-slot-empty"><div style="font-size:22px;opacity:.2">？</div><div style="font-size:8px;opacity:.3;margin-top:3px;letter-spacing:1px">未選択</div></div>
+      <div class="vs-label">VS</div>
+      <div id="slot-b" class="battle-slot-empty"><div style="font-size:22px;opacity:.2">？</div><div style="font-size:8px;opacity:.3;margin-top:3px;letter-spacing:1px">未選択</div></div>
+    </div>
+    <div class="affinity-info" id="affinity-info"></div>
+    <div id="battle-mode-area" style="display:none">
+      <div class="battle-mode-row">
+        <button class="mode-btn auto-m active" id="mode-auto" onclick="setBattleMode('auto')">⚡ AUTO</button>
+        <button class="mode-btn manual-m" id="mode-manual" onclick="setBattleMode('manual')">🎮 マニュアル</button>
+      </div>
+    </div>
+    <div id="battle-hint" style="font-size:10px;opacity:.5;text-align:center;margin-bottom:9px;letter-spacing:1px">出撃するキャラクターを選んでください<br><span style="opacity:.6;font-size:9px">相手はランダムに決まります</span></div>
+    <div id="battle-log-area" style="display:none"><div class="battle-log" id="battle-log"></div></div>
+    <div id="manual-actions-area" style="display:none">
+      <div class="manual-wrap">
+        <div class="manual-turn" id="manual-turn-label">あなたのターン</div>
+        <div class="act-grid">
+          <button class="aBtn aAtk" id="act-attack" onclick="manualAction('attack')">⚔️ 通常攻撃</button>
+          <button class="aBtn aDef" id="act-defend" onclick="manualAction('defend')">🛡️ 防御</button>
+        </div>
+        <div id="skill-area" style="display:none"><div class="skill-section-label">スキル（SP）</div><div class="skill-btn-grid" id="skill-btns"></div></div>
+        <div id="magic-area" style="display:none"><div class="skill-section-label">魔法（MP）</div><div class="skill-btn-grid" id="magic-btns"></div></div>
+      </div>
+    </div>
+    <button id="battle-start-btn" class="btn btn-red" style="display:none;letter-spacing:3px;margin-top:6px" onclick="handleBattleBtn()">戦闘開始 ⚔️</button>
+    <div id="battle-select-area"></div>
+  </div>
+</div>
+</div>
+
+<div class="tabbar" id="tabbar" style="display:none">
+  <button class="tab active" id="tab-capture" onclick="showTab('capture')"><span class="tab-icon">📷</span>召喚</button>
+  <button class="tab" id="tab-collection" onclick="showTab('collection')"><span class="tab-icon">📜</span>コレクション</button>
+  <button class="tab" id="tab-battle" onclick="showTab('battle')"><span class="tab-icon">⚔️</span>バトル</button>
+</div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const RARITY={
+  SSR:{color:'#FFD700',glow:'#FF8C00',bg:'linear-gradient(135deg,#1a0a00,#3d2000)',stars:5},
+  SR: {color:'#C084FC',glow:'#9333EA',bg:'linear-gradient(135deg,#0d0020,#2d0060)',stars:4},
+  R:  {color:'#60A5FA',glow:'#2563EB',bg:'linear-gradient(135deg,#00051a,#001060)',stars:3},
+  N:  {color:'#6EE7B7',glow:'#10B981',bg:'linear-gradient(135deg,#001a0f,#003020)',stars:2},
+  C:  {color:'#9CA3AF',glow:'#6B7280',bg:'linear-gradient(135deg,#0a0a0a,#1a1a1a)',stars:1},
+};
+const JOB_ICONS={'魔法使い':'🧙','剣士':'⚔️','僧侶':'✨','忍者':'🥷','竜騎士':'🐉','吟遊詩人':'🎵','召喚士':'🌀','賢者':'📚','暗黒騎士':'🌑','聖騎士':'🛡️'};
+const ELEM_ICONS={火:'🔥',水:'💧',木:'🌿',土:'🪨',風:'🌀',金:'⚡',闇:'🌑',光:'✨'};
+const RACE_ICONS={人族:'👤',エルフ族:'🧝',ハーフエルフ族:'🧙',ダークエルフ族:'🌑',ホビット族:'🌾',ドワーフ族:'⚒️',魔族:'👿',竜族:'🐲',モンスター族:'👾'};
+const CARD_TYPE_ICONS={character:'👤',skill:'⚔️',magic:'🔮',weapon:'🗡️',armor:'🛡️',tool:'🔧',item:'💊',recovery:'💉'};
+const CARD_TYPE_LABELS={character:'キャラクター',skill:'スキル',magic:'魔法',weapon:'武器',armor:'防具',tool:'道具',item:'アイテム',recovery:'回復薬'};
+// Recovery card templates by rarity
+const RECOVERY_TEMPLATES={
+  hp:{C:{name:'傷薬',heal:0.15,maxUses:2},N:{name:'回復薬',heal:0.25,maxUses:3},R:{name:'上回復薬',heal:0.4,maxUses:3},SR:{name:'エリクサー',heal:0.65,maxUses:4},SSR:{name:'万能薬',heal:1.0,maxUses:5}},
+  mp:{C:{name:'マナ草',heal:0.15,maxUses:2},N:{name:'マナ薬',heal:0.25,maxUses:3},R:{name:'エーテル',heal:0.4,maxUses:3},SR:{name:'マナエリクサー',heal:0.65,maxUses:4},SSR:{name:'魔力の源',heal:1.0,maxUses:5}},
+  sp:{C:{name:'体力草',heal:0.15,maxUses:2},N:{name:'スタミナ薬',heal:0.25,maxUses:3},R:{name:'気力薬',heal:0.4,maxUses:3},SR:{name:'スタミナエリクサー',heal:0.65,maxUses:4},SSR:{name:'不死鳥の羽',heal:1.0,maxUses:5}},
+};
+
+// Equipment slot capacity by rarity at Lv1
+const EQUIP_SLOTS_BY_RARITY={SSR:5,SR:4,R:3,N:2,C:1};
+// Bonus per level (every 2 levels adds 1 slot, max 10)
+function maxEquipSlots(char){
+  const lv=getLevel(char.exp||0);
+  const base=EQUIP_SLOTS_BY_RARITY[char.rarity]||1;
+  return Math.min(10,base+Math.floor((lv-1)/2));
+}
+
+// Affinity
+const STRONG_PAIRS={水:'火',火:'木',木:'風',風:'土',土:'金',金:'水'};
+function affinityMult(a,d){if(STRONG_PAIRS[a]===d)return 1.43;if(STRONG_PAIRS[d]===a)return 0.7;const s=['火','水','木','土','風','金'];if(a==='光'&&s.includes(d))return 0.9;if(a==='光'&&d==='闇')return 1.2;return 1.0;}
+function defenseAffinityMult(a,d){if(STRONG_PAIRS[d]===a)return 0.7;if(d==='闇'&&['火','水','木','土','風','金'].includes(a))return 0.9;if(d==='光'&&a==='闇')return 0.8;return 1.0;}
+function getAffinityDesc(a,b){if(!a||!b)return'';const m=[];if(STRONG_PAIRS[a]===b)m.push(`${ELEM_ICONS[a]}${a}は${b}に強い`);if(STRONG_PAIRS[b]===a)m.push(`${ELEM_ICONS[b]}${b}は${a}に強い`);if(a==='闇')m.push('🌑闇は全属性耐性');if(b==='闇')m.push('🌑闇は全属性耐性');if(a==='光'&&b==='闇')m.push('✨光は闇に有利');if(b==='光'&&a==='闇')m.push('✨光は闇に有利');return m.join(' / ');}
+
+const JOB_STATS={
+  '剣士':    {hp:1.4,mp:0.5,sp:1.2,atk:1.5,def:1.2,spd:1.0,int:0.4,lck:0.8,crit:1.3},
+  '魔法使い':{hp:0.65,mp:1.7,sp:0.7,atk:0.5,def:0.5,spd:0.9,int:1.7,lck:0.9,crit:1.0},
+  '僧侶':    {hp:1.0,mp:1.5,sp:0.8,atk:0.6,def:1.0,spd:0.8,int:1.3,lck:1.1,crit:0.5},
+  '忍者':    {hp:0.75,mp:0.8,sp:1.5,atk:1.2,def:0.6,spd:1.9,int:0.7,lck:1.4,crit:1.6},
+  '竜騎士':  {hp:1.5,mp:0.7,sp:1.1,atk:1.4,def:1.3,spd:0.85,int:0.6,lck:0.7,crit:1.1},
+  '吟遊詩人':{hp:0.85,mp:1.2,sp:1.0,atk:0.7,def:0.8,spd:1.2,int:1.1,lck:1.5,crit:0.9},
+  '召喚士':  {hp:0.75,mp:1.6,sp:0.8,atk:0.6,def:0.6,spd:0.8,int:1.6,lck:1.0,crit:0.8},
+  '賢者':    {hp:0.85,mp:1.5,sp:0.9,atk:0.7,def:0.85,spd:0.9,int:1.6,lck:1.1,crit:1.0},
+  '暗黒騎士':{hp:1.2,mp:1.0,sp:1.0,atk:1.6,def:0.8,spd:0.75,int:0.9,lck:0.5,crit:1.4},
+  '聖騎士':  {hp:1.35,mp:1.1,sp:0.9,atk:0.9,def:1.6,spd:0.7,int:1.0,lck:1.0,crit:0.7},
+};
+const EXP_TABLE=[0,300,700,1300,2100,3100,4400,6000,7900,10100,12600];
+
+// ===== STATE =====
+let apiKey='',stabilityKey='';
+let currentImage=null;
+let characters=[]; // character cards
+let itemCards=[];  // all non-character cards
+let battlePair=[null,null];
+let battleResult=null;
+let battleMode='auto';
+let manualResolve=null;
+let battleLogs=[];
+let collTab='char';
+let equipModalTarget=null; // {charId, slotIndex}
+let selectedCardType='auto';
+
+const SKILL_TYPE_DESC={atk:'物理大攻撃。ATKベース',def:'防御強化+HP回復',buff:'次のATK1.5倍強化'};
+const MAGIC_TYPE_DESC={magic:'魔法攻撃。INTベース',heal:'HP25〜40%回復',debuff:'相手ATK&DEF-30%(2ターン)'};
+function skillTooltip(s){return `<b>${s.name}</b><br>SP:${s.spCost}<br>${SKILL_TYPE_DESC[s.type]||''}${s.desc?'<br>'+s.desc:''}`;}
+function magicTooltip(m){return `<b>${m.name}</b><br>MP:${m.mpCost}<br>${MAGIC_TYPE_DESC[m.type]||''}${m.desc?'<br>'+m.desc:''}`;}
+function toggleTooltip(el){
+  document.querySelectorAll('.tooltip-wrap.open').forEach(e=>{if(e!==el)e.classList.remove('open');});
+  el.classList.toggle('open');
+  if(el.classList.contains('open'))setTimeout(()=>el.classList.remove('open'),3000);
+}
+function setCardType(type){
+  selectedCardType=type;
+  document.querySelectorAll('.card-type-btn').forEach(b=>b.classList.toggle('active',b.dataset.type===type));
+}
+
+// ===== INIT =====
+window.onload=()=>{
+  apiKey=localStorage.getItem('kh_apikey')||'';
+  stabilityKey=localStorage.getItem('kh_stabilitykey')||'';
+  try{characters=JSON.parse(localStorage.getItem('kh_chars')||'[]');}catch(e){characters=[];}
+  try{itemCards=JSON.parse(localStorage.getItem('kh_items')||'[]');}catch(e){itemCards=[];}
+  if(apiKey)showMainApp();
+};
+function saveState(){
+  localStorage.setItem('kh_chars',JSON.stringify(characters));
+  localStorage.setItem('kh_items',JSON.stringify(itemCards));
+}
+function saveApiKey(){
+  const a=document.getElementById('api-key-input').value.trim();
+  const s=document.getElementById('stability-key-input').value.trim();
+  if(!a.startsWith('sk-ant-')){alert('AnthropicのAPIキーは sk-ant- から始まります。');return;}
+  apiKey=a;localStorage.setItem('kh_apikey',a);
+  if(s){stabilityKey=s;localStorage.setItem('kh_stabilitykey',s);}
+  showMainApp();
+}
+function showMainApp(){
+  document.getElementById('page-setup').classList.remove('active');
+  document.getElementById('page-capture').classList.add('active');
+  document.getElementById('tabbar').style.display='flex';
+  updateHeaderCount();
+  resumeRecoveryTimers();
+}
+function showTab(name){
+  ['capture','collection','battle'].forEach(t=>{document.getElementById('page-'+t).classList.remove('active');document.getElementById('tab-'+t).classList.remove('active');});
+  document.getElementById('page-'+name).classList.add('active');document.getElementById('tab-'+name).classList.add('active');
+  if(name==='collection')renderCollection();
+  if(name==='battle')renderBattleSelect();
+}
+function setCollTab(t){
+  collTab=t;
+  ['char','skill','magic','item'].forEach(x=>document.getElementById('ctab-'+x).classList.remove('active'));
+  document.getElementById('ctab-'+t).classList.add('active');
+  renderCollection();
+}
+function updateHeaderCount(){
+  document.getElementById('header-count').textContent=characters.length+'体/'+(itemCards.length)+'枚';
+}
+
+// ===== LEVEL =====
+function getLevel(exp){for(let i=EXP_TABLE.length-1;i>=0;i--){if((exp||0)>=EXP_TABLE[i])return i+1;}return 1;}
+function expToNext(exp){const lv=getLevel(exp);if(lv>=EXP_TABLE.length)return 0;return EXP_TABLE[lv]-(exp||0);}
+function expPct(exp){const lv=getLevel(exp);if(lv>=EXP_TABLE.length)return 100;const b=EXP_TABLE[lv-1]||0;return Math.round(((exp||0)-b)/(EXP_TABLE[lv]-b)*100);}
+function getLvBonus(base,lv){return Math.floor(base*(1+(lv-1)*0.07));}
+function buildStats(job,baseVal){
+  const m=JOB_STATS[job]||{hp:1,mp:1,sp:1,atk:1,def:1,spd:1,int:1,lck:1,crit:1};
+  const b=baseVal||100;
+  return{hp:Math.floor(b*m.hp*3+80),mp:Math.floor(b*m.mp*1.5+30),sp:Math.floor(b*m.sp*1.2+20),atk:Math.floor(b*m.atk),def:Math.floor(b*m.def),spd:Math.floor(b*m.spd),int:Math.floor(b*m.int),lck:Math.floor(b*m.lck),crit:Math.min(30,Math.floor(b*m.crit*0.25))};
+}
+
+// ===== EQUIPMENT BONUSES =====
+function getEquipBonuses(char){
+  // Sum up bonuses from all equipped items
+  const bonus={atk:0,def:0,hp:0,mp:0,sp:0,spd:0,int:0,lck:0,crit:0};
+  const slots=char.equippedSlots||[];
+  slots.forEach(itemId=>{
+    if(!itemId)return;
+    const item=itemCards.find(i=>i.id===itemId);
+    if(!item||!item.bonuses)return;
+    Object.keys(bonus).forEach(k=>{if(item.bonuses[k])bonus[k]+=(item.bonuses[k]||0);});
+  });
+  return bonus;
+}
+function getEffectiveStat(char,stat){
+  const lv=getLevel(char.exp||0);
+  const base=getLvBonus(char[stat]||0,lv);
+  const b=getEquipBonuses(char);
+  return base+(b[stat]||0);
+}
+
+// ===== IMAGE COMPRESSION =====
+async function compressImage(dataUrl,maxW=1200,quality=0.85){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      let w=img.width,h=img.height;
+      if(w<800){const s=800/w;w=800;h=Math.round(h*s);}
+      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+      canvas.width=w;canvas.height=h;
+      const ctx=canvas.getContext('2d');
+      ctx.filter='contrast(1.1) brightness(1.05)';
+      ctx.drawImage(img,0,0,w,h);
+      resolve(canvas.toDataURL('image/jpeg',quality));
+    };
+    img.src=dataUrl;
+  });
+}
+
+// ===== STABILITY IMAGE =====
+function shouldUseAPI(rarity){
+  if(rarity==='C'||rarity==='N')return false;
+  if(rarity==='R')return Math.random()<0.6;
+  return true;
+}
+async function generateItemImage(item){
+  if(!stabilityKey)return null;
+  const typeDesc={skill:'glowing fantasy battle skill rune magic circle',magic:'magical spell scroll tome with runes',weapon:'complete fantasy weapon full view white background',armor:'complete fantasy armor set full view white background',tool:'fantasy adventure tool gadget complete view',item:'fantasy potion or magical object complete view',recovery:'glowing healing potion complete view white background'};
+  const qual={SSR:'legendary ultimate',SR:'epic powerful'}[item.rarity]||'';
+  const prompt=`Dragon Quest JRPG anime style, ${qual} ${typeDesc[item.cardType]||'fantasy item'}, ${item.name}, entire object completely visible, white simple background, colorful vibrant, cel-shaded anime, masterpiece`;
+  try{const res=await fetch('/api/image',{method:'POST',headers:{'Content-Type':'application/json','x-stability-key':stabilityKey},body:JSON.stringify({prompt})});const data=await res.json();return data.image||null;}catch(e){return null;}
+}
+
+async function generateCharImage(char){
+  if(!stabilityKey)return null;
+  const raceDesc={'人族':'human','エルフ族':'elf with very long pointed ears fair skin','ハーフエルフ族':'half-elf slightly pointed ears','ダークエルフ族':'dark elf with dark purple skin long white hair glowing red eyes pointed ears','ホビット族':'hobbit extremely short stature large hairy feet curly hair chubby','ドワーフ族':'dwarf very stocky muscular body long braided beard short height','魔族':'demon with large curved ram horns dark red skin sharp fangs black tail sinister','竜族':'dragonkin with visible green scales on skin small horns slit yellow eyes clawed hands','モンスター族':'monster creature'};
+  const elemBg={火:'volcanic lava cave with fire and embers background',水:'underwater or rainy riverside background blue mist',木:'enchanted forest with glowing green trees background',土:'ancient ruins stone desert background',風:'stormy sky clouds wind swirling background',金:'lightning storm golden battlefield background',闇:'dark dungeon shadowy void purple mist background',光:'heavenly bright temple holy rays of light background'};
+  const jobDesc={'剣士':'warrior gripping sword ready to strike','魔法使い':'wizard casting glowing spell hands raised','忍者':'ninja in mid-air jumping crouching action','僧侶':'priest channeling holy energy arms spread','竜騎士':'dragon knight charging with lance on dragon','吟遊詩人':'bard performing playing instrument dancing','召喚士':'summoner opening magical portal summoning','賢者':'sage reading floating ancient tome gesturing','暗黒騎士':'dark knight swinging black sword attacking','聖騎士':'paladin charging with holy shield raised'};
+  // Scene/pose based on element and artMood for variety
+  const scenes=[
+    'full body dynamic action pose whole character visible from head to toe',
+    'full body battle stance character shown completely head to feet dramatic angle',
+    'full body heroic pose entire figure visible looking determined',
+    'full body jumping leaping attack pose complete figure shown',
+    'full body crouching ready to fight whole character visible',
+  ];
+  const scene=scenes[Math.floor(Math.random()*scenes.length)];
+  const isMonster=char.race==='モンスター族'&&char.monsterType;
+  const gender=char.gender==='女'?'beautiful female':char.gender==='不明'?'':'handsome male';
+  const race=isMonster?`${char.monsterType} monster`:(raceDesc[char.race]||'human');
+  const bg=elemBg[char.element]||'fantasy RPG background';
+  const job=isMonster?'':(jobDesc[char.job]||'warrior');
+  const qual={SSR:'legendary ultimate',SR:'epic powerful',R:'skilled',N:'',C:''}[char.rarity]||'';
+  const mood=char.artMood||'';
+  const prompt=isMonster
+    ?`Akira Toriyama Dragon Quest JRPG anime style, ${qual} ${race} monster, ${mood}, full body monster completely visible from head to toe, ${bg}, colorful fantasy RPG illustration, cel-shaded clean anime lines, masterpiece`
+    :`Akira Toriyama Dragon Quest JRPG anime style, ${gender} ${race} ${job}, ${mood}, ${scene}, face and full body completely visible head to toe, ${bg}, colorful vibrant fantasy RPG character illustration, cel-shaded clean anime lines, ${qual}, masterpiece quality`;
+  try{
+    const res=await fetch('/api/image',{method:'POST',headers:{'Content-Type':'application/json','x-stability-key':stabilityKey},body:JSON.stringify({prompt})});
+    const data=await res.json();
+    return data.image||null;
+  }catch(e){return null;}
+}
+
+// ===== PIXEL ART =====
+// Pixel art templates inspired by classic FF/DQ sprites
+const PIXEL_TEMPLATES={
+  '剣士':(s,b,h,c)=>{const g=Array.from({length:24},()=>Array(16).fill(null));
+    // Helmet
+    for(let cc=6;cc<=9;cc++)g[0][cc]=c;g[1][5]=c;g[1][10]=c;
+    for(let cc=5;cc<=10;cc++)g[1][cc]=h;
+    // Face
+    for(let r=2;r<=4;r++)for(let cc=5;cc<=10;cc++)g[r][cc]=s;
+    g[3][6]=c;g[3][9]=c;
+    // Armor body
+    for(let r=5;r<=11;r++)for(let cc=4;cc<=11;cc++)g[r][cc]=b;
+    g[5][4]=c;g[5][11]=c;g[6][4]=c;g[6][11]=c;
+    // Shield left arm
+    for(let r=6;r<=10;r++){g[r][3]='#888800';g[r][2]='#aaaa00';}
+    g[7][2]='#ffff00';g[8][2]='#ffff00';
+    // Sword right arm
+    for(let r=4;r<=12;r++)g[r][12]=c;
+    g[3][12]='#cccccc';g[4][12]='#cccccc';
+    // Legs
+    for(let r=12;r<=19;r++){g[r][5]=b;g[r][6]=b;g[r][8]=b;g[r][9]=b;}
+    for(let r=12;r<=19;r++){g[r][7]='#222222';}
+    // Boots
+    for(let cc=4;cc<=6;cc++)g[20][cc]='#4a2000';
+    for(let cc=8;cc<=11;cc++)g[20][cc]='#4a2000';
+    return g;},
+  '魔法使い':(s,b,h,c)=>{const g=Array.from({length:24},()=>Array(16).fill(null));
+    // Pointed hat
+    g[0][8]=h;g[1][7]=h;g[1][8]=h;g[1][9]=h;
+    for(let cc=5;cc<=11;cc++)g[2][cc]=h;
+    // Face
+    for(let r=3;r<=5;r++)for(let cc=6;cc<=9;cc++)g[r][cc]=s;
+    g[4][7]=c;g[4][8]=c;
+    // Robe
+    for(let r=6;r<=14;r++)for(let cc=5;cc<=10;cc++)g[r][cc]=b;
+    g[7][4]=b;g[7][11]=b;g[8][4]=b;g[8][11]=b;g[9][4]=b;g[9][11]=b;
+    // Stars on robe
+    g[9][7]='#ffff88';g[11][8]='#ffff88';
+    // Staff
+    for(let r=3;r<=16;r++)g[r][12]=c;
+    g[3][11]=c;g[3][13]=c;g[2][12]=c;
+    // Legs/robe bottom
+    for(let r=15;r<=20;r++)for(let cc=5;cc<=10;cc++)g[r][cc]=b;
+    return g;},
+  '忍者':(s,b,h,c)=>{const g=Array.from({length:24},()=>Array(16).fill(null));
+    // Hood/mask
+    for(let cc=5;cc<=10;cc++)g[0][cc]='#222222';
+    for(let r=1;r<=2;r++)for(let cc=5;cc<=10;cc++)g[r][cc]='#222222';
+    // Eyes only visible
+    g[2][6]=c;g[2][9]=c;
+    // Scarf
+    for(let cc=4;cc<=11;cc++)g[3][cc]='#cc0000';
+    // Ninja suit
+    for(let r=4;r<=12;r++)for(let cc=5;cc<=10;cc++)g[r][cc]='#111111';
+    // Belt
+    for(let cc=5;cc<=10;cc++)g[9][cc]='#888800';
+    // Arms raised (action pose)
+    for(let r=4;r<=8;r++){g[r][3]='#111111';g[r][12]='#111111';}
+    // Kunai in right hand
+    g[5][13]=c;g[4][14]=c;g[6][12]='#aaaaaa';
+    // Legs spread (jump pose)
+    g[13][5]='#111111';g[14][4]='#111111';g[15][3]='#111111';
+    g[13][9]='#111111';g[14][10]='#111111';g[15][11]='#111111';
+    return g;},
+  '僧侶':(s,b,h,c)=>{const g=Array.from({length:24},()=>Array(16).fill(null));
+    // Halo
+    g[0][6]=c;g[0][7]=c;g[0][8]=c;g[0][9]=c;
+    // Face
+    for(let r=1;r<=4;r++)for(let cc=6;cc<=9;cc++)g[r][cc]=s;
+    g[2][7]=c;g[2][8]=c;g[3][7]='#cc8888';
+    // White robe
+    for(let r=5;r<=16;r++)for(let cc=5;cc<=10;cc++)g[r][cc]='#e8e8e8';
+    for(let r=5;r<=10;r++){g[r][4]='#e8e8e8';g[r][11]='#e8e8e8';}
+    // Cross on chest
+    g[7][7]=c;g[7][8]=c;g[8][6]=c;g[8][7]=c;g[8][8]=c;g[8][9]=c;g[9][7]=c;g[9][8]=c;
+    // Staff with crystal
+    for(let r=2;r<=16;r++)g[r][12]='#8B4513';
+    g[2][11]=c;g[2][13]=c;g[1][12]=c;
+    // Legs
+    for(let r=17;r<=21;r++){g[r][6]='#e8e8e8';g[r][7]='#e8e8e8';g[r][8]='#e8e8e8';g[r][9]='#e8e8e8';}
+    return g;},
+  'default':(s,b,h,c)=>{const g=Array.from({length:24},()=>Array(16).fill(null));
+    // Head
+    for(let r=1;r<=4;r++)for(let cc=6;cc<=9;cc++)g[r][cc]=s;
+    for(let cc=5;cc<=10;cc++)g[0][cc]=h;g[1][5]=h;g[1][10]=h;
+    g[2][7]=c;g[2][8]=c;g[3][7]='#c06060';
+    // Body
+    for(let r=5;r<=11;r++)for(let cc=5;cc<=10;cc++)g[r][cc]=b;
+    for(let r=5;r<=10;r++){g[r][4]=b;g[r][11]=b;}
+    // Weapon
+    for(let r=4;r<=13;r++)g[r][12]=c;
+    // Legs
+    for(let r=12;r<=19;r++){g[r][5]=b;g[r][6]=b;g[r][8]=b;g[r][9]=b;}
+    for(let cc=4;cc<=7;cc++)g[20][cc]='#4a2000';
+    for(let cc=8;cc<=11;cc++)g[20][cc]='#4a2000';
+    return g;}
+};
+
+function generatePixelArt(char){
+  const rc=RARITY[char.rarity]||RARITY.C;
+  const c=rc.color,g=rc.glow;
+  const seed=char.kanji.charCodeAt(0)||1234;
+  const px=7; // slightly smaller for more detail
+  const isMonster=char.race==='モンスター族';
+  const isFemale=char.gender==='女';
+  const jobColors={'剣士':'#c04040','魔法使い':'#5050d0','忍者':'#202030','僧侶':'#d0c860','竜騎士':'#3080b0','吟遊詩人':'#c060a0','召喚士':'#8030c0','賢者':'#60c080','暗黒騎士':'#181828','聖騎士':'#d0b030'};
+  const bodyColor=jobColors[char.job]||'#606090';
+  const skinColors={'ダークエルフ族':'#503060','魔族':'#602020','竜族':'#306040','ホビット族':'#d09060','ドワーフ族':'#c07040'};
+  const skinColor=skinColors[char.race]||'#f0b870';
+  const hairPalette=['#80380a','#181858','#183018','#600000','#a0a0a0','#c8a000','#e8e8e8','#c04000'];
+  const hairColor=hairPalette[seed%hairPalette.length];
+
+  let grid;
+  if(isMonster){
+    grid=Array.from({length:24},()=>Array(16).fill(null));
+    // Big monster shape
+    for(let r=0;r<=3;r++)for(let cc=4;cc<=11;cc++)grid[r][cc]=c;
+    grid[1][5]='#ff2020';grid[1][10]='#ff2020'; // eyes
+    grid[2][6]='#ffffff';grid[2][9]='#ffffff';   // fangs
+    for(let r=4;r<=16;r++)for(let cc=3;cc<=12;cc++)grid[r][cc]=c;
+    // Spikes
+    grid[0][4]=c;grid[0][5]=c;grid[0][10]=c;grid[0][11]=c;
+    // Claws
+    for(let r=6;r<=12;r++){grid[r][2]=c;grid[r][13]=c;}
+    grid[13][2]=c;grid[14][1]=c;grid[13][13]=c;grid[14][14]=c;
+    // Legs
+    for(let r=17;r<=21;r++){grid[r][5]=c;grid[r][6]=c;grid[r][9]=c;grid[r][10]=c;}
+  }else{
+    const template=PIXEL_TEMPLATES[char.job]||PIXEL_TEMPLATES['default'];
+    grid=template(skinColor,bodyColor,hairColor,c);
+    // Female variation: longer hair
+    if(isFemale){
+      for(let r=2;r<=6;r++){if(!grid[r][4])grid[r][4]=hairColor;if(!grid[r][11])grid[r][11]=hairColor;}
+    }
+    // Race modifications
+    if(char.race==='エルフ族'||char.race==='ダークエルフ族'||char.race==='ハーフエルフ族'){
+      grid[2][4]=skinColor;grid[3][4]=skinColor;grid[2][11]=skinColor;grid[3][11]=skinColor;
+    }
+    if(char.race==='魔族'){grid[0][7]=c;grid[0][8]=c;} // horns
+    if(char.race==='竜族'){for(let cc=5;cc<=10;cc++)if(!grid[5][cc]||grid[5][cc]===bodyColor)grid[5][cc]='#40a040';}
+    if(char.race==='ドワーフ族'){for(let cc=5;cc<=10;cc++)if(!grid[4][cc])grid[4][cc]='#8B4513';}
+    if(char.race==='ホビット族'){// big feet
+      for(let cc=3;cc<=7;cc++)if(grid[21])grid[21][cc]='#8B4513';
+      for(let cc=8;cc<=12;cc++)if(grid[21])grid[21][cc]='#8B4513';
+    }
+  }
+
+  // Background based on element
+  const bgColors={火:'#2a0800',水:'#001828',木:'#001a08',土:'#1a1000',風:'#081828',金:'#1a1400',闇:'#080010',光:'#1a1808'};
+  const bgColor=bgColors[char.element]||'#050508';
+  const bgAccent={火:'#ff4400',水:'#0044ff',木:'#00aa00',土:'#aa6600',風:'#4488aa',金:'#ffaa00',闇:'#6600aa',光:'#ffff88'}[char.element]||c;
+
+  let rects='';
+  const H=24,W=16;
+  for(let r=0;r<H;r++)for(let cc=0;cc<W;cc++){if(grid[r]&&grid[r][cc])rects+=`<rect x="${cc*px+14}" y="${r*px+4}" width="${px}" height="${px}" fill="${grid[r][cc]}"/>`;}
+
+  // Decorative background pixels
+  let bgDots='';
+  for(let i=0;i<12;i++){const bx=((seed*(i+1)*41)%240)+10,by=((seed*(i+2)*37)%185)+5;bgDots+=`<rect x="${bx}" y="${by}" width="2" height="2" fill="${bgAccent}" opacity="0.3"/>`;}
+
+  return`<svg viewBox="0 0 260 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;image-rendering:pixelated;image-rendering:crisp-edges">
+    <rect width="260" height="200" fill="${bgColor}"/>
+    ${bgDots}
+    <ellipse cx="128" cy="194" rx="50" ry="6" fill="${bgAccent}" opacity="0.2"/>
+    ${rects}
+    <text x="130" y="197" text-anchor="middle" font-size="8" fill="${c}" opacity="0.5" font-family="monospace" letter-spacing="1">${char.charName||char.job} [${char.rarity}]</text>
+  </svg>`;
+}
+
+function kanjiOnlyDisplay(char){
+  const rc=RARITY[char.rarity]||RARITY.C;
+  const c=rc.color,g=rc.glow;
+  const seed=char.kanji.charCodeAt(0)||1234;
+  const circles=Array.from({length:8},(_,i)=>`<circle cx="${20+(seed*(i+1)*37)%220}" cy="${10+(seed*(i+2)*53)%170}" r="${2+(seed*(i+3)*17)%8}" fill="${c}" opacity="${0.03+i*0.018}"/>`).join('');
+  return`<svg viewBox="0 0 260 200" xmlns="http://www.w3.org/2000/svg" style="width:100%"><defs><radialGradient id="kg${char.id}" cx="50%" cy="50%" r="55%"><stop offset="0%" stop-color="${g}" stop-opacity="0.3"/><stop offset="100%" stop-color="#000" stop-opacity="0.95"/></radialGradient></defs><rect width="260" height="200" fill="url(#kg${char.id})"/>${circles}<text x="130" y="120" text-anchor="middle" dominant-baseline="middle" font-size="128" font-weight="900" fill="${c}" opacity="0.2" font-family="Noto Serif JP,serif">${char.kanji}</text><text x="130" y="183" text-anchor="middle" font-size="10" fill="${c}" opacity="0.45" font-family="Noto Serif JP,serif" letter-spacing="3">${char.charName||char.job}</text><ellipse cx="130" cy="193" rx="50" ry="4" fill="${g}" opacity="0.13"/></svg>`;
+}
+
+// ===== RENDER HELPERS =====
+function starsHTML(count,color){return Array.from({length:5}).map((_,i)=>`<span style="opacity:${i<count?1:.12};color:${color}">★</span>`).join('');}
+function statRow(label,val,color,max){return`<div class="stat-row"><div class="stat-top"><span class="stat-label">${label}</span><span class="stat-num">${val}</span></div><div class="stat-track"><div class="stat-fill" style="width:${Math.min(100,Math.round(val/(max||400)*100))}%;background:${color}"></div></div></div>`;}
+function elemColor(e){return{火:'#ef4444',水:'#38bdf8',木:'#4ade80',土:'#fbbf24',風:'#a3e635',金:'#f0abfc',闇:'#a78bfa',光:'#fde68a'}[e]||'#fff';}
+
+function artHTML(char,h){
+  if(char.artImg)return`<img src="${char.artImg}" style="width:100%;height:${h}px;object-fit:cover;object-position:top center;display:block" alt="">`;
+  if(char.artType==='pixel'||char.rarity==='C'||char.rarity==='N')return`<div style="height:${h}px;overflow:hidden">${generatePixelArt(char)}</div>`;
+  return`<div style="height:${h}px;overflow:hidden">${kanjiOnlyDisplay(char)}</div>`;
+}
+
+function tagsHTML(char,rc){
+  const gIcon=char.gender==='女'?'♀':char.gender==='不明'?'？':'♂';
+  const gColor=char.gender==='女'?'#f472b6':char.gender==='不明'?'#9ca3af':'#60A5FA';
+  const raceLabel=char.monsterType?`👾 ${char.monsterType}`:`${RACE_ICONS[char.race]||''}　${char.race}`;
+  const raceColor=char.race==='モンスター族'?'#f87171':rc.color;
+  return[
+    {label:raceLabel,color:raceColor},
+    {label:gIcon+' '+char.gender,color:gColor},
+    {label:(ELEM_ICONS[char.element]||'')+'　'+char.element,color:elemColor(char.element)},
+  ].map(t=>`<span class="tag" style="color:${t.color};border-color:${t.color}44;background:${t.color}0f">${t.label}</span>`).join('');
+}
+
+// ===== FLIP CARD RENDER =====
+function flipCardHTML(char,showBattleBtn=true){
+  const rc=RARITY[char.rarity]||RARITY.C;
+  const lv=getLevel(char.exp||0);
+  const slots=maxEquipSlots(char);
+  const equipped=(char.equippedSlots||[]).filter(Boolean).length;
+  const eAtk=getEffectiveStat(char,'atk'),eDef=getEffectiveStat(char,'def');
+  const eHp=getEffectiveStat(char,'hp'),eMp=getEffectiveStat(char,'mp'),eSp=getEffectiveStat(char,'sp');
+  const maxHp=eHp,maxMp=eMp,maxSp=eSp;
+
+  // FRONT: big art + minimal info
+    const cardBg=char.rarity==='SR'?'linear-gradient(135deg,#1a1200,#2e1e00,#1a1200)':char.rarity==='SSR'?'linear-gradient(135deg,#08000f,#120018,#08000f)':rc.bg;
+  const cardBorder=char.rarity==='SR'?'#FFD700':char.rarity==='SSR'?'#ff88ff':rc.color;
+  const cardGlow=char.rarity==='SSR'?'rgba(255,100,255,.4)':char.rarity==='SR'?'rgba(255,215,0,.35)':rc.glow+'20';
+  const shineEl=char.rarity==='SR'?'<div class="card-sr-shine"></div>':char.rarity==='SSR'?'<div class="card-ssr-holo"></div><div class="card-ssr-holo2"></div>':'';
+  const frontHTML=`<div class="flip-face flip-front" style="background:${cardBg};border:1px solid ${cardBorder}55;box-shadow:0 0 ${char.rarity==='SSR'?40:char.rarity==='SR'?30:22}px ${cardGlow};position:relative;overflow:hidden">
+    ${shineEl}
+    <div class="card-front-inner" style="position:relative;z-index:2">
+      ${artHTML(char,300)}
+      <div class="card-front-rarity">
+        <span class="rarity-badge" style="background:${rc.color}1a;color:${rc.color};border:1px solid ${rc.color}55">${char.rarity}</span>
+        <span class="stars">${starsHTML(rc.stars,rc.color)}</span>
+      </div>
+      <div class="card-front-lv">Lv.${lv}</div>
+      <div class="card-front-overlay">
+        <div class="card-front-name" style="color:${rc.color}">${char.charName}</div>
+        <div class="card-front-tags">${tagsHTML(char,rc)}</div>
+        <div class="card-front-bars">
+          <div class="front-bar-row"><span class="front-bar-label" style="color:#4ade80">HP</span><div class="front-bar-track"><div class="front-bar-fill" style="width:100%;background:#4ade80"></div></div><span class="front-bar-val">${maxHp}</span></div>
+          <div class="front-bar-row"><span class="front-bar-label" style="color:#818cf8">MP</span><div class="front-bar-track"><div class="front-bar-fill" style="width:${Math.round(maxMp/maxHp*100)}%;background:#818cf8"></div></div><span class="front-bar-val">${maxMp}</span></div>
+          <div class="front-bar-row"><span class="front-bar-label" style="color:#fbbf24">SP</span><div class="front-bar-track"><div class="front-bar-fill" style="width:${Math.round(maxSp/maxHp*100)}%;background:#fbbf24"></div></div><span class="front-bar-val">${maxSp}</span></div>
+        </div>
+      </div>
+      <div class="flip-hint" style="position:relative;z-index:3">タップで詳細 →</div>
+    </div>
+  </div>`;
+
+  // Equipment slots HTML
+  const equipSlots=Array.from({length:slots},(_,i)=>{
+    const itemId=(char.equippedSlots||[])[i];
+    const item=itemId?itemCards.find(c=>c.id===itemId):null;
+    if(item){
+      const irc=RARITY[item.rarity]||RARITY.C;
+      return`<div class="equip-slot filled" style="border-color:${irc.color}66;background:${irc.color}0a" onclick="openEquipModal(${char.id},${i},event)">
+        <div class="equip-slot-icon">${CARD_TYPE_ICONS[item.cardType]||'📦'}</div>
+        <div class="equip-slot-name">${item.name||item.kanji}</div>
+        <div class="equip-slot-rarity" style="color:${irc.color}">${item.rarity}</div>
+      </div>`;
+    }
+    return`<div class="equip-slot" onclick="openEquipModal(${char.id},${i},event)">
+      <div style="font-size:14px;opacity:.25">＋</div>
+      <div class="equip-slot-empty-label">装備</div>
+    </div>`;
+  }).join('');
+
+  // BACK: partial art + all info
+  const backHTML=`<div class="flip-face flip-back" style="background:${rc.bg};border:1px solid ${rc.color}44;box-shadow:0 0 22px ${rc.glow}20">
+    <div class="flip-hint" style="bottom:auto;top:8px">← 戻る</div>
+    <div class="card-back-art-wrap">
+      ${char.artImg?`<img src="${char.artImg}" class="card-back-art" alt="">`:`<div style="height:160px;overflow:hidden;filter:brightness(.5)">${generatePixelArt(char)}</div>`}
+      <div class="card-back-art-overlay"><div class="card-back-kanji" style="color:${rc.color}">${char.kanji}</div></div>
+    </div>
+    <div class="card-back-body">
+      <div class="char-name-back" style="color:${rc.color}">${char.charName}</div>
+      <div class="char-sub-back">${JOB_ICONS[char.job]||'⚔️'} ${char.job} / Lv.${lv}</div>
+      <div class="exp-bar-wrap">
+        <div class="exp-label"><span>EXP</span><span>${expToNext(char.exp||0)>0?'次まで'+expToNext(char.exp||0):'MAX'}</span></div>
+        <div class="exp-track"><div class="exp-fill" style="width:${expPct(char.exp||0)}%"></div></div>
+      </div>
+      <div class="stats-grid">
+        ${statRow('HP',eHp,'#4ade80',999)}${statRow('MP',eMp,'#818cf8',400)}
+        ${statRow('SP',eSp,'#fbbf24',400)}${statRow('ATK',eAtk,'#fb923c',400)}
+        ${statRow('DEF',eDef,'#38bdf8',400)}${statRow('SPD',getEffectiveStat(char,'spd'),'#f472b6',400)}
+        ${statRow('INT',getEffectiveStat(char,'int'),'#a78bfa',400)}${statRow('LCK',getEffectiveStat(char,'lck'),'#fde68a',400)}
+        ${statRow('CRIT',getEffectiveStat(char,'crit'),'#f87171',30)}
+      </div>
+    </div>
+    <div class="skills-section">
+      <div class="skills-title">⚔️ スキル（SP）</div>
+      <div class="skills-row">
+        ${(char.innateSkills||char.skills?.slice(0,2)||[]).map(s=>`<span class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:${rc.color}55;color:${rc.color};cursor:pointer">🌟${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></span>`).join('')}
+        ${(char.skills||[]).slice((char.innateSkills||[]).length).map(s=>`<span class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:${rc.color}22;color:${rc.color}88;cursor:pointer">🃏${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></span>`).join('')}
+      </div>
+      <div class="skills-title" style="margin-top:4px">🔮 魔法（MP）</div>
+      <div class="skills-row">
+        ${(char.innateMagics||char.magics?.slice(0,2)||[]).map(m=>`<span class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:#818cf877;color:#818cf8;cursor:pointer">🌟${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></span>`).join('')}
+        ${(char.magics||[]).slice((char.innateMagics||[]).length).map(m=>`<span class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:#818cf822;color:#818cf866;cursor:pointer">🃏${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></span>`).join('')}
+      </div>
+      <div style="font-size:8px;opacity:.3;padding:0 0 4px;letter-spacing:1px">🌟固有 / 🃏カード ✦タップで効果説明</div>
+    </div>
+    ${char.context?`<div class="context-box">「${char.context}」</div>`:''}
+    ${char.lore?`<div class="lore-text">${char.lore}</div>`:''}
+    <div class="equip-section">
+      <div class="equip-title">
+        <span>🎒 装備スロット (${equipped}/${slots})</span>
+        <span style="font-size:9px;opacity:.4">タップで装備</span>
+      </div>
+      <div class="equip-slots">${equipSlots}</div>
+    </div>
+    ${showBattleBtn?`<button class="battle-btn" onclick="selectForBattle(${char.id},event)">⚔️ バトルに出す</button>`:''}
+  </div>`;
+
+  return`<div class="flip-card-wrap"><div class="flip-card" id="fc-${char.id}" onclick="flipCard(${char.id})">${frontHTML}${backHTML}</div></div>`;
+}
+
+function flipCard(id){
+  const el=document.getElementById('fc-'+id);
+  if(!el)return;
+  const wrap=el.closest('.flip-card-wrap');
+  // Remove active from all others
+  document.querySelectorAll('.flip-card-wrap').forEach(w=>w.classList.remove('active'));
+  const wasFlipped=el.classList.contains('flipped');
+  el.classList.toggle('flipped');
+  if(!wasFlipped&&wrap)wrap.classList.add('active');
+}
+
+// ===== ITEM CARD RENDER =====
+// Recovery card fixed art SVGs by rarity
+function recoveryCardArt(rarity,healType){
+  const rc=RARITY[rarity]||RARITY.C;
+  const c=rc.color,g=rc.glow;
+  const arts={
+    hp:{C:'💊',N:'🧪',R:'🍶',SR:'✨',SSR:'💎'},
+    mp:{C:'💧',N:'🔵',R:'💠',SR:'🌊',SSR:'🌌'},
+    sp:{C:'⚡',N:'🌟',R:'💫',SR:'🔆',SSR:'☀️'},
+  };
+  const icon=arts[healType]?.[rarity]||'💊';
+  return`<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style="width:60px;height:60px">
+    <defs><radialGradient id="rg${rarity}${healType}" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="${g}" stop-opacity="0.5"/><stop offset="100%" stop-color="#000" stop-opacity="0.8"/></radialGradient></defs>
+    <rect width="80" height="80" rx="12" fill="url(#rg${rarity}${healType})"/>
+    <text x="40" y="50" text-anchor="middle" font-size="36">${icon}</text>
+  </svg>`;
+}
+
+function itemCardHTML(item,showEquipBtn=false,equippedCharId=null){
+  const rc=RARITY[item.rarity]||RARITY.C;
+  const typeIcon=CARD_TYPE_ICONS[item.cardType]||'📦';
+  const typeLabel=CARD_TYPE_LABELS[item.cardType]||item.cardType;
+  const bonusLines=Object.entries(item.bonuses||{}).filter(([,v])=>v).map(([k,v])=>`<div class="item-effect"><span class="item-effect-label">${k.toUpperCase()}</span><span class="item-effect-val" style="color:${rc.color}">+${v}</span></div>`).join('');
+  const equippedOn=equippedCharId?characters.find(c=>c.id===equippedCharId):null;
+  // Recovery card special display
+  const isRecovery=item.cardType==='recovery';
+  const usesLeft=item.usesLeft!==undefined?item.usesLeft:item.maxUses;
+  const usesBar=isRecovery?`<div style="display:flex;gap:3px;margin-top:6px">${Array.from({length:item.maxUses||1}).map((_,i)=>`<div style="width:16px;height:6px;border-radius:3px;background:${i<usesLeft?rc.color:'rgba(255,255,255,.15)'}"></div>`).join('')}<span style="font-size:9px;opacity:.5;margin-left:4px">${usesLeft}/${item.maxUses}回</span></div>`:'';
+  const itemSrShine=item.rarity==='SR'?'<div class="card-sr-shine"></div>':item.rarity==='SSR'?'<div class="card-ssr-holo"></div><div class="card-ssr-holo2"></div>':'';
+  const itemCardBg=item.rarity==='SR'?'linear-gradient(135deg,#1a1200,#2e1e00,#1a1200)':item.rarity==='SSR'?'linear-gradient(135deg,#08000f,#120018,#08000f)':rc.bg;
+  const itemBorder=item.rarity==='SR'?'#FFD700':item.rarity==='SSR'?'#ff88ff':rc.color;
+  return`<div class="item-card" style="background:${itemCardBg};border:1px solid ${itemBorder}44;box-shadow:0 0 15px ${rc.glow}18;position:relative;overflow:hidden">
+    ${itemSrShine}
+    <div class="item-card-inner" style="position:relative;z-index:2">
+      ${item.artImg?`<img src="${item.artImg}" style="width:100%;height:180px;object-fit:contain;object-position:center;display:block;background:#000;border-radius:10px;margin-bottom:8px" alt="">`:''}
+      <div class="item-header">
+        <div class="item-icon">${isRecovery?recoveryCardArt(item.rarity,item.healType||'hp'):typeIcon}</div>
+        <div class="item-header-info">
+          <div class="item-name" style="color:${rc.color}">${item.name||item.kanji}</div>
+          <div class="item-type-badge">${typeLabel} / ${starsHTML(rc.stars,rc.color)} ${item.rarity}</div>
+          ${isRecovery?usesBar:''}
+        </div>
+        <div class="item-kanji" style="color:${rc.color};text-shadow:0 0 10px ${rc.glow}66">${item.kanji}</div>
+      </div>
+      ${bonusLines?`<div class="item-effects">${bonusLines}</div>`:''}
+      ${item.effectDesc?`<div style="font-size:10px;opacity:.6;margin-bottom:6px">${item.effectDesc}</div>`:''}
+      ${item.context?`<div class="item-context">${item.context}</div>`:''}
+      ${equippedOn?`<div style="font-size:9px;opacity:.4;margin-top:6px;letter-spacing:1px">装備中: ${equippedOn.charName}</div>`:''}
+    </div>
+  </div>`;
+}
+
+// ===== EQUIPMENT MODAL =====
+function openEquipModal(charId,slotIdx,evt){
+  evt&&evt.stopPropagation();
+  const char=characters.find(c=>c.id===charId);if(!char)return;
+  equipModalTarget={charId,slotIdx};
+  const modal=document.getElementById('equip-modal');
+  const list=document.getElementById('equip-modal-list');
+  const currentItemId=(char.equippedSlots||[])[slotIdx];
+  document.getElementById('equip-modal-title').textContent=`スロット${slotIdx+1} の装備`;
+  let html='';
+  if(currentItemId){
+    html+=`<div style="margin-bottom:12px"><button class="btn btn-ghost" onclick="unequipItem(${charId},${slotIdx})" style="font-size:12px;letter-spacing:1px">このスロットを外す</button></div>`;
+  }
+  const available=itemCards.filter(item=>{
+    // Check not already equipped by THIS char in another slot
+    const slots=char.equippedSlots||[];
+    const alreadyEquippedHere=slots.some((id,i)=>i!==slotIdx&&id===item.id);
+    if(alreadyEquippedHere)return false;
+    // Check not equipped by ANY OTHER character
+    const equippedByOther=characters.some(c=>{
+      if(c.id===charId)return false;
+      return(c.equippedSlots||[]).includes(item.id);
+    });
+    if(equippedByOther)return false;
+    return true;
+  });
+  if(available.length===0){html+='<div style="text-align:center;opacity:.3;padding:20px;font-size:13px">装備できるカードがありません</div>';}
+  else{html+=available.map(item=>{
+    const rc=RARITY[item.rarity]||RARITY.C;
+    return`<div style="margin-bottom:8px;cursor:pointer;border-radius:10px;overflow:hidden" onclick="equipItem(${charId},${slotIdx},${item.id})">${itemCardHTML(item)}</div>`;
+  }).join('');}
+  list.innerHTML=html;
+  modal.style.display='flex';
+}
+function closeEquipModal(evt){
+  if(evt&&evt.target!==document.getElementById('equip-modal'))return;
+  document.getElementById('equip-modal').style.display='none';
+  equipModalTarget=null;
+  renderCollection();
+}
+function rebuildCharSkills(char){
+  // Rebuild skills/magics from innate + equipped skill/magic cards
+  const innateS=char.innateSkills||char.skills?.slice(0,2)||[];
+  const innateM=char.innateMagics||char.magics?.slice(0,2)||[];
+  const cardSkills=[],cardMagics=[];
+  (char.equippedSlots||[]).forEach(itemId=>{
+    if(!itemId)return;
+    const item=itemCards.find(i=>i.id===itemId);
+    if(!item)return;
+    if(item.cardType==='skill'&&item.grantSkill)cardSkills.push(item.grantSkill);
+    if(item.cardType==='magic'&&item.grantMagic)cardMagics.push(item.grantMagic);
+  });
+  char.skills=[...innateS,...cardSkills];
+  char.magics=[...innateM,...cardMagics];
+}
+function equipItem(charId,slotIdx,itemId){
+  const char=characters.find(c=>c.id===charId);if(!char)return;
+  if(!char.equippedSlots)char.equippedSlots=[];
+  char.equippedSlots[slotIdx]=itemId;
+  rebuildCharSkills(char);
+  saveState();
+  document.getElementById('equip-modal').style.display='none';
+  equipModalTarget=null;
+  renderCollection();
+}
+function unequipItem(charId,slotIdx){
+  const char=characters.find(c=>c.id===charId);if(!char)return;
+  if(char.equippedSlots)char.equippedSlots[slotIdx]=null;
+  rebuildCharSkills(char);
+  saveState();
+  document.getElementById('equip-modal').style.display='none';
+  equipModalTarget=null;
+  renderCollection();
+}
+
+// ===== FILE HANDLING =====
+function handleFile(e){
+  const file=e.target.files?.[0];if(!file)return;
+  clearAlert();clearNewCard();
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    currentImage=ev.target.result;
+    const img=document.getElementById('preview-img');
+    img.src=currentImage;img.style.display='block';
+    document.getElementById('camera-placeholder').style.display='none';
+    document.getElementById('btn-area').style.display='block';
+    document.getElementById('guide-box').style.display='none';
+  };
+  reader.readAsDataURL(file);
+}
+function clearImage(){
+  currentImage=null;
+  document.getElementById('preview-img').style.display='none';
+  document.getElementById('preview-img').src='';
+  document.getElementById('camera-placeholder').style.display='block';
+  document.getElementById('btn-area').style.display='none';
+  document.getElementById('guide-box').style.display='block';
+  document.getElementById('file-input').value='';
+  clearAlert();clearNewCard();
+}
+
+// ===== ANALYZE =====
+async function analyzeImage(){
+  if(!currentImage)return;
+  showLoading(true,'漢字を解析中...','カード召喚準備');
+  clearAlert();clearNewCard();
+  try{
+    const compressed=await compressImage(currentImage);
+    const base64=compressed.split(',')[1];
+    const jobHints=['魔法使い','剣士','僧侶','忍者','竜騎士','吟遊詩人','召喚士','賢者','暗黒騎士','聖騎士'];
+    const jobHint=jobHints[Math.floor(Math.random()*jobHints.length)];
+    const raceHints=['人族','エルフ族','ハーフエルフ族','ダークエルフ族','ホビット族','ドワーフ族','魔族','竜族','モンスター族','モンスター族'];
+    const raceHint=raceHints[Math.floor(Math.random()*raceHints.length)];
+    const autoHints=['character','character','character','skill','magic','weapon','armor','tool','item','recovery'];
+    const cardTypeHint=selectedCardType==='auto'?autoHints[Math.floor(Math.random()*autoHints.length)]:selectedCardType;
+    const forceType=selectedCardType!=='auto'?selectedCardType:null;
+
+    const prompt=`あなたは漢字ハンターゲームのAIエンジンです。実物の本から撮影した画像を分析してください。
+
+【ステップ1: テキスト読み取り】
+画像内のテキストを注意深く正確に読んでください。
+- 縦書き: 右から左、上から下の順
+- 横書き: 左から右、上から下の順
+⚠️ 読み取れなかった文字は絶対に推測・補完しないこと。見えた文字のみ使用。
+
+【ステップ2: 実物の本チェック】
+デジタル画面ならisRealBook:false。
+
+【ステップ3: 漢字選択】
+読み取ったテキストから最も「レア・特徴的」な漢字を1文字選択。簡単な漢字は避ける。
+
+【ステップ4: カード種類の決定】
+以下のカード種類からひとつ選ぶ（${forceType?'【必須: '+forceType+'を選択してください】':'ヒント:'+cardTypeHint}）:
+- character: キャラクターカード（人物・存在を表す漢字）
+- skill: スキルカード（動作・技を表す漢字）→ キャラに装備するとSPスキルを付与
+- magic: 魔法カード（神秘・自然・力を表す漢字）→ キャラに装備するとMPスキルを付与
+- weapon: 武器カード（攻撃・刃・力を表す漢字）→ ATK/CRIT強化
+- armor: 防具カード（守り・固さを表す漢字）→ DEF/HP強化
+- tool: 道具カード（機能・実用を表す漢字）→ SPD/LCK強化
+- item: アイテムカード（補助・道具を表す漢字）→ MP/SP強化
+- recovery: 回復薬カード（癒し・回復・薬・治を表す漢字）→ HP/MP/SPを回復。使用回数制限あり。healTypeは"hp"/"mp"/"sp"のいずれか
+
+【ステップ5: カード内容の生成】
+全カード共通:
+- rarity: C/N/R/SR/SSR
+- kanji: 選んだ漢字1文字
+- context: ⚠️画像から実際に読み取った文章のみ（20〜60文字）。絶対に存在しない文章を作らない
+- lore: カードの設定・説明（25文字程度）
+
+characterカードのみ追加:
+- job: 選択肢(ヒント:${jobHint}): 魔法使い/剣士/僧侶/忍者/竜騎士/吟遊詩人/召喚士/賢者/暗黒騎士/聖騎士
+- race: 選択肢(ヒント:${raceHint}): 人族/エルフ族/ハーフエルフ族/ダークエルフ族/ホビット族/ドワーフ族/魔族/竜族/モンスター族
+- gender: 男/女/不明
+- element: 火/水/木/土/風/金/闇/光
+- baseVal: 50-200
+- charName: キャラクター名（漢字+称号）
+- monsterType: モンスター族のみ具体名（例:スライム）、それ以外は空文字
+- skills: 固有スキル（最大2個）[{name,spCost:10-50,desc,type:"atk"/"def"/"buff"}]。キャラ固有のもの2個まで
+- magics: 固有魔法（最大2個）[{name,mpCost:10-60,desc,type:"magic"/"heal"/"debuff"}]。キャラ固有のもの2個まで
+- artMood: 英語の画像生成プロンプトヒント
+
+非characterカード:
+- name: カード名（漢字+効果名）
+- bonuses: ステータスボーナスオブジェクト（例:{"atk":30,"crit":5}）
+  weapon: atk/crit中心, armor: def/hp中心, skill: atk/spd中心, magic: int/mp中心, tool: spd/lck中心, item: hp/mp/sp中心
+  レア度に応じてボーナス値: C=5-15, N=10-25, R=20-40, SR=35-60, SSR=50-80
+- effectDesc: 装備効果の説明（15文字程度）
+
+JSONのみ返してください（cardType="character"の例）:
+{"isRealBook":true,"cardType":"character","kanji":"漢","rarity":"SR","job":"魔法使い","race":"エルフ族","gender":"女","element":"火","baseVal":155,"charName":"蒼炎の魔女","monsterType":"","skills":[{"name":"炎刃","spCost":20,"desc":"炎の刃","type":"atk"}],"magics":[{"name":"業火","mpCost":30,"desc":"炎魔法","type":"magic"}],"context":"実際の文章","lore":"設定","artMood":"female elf wizard blue fire","warningMsg":""}
+
+（cardType="weapon"の例）:
+{"isRealBook":true,"cardType":"weapon","kanji":"斬","rarity":"R","name":"斬鉄の大剣","bonuses":{"atk":35,"crit":8},"effectDesc":"ATKとCRITが上昇","context":"実際の文章","lore":"伝説の刃","warningMsg":""}`;
+
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},{type:'text',text:prompt}]}]})});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
+    const text=data.content?.map(b=>b.text||'').join('')||'';
+    const p=JSON.parse(text.replace(/```json|```/g,'').trim());
+    if(!p.isRealBook){showAlert('error','📚 実物の本・書籍から撮影してください。');showLoading(false);return;}
+    if(p.warningMsg)showAlert('warn','⚠️ '+p.warningMsg);
+
+    if(p.cardType==='character'){
+      const stats=buildStats(p.job,p.baseVal||100);
+      const char={id:Date.now(),cardType:'character',kanji:p.kanji,rarity:p.rarity||'N',job:p.job||'剣士',race:p.race||'人族',gender:p.gender||'男',element:p.element||'火',baseVal:p.baseVal||100,...stats,
+      innateSkills:(p.skills||[]).slice(0,2),  // max 2 innate skills
+      innateMagics:(p.magics||[]).slice(0,2),  // max 2 innate magics
+      skills:p.skills||[],  // combined (innate + card) - updated when equipping
+      magics:p.magics||[], // combined
+      monsterType:p.monsterType||'',context:p.context,lore:p.lore,artMood:p.artMood,charName:p.charName,exp:0,artImg:null,artType:null,equippedSlots:[]};
+      if(shouldUseAPI(char.rarity)){
+        showLoading(true,'キャラクター画像を生成中...','DQ風イラストを描いています');
+        char.artImg=await generateCharImage(char);
+      }else{
+        char.artType=char.rarity==='R'&&Math.random()<0.5?'kanji':'pixel';
+      }
+      showNewCard(char,'character');
+    }else if(p.cardType==='recovery'){
+      const tmpl=(RECOVERY_TEMPLATES[p.healType||'hp']||RECOVERY_TEMPLATES.hp)[p.rarity||'N']||RECOVERY_TEMPLATES.hp.N;
+      const item={id:Date.now(),cardType:'recovery',kanji:p.kanji,rarity:p.rarity||'N',name:tmpl.name,healType:p.healType||'hp',healPct:tmpl.heal,maxUses:tmpl.maxUses,usesLeft:tmpl.maxUses,bonuses:{},effectDesc:`${(tmpl.heal*100).toFixed(0)}%回復 x${tmpl.maxUses}回`,context:p.context,lore:p.lore||''};
+      showNewCard(item,'item');
+    }else if(p.cardType==='recovery'){
+      const tmpl=(RECOVERY_TEMPLATES[p.healType||'hp']||RECOVERY_TEMPLATES.hp)[p.rarity||'N']||RECOVERY_TEMPLATES.hp.N;
+      const item={id:Date.now(),cardType:'recovery',kanji:p.kanji,rarity:p.rarity||'N',name:tmpl.name,healType:p.healType||'hp',healPct:tmpl.heal,maxUses:tmpl.maxUses,usesLeft:tmpl.maxUses,bonuses:{},effectDesc:`${Math.round(tmpl.heal*100)}%回復 x${tmpl.maxUses}回`,context:p.context,lore:p.lore||''};
+      showNewCard(item,'item');
+    }else{
+      const item={id:Date.now(),cardType:p.cardType||'item',kanji:p.kanji,rarity:p.rarity||'N',name:p.name||p.kanji,bonuses:p.bonuses||{},effectDesc:p.effectDesc||'',context:p.context,lore:p.lore,artImg:null};
+      if(stabilityKey&&(item.rarity==='SR'||item.rarity==='SSR')){
+        showLoading(true,'アイテム画像を生成中...','イラストを描いています');
+        item.artImg=await generateItemImage(item);
+      }
+      showNewCard(item,'item');
+    }
+  }catch(e){showAlert('error','解析エラー: '+e.message);}
+  showLoading(false);
+}
+
+// ===== NEW CARD DISPLAY =====
+let pendingCard=null,pendingType=null;
+function showNewCard(card,type){
+  pendingCard=card;pendingType=type;
+  let html='';
+  if(type==='character'){
+    html=`<div class="sec-title" style="margin-top:12px">✨ キャラクター召喚！</div><div class="reveal">${flipCardHTML(card,false)}</div><button class="btn btn-green" onclick="registerCard()">コレクションに登録 →</button>`;
+  }else{
+    html=`<div class="sec-title" style="margin-top:12px">✨ ${CARD_TYPE_LABELS[card.cardType]||'カード'}発見！</div><div class="reveal">${itemCardHTML(card)}</div><button class="btn btn-green" onclick="registerCard()">コレクションに登録 →</button>`;
+  }
+  document.getElementById('new-card-area').innerHTML=html;
+}
+function clearNewCard(){document.getElementById('new-card-area').innerHTML='';pendingCard=null;pendingType=null;}
+function registerCard(){
+  if(!pendingCard)return;
+  if(pendingType==='character')characters.push(pendingCard);
+  else itemCards.push(pendingCard);
+  saveState();updateHeaderCount();clearNewCard();clearImage();
+  showTab('collection');
+  setCollTab(pendingType==='character'?'char':['skill','magic'].includes(pendingType)?pendingType:'item');
+}
+
+// ===== COLLECTION RENDER =====
+function renderCollection(){
+  const el=document.getElementById('coll-list');
+  if(collTab==='char'){
+    if(!characters.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">👤</div><div>本から漢字を探して<br>キャラクターを召喚しよう</div></div>';return;}
+    el.innerHTML=characters.map(c=>`<div style="padding:0 14px 2px">${flipCardHTML(c)}</div>`).join('');
+  }else if(collTab==='skill'){
+    const items=itemCards.filter(i=>i.cardType==='skill');
+    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">⚔️</div><div>スキルカードはまだありません</div></div>';return;}
+    el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
+  }else if(collTab==='magic'){
+    const items=itemCards.filter(i=>i.cardType==='magic');
+    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">🔮</div><div>魔法カードはまだありません</div></div>';return;}
+    el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
+  }else{
+    const items=itemCards.filter(i=>!['skill','magic'].includes(i.cardType));
+    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">🎒</div><div>武器・防具・アイテムは<br>まだありません</div></div>';return;}
+    el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
+  }
+}
+
+// ===== BATTLE =====
+function setBattleMode(m){battleMode=m;document.getElementById('mode-auto').classList.toggle('active',m==='auto');document.getElementById('mode-manual').classList.toggle('active',m==='manual');}
+
+function renderBattleSlot(el,char,isWinner,isLoser,isTurn){
+  if(!char){el.className='battle-slot-empty';el.innerHTML='<div style="font-size:22px;opacity:.2">？</div><div style="font-size:8px;opacity:.3;margin-top:3px;letter-spacing:1px">未選択</div>';return;}
+  const rc=RARITY[char.rarity]||RARITY.C;
+  const lv=getLevel(char.exp||0);
+  const maxHp=getEffectiveStat(char,'hp');
+  const maxMp=getEffectiveStat(char,'mp');
+  const maxSp=getEffectiveStat(char,'sp');
+  const hpPct=Math.max(0,Math.round((char._bHp/maxHp)*100));
+  const mpPct=Math.max(0,Math.round((char._bMp/maxMp)*100));
+  const spPct=Math.max(0,Math.round((char._bSp/maxSp)*100));
+  const hpC=hpPct>50?'#4ade80':hpPct>25?'#fb923c':'#ef4444';
+  const bonus=getEquipBonuses(char);
+  const bonusStr=Object.entries(bonus).filter(([,v])=>v>0).map(([k,v])=>`${k}+${v}`).join(' ');
+  el.className='battle-slot';
+  el.style.cssText=`background:${rc.bg};border:1px solid ${rc.color}${isTurn?'99':'2a'};outline:${isWinner?`2px solid ${rc.color}`:'none'};opacity:${isLoser?.38:1};transition:all .3s;flex:1;border-radius:12px;padding:9px;text-align:center;position:relative;overflow:hidden;`;
+  const artEl=char.artImg?`<img src="${char.artImg}" class="b-art" alt="">`:`<div class="b-art-fallback" style="color:${rc.color}">${char.kanji}</div>`;
+  el.innerHTML=`${isWinner?`<div class="winner-crown">👑</div>`:''}${artEl}
+    <div class="b-name" style="color:${rc.color}">${char.charName}</div>
+    <div class="b-tag">Lv.${lv} ${ELEM_ICONS[char.element]||''}</div>
+    ${bonusStr?`<div class="b-equip-bonus">🎒${bonusStr}</div>`:''}
+    ${!char._bHp&&getRecoveryStatus(char)?`<div style="font-size:8px;color:#fb923c;opacity:.8">⏳回復中 ${getRecoveryStatus(char).remaining}分</div>`:''}
+    <div class="b-hp-wrap">
+      <div class="b-hp-label"><span>HP</span><span>${char._bHp||getCharHp(char)}/${maxHp}</span></div>
+      <div class="b-hp"><div class="b-hp-fill" style="width:${hpPct}%;background:${hpC}"></div></div>
+      <div class="b-mp"><div class="b-mp-fill" style="width:${mpPct}%"></div></div>
+      <div class="b-sp"><div class="b-sp-fill" style="width:${spPct}%"></div></div>
+    </div>
+    <div class="b-status" style="color:${rc.color}">${char._status||''}</div>
+    ${isTurn?`<div style="font-size:8px;color:${rc.color};animation:pulse 1s infinite;margin-top:2px">▶ ターン</div>`:''}`;
+}
+
+function selectForBattle(id,evt){
+  evt&&evt.stopPropagation();
+  const char=characters.find(c=>c.id===id);if(!char)return;
+  // Player selects their character (slot A)
+  battlePair[0]=char;
+  // Auto-pick random opponent (any other character)
+  const others=characters.filter(c=>c.id!==id);
+  if(others.length>0){
+    battlePair[1]=others[Math.floor(Math.random()*others.length)];
+  }else{
+    battlePair[1]=null;
+  }
+  battleResult=null;
+  showTab('battle');
+}
+
+function renderBattleSelect(){
+  const isWA=battleResult&&battlePair[0]&&battleResult===battlePair[0].id;
+  const isWB=battleResult&&battlePair[1]&&battleResult===battlePair[1].id;
+  renderBattleSlot(document.getElementById('slot-a'),battlePair[0],isWA,battleResult&&!isWA&&battlePair[0],false);
+  renderBattleSlot(document.getElementById('slot-b'),battlePair[1],isWB,battleResult&&!isWB&&battlePair[1],false);
+  const ready=!!(battlePair[0]&&battlePair[1]);
+  document.getElementById('battle-hint').style.display=ready?'none':'block';
+  document.getElementById('battle-mode-area').style.display=ready?'block':'none';
+  document.getElementById('battle-start-btn').style.display=ready?'block':'none';
+  document.getElementById('battle-start-btn').textContent=battleResult?'別の相手に挑む ⚔️':'戦闘開始 ⚔️';
+  document.getElementById('manual-actions-area').style.display='none';
+  const ai=document.getElementById('affinity-info');
+  if(ready&&battlePair[0]&&battlePair[1]){
+    const d=getAffinityDesc(battlePair[0].element,battlePair[1].element);
+    const randInfo=`🎲 相手はランダム選出（経験値なし・戦後HP復元）`;
+    ai.innerHTML=`${d?d+'<br>':''}${randInfo}`;
+    ai.style.display='block';
+  }else ai.textContent='';
+  const sel=document.getElementById('battle-select-area');
+  if(characters.length>=1){
+    // Show player character selection only
+    sel.innerHTML=`<div class="sec-title" style="margin-top:10px">⚔️ 出撃キャラクターを選択</div>
+      <div style="padding:0 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${characters.map(c=>{
+          const rc=RARITY[c.rarity]||RARITY.C;
+          const lv=getLevel(c.exp||0);
+          const isSelected=battlePair[0]&&battlePair[0].id===c.id;
+          const recov=getRecoveryStatus(c);
+          const hpNow=getCharHp(c);
+          const hpMax=getEffectiveStat(c,'hp');
+          const hpPct=Math.round(hpNow/hpMax*100);
+          const hpColor=hpPct>50?'#4ade80':hpPct>25?'#fb923c':'#ef4444';
+          const artEl=c.artImg
+            ?`<img src="${c.artImg}" style="width:100%;height:90px;object-fit:cover;object-position:top center;border-radius:6px;display:block" alt="">`
+            :`<div style="height:90px;display:flex;align-items:center;justify-content:center;font-size:38px;font-weight:900;color:${rc.color}">${c.kanji}</div>`;
+          return`<div style="border-radius:12px;overflow:hidden;cursor:pointer;background:${rc.bg};border:2px solid ${isSelected?rc.color:rc.color+'33'};transition:all .2s" onclick="selectForBattle(${c.id})">
+            ${artEl}
+            <div style="padding:6px 8px 8px">
+              <div style="font-size:9px;color:${rc.color};letter-spacing:.5px">${c.charName}</div>
+              <div style="font-size:8px;opacity:.4;margin-top:1px">Lv.${lv} ${c.rarity}</div>
+              <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:4px">
+                <div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:2px"></div>
+              </div>
+              ${recov?`<div style="font-size:7px;color:#fb923c;margin-top:2px">⏳${recov.remaining}分で回復</div>`:`<div style="font-size:7px;opacity:.35;margin-top:2px">HP ${hpNow}/${hpMax}</div>`}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }else{
+    sel.innerHTML='<div class="empty-state"><div style="font-size:30px">⚔️</div><div>本から漢字を探して<br>キャラクターを召喚しよう</div></div>';
+  }
+}
+
+// ===== EFFECTS =====
+function spawnEffect(text,color,x,y){const el=document.createElement('div');el.className='effect-text';el.style.cssText=`left:${x-18}px;top:${y}px;color:${color};text-shadow:0 0 10px ${color};`;el.textContent=text;document.getElementById('effect-overlay').appendChild(el);setTimeout(()=>el.remove(),1200);}
+function shakeEl(id){const e=document.getElementById(id);if(!e)return;e.classList.remove('shake');void e.offsetWidth;e.classList.add('shake');setTimeout(()=>e.classList.remove('shake'),350);}
+function flashEl(id){const e=document.getElementById(id);if(!e)return;e.classList.remove('flash-el');void e.offsetWidth;e.classList.add('flash-el');setTimeout(()=>e.classList.remove('flash-el'),300);}
+function getSlotCenter(side){const e=document.getElementById('slot-'+side);if(!e)return{x:200,y:200};const r=e.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/3};}
+
+// ===== BATTLE ENGINE =====
+function addLog(msg,color){
+  battleLogs.push(msg);
+  const el=document.getElementById('battle-log');
+  el.innerHTML=battleLogs.map((l,i)=>`<div style="opacity:${i===battleLogs.length-1?1:.6}">${l}</div>`).join('');
+  el.scrollTop=el.scrollHeight;
+  // Also update fullscreen log if active
+  if(battleMode==='manual'){
+    const bfsLog=document.getElementById('bfs-log');
+    if(bfsLog){
+      bfsLog.innerHTML='';
+      const line=document.createElement('div');
+      line.className='battle-log-big-line';
+      line.style.color=color||'#e8e0d0';
+      line.textContent=msg;
+      bfsLog.appendChild(line);
+      setTimeout(()=>line.classList.add('visible'),50);
+    }
+  }
+}
+function updateSlots(a,b,winnerId){const isWA=winnerId&&winnerId===a.id,isWB=winnerId&&winnerId===b.id;renderBattleSlot(document.getElementById('slot-a'),a,isWA,winnerId&&!isWA,false);renderBattleSlot(document.getElementById('slot-b'),b,isWB,winnerId&&!isWB,false);}
+
+function handleBattleBtn(){
+  if(battleResult&&battlePair[0]){
+    // Re-randomize opponent
+    const others=characters.filter(c=>c.id!==battlePair[0].id);
+    if(others.length>0) battlePair[1]=others[Math.floor(Math.random()*others.length)];
+    battleResult=null;
+    renderBattleSelect();
+    return;
+  }
+  startBattle();
+}
+
+function handleBattleBtn(){
+  if(battleResult&&battlePair[0]){
+    const others=characters.filter(c=>c.id!==battlePair[0].id);
+    if(others.length>0)battlePair[1]=others[Math.floor(Math.random()*others.length)];
+    battleResult=null;renderBattleSelect();return;
+  }
+  startBattle();
+}
+
+async function startBattle(){
+  if(!battlePair[0]||!battlePair[1])return;
+  // Switch to battle tab with animation
+  showTab('battle');
+  await sleep(100);
+  battleResult=null;battleLogs=[];
+  const[a,b]=battlePair;
+  const lvA=getLevel(a.exp||0),lvB=getLevel(b.exp||0);
+  // Player char (a) uses current HP; opponent (b) always starts fully healed
+  // Save opponent's pre-battle state to restore after
+  const bPreHp=getCharHp(b),bPreMp=getCharMp(b),bPreSp=getCharSp(b);
+  a._bHp=getCharHp(a);a._bMp=getCharMp(a);a._bSp=getCharSp(a);a._defUp=false;a._status='';a._leveledUp=false;a._debuffAtk=1;a._debuffDef=1;a._buffAtk=1;
+  b._bHp=getEffectiveStat(b,'hp');b._bMp=getEffectiveStat(b,'mp');b._bSp=getEffectiveStat(b,'sp');b._defUp=false;b._status='';b._leveledUp=false;b._debuffAtk=1;b._debuffDef=1;b._buffAtk=1;
+  addLog(`🎲 ${b.charName}がランダムに選ばれました！（全快状態で参戦）`);
+  document.getElementById('battle-log-area').style.display='block';
+  document.getElementById('battle-log').innerHTML='';
+  document.getElementById('battle-start-btn').style.display='none';
+  document.getElementById('battle-mode-area').style.display='none';
+  document.getElementById('affinity-info').style.display='none';
+  // Battle intro flash
+  const arena=document.querySelector('.battle-arena');
+  if(arena){arena.style.animation='none';void arena.offsetWidth;arena.style.animation='battleIntro .6s ease';}
+  addLog(`⚔️ 戦闘開始！「${a.kanji}(Lv.${lvA})」vs「${b.kanji}(Lv.${lvB})」`);
+  await sleep(500);
+  for(let round=1;round<=40;round++){
+    const spdA=getEffectiveStat(a,'spd'),spdB=getEffectiveStat(b,'spd');
+    const aFirst=spdA>=spdB;
+    const[first,second]=[aFirst?a:b,aFirst?b:a];
+    const[fLv,sLv]=[aFirst?lvA:lvB,aFirst?lvB:lvA];
+    const[fSide,sSide]=[aFirst?'a':'b',aFirst?'b':'a'];
+    const act1=await getAction(first,fSide);
+    first._defUp=false;
+    await doAction(first,second,act1,fLv,sLv,fSide,sSide);
+    updateSlots(a,b,null);
+    if(second._bHp<=0)break;
+    await sleep(battleMode==='manual'?120:260);
+    second._defUp=false;
+    await doAction(second,first,autoAct(second,sLv),sLv,fLv,sSide,fSide);
+    updateSlots(a,b,null);
+    if(first._bHp<=0)break;
+    await sleep(260);
+    if(Math.abs(spdA-spdB)/Math.max(spdA,spdB)>0.35&&Math.random()<0.28){
+      const fast=spdA>spdB?a:b,fastLv=spdA>spdB?lvA:lvB,fastSide=spdA>spdB?'a':'b';
+      const slow=spdA>spdB?b:a,slowSide=spdA>spdB?'b':'a',slowLv=spdA>spdB?lvB:lvA;
+      addLog(`💨 ${fast.kanji}はスピードで追加攻撃！`);
+      await doAction(fast,slow,autoAct(fast,fastLv),fastLv,slowLv,fastSide,slowSide);
+      updateSlots(a,b,null);
+      if(slow._bHp<=0)break;
+      await sleep(180);
+    }
+  }
+  const winner=a._bHp>0?a:b,loser=a._bHp>0?b:a;
+  battleResult=winner.id;
+  addLog(`🏆 「${winner.kanji}」の勝利！`);
+  document.getElementById('manual-actions-area').style.display='none';
+  showBattleFullscreen(false);
+  updateSlots(a,b,winner.id);
+  await sleep(600);
+  // Player char (a) takes damage → start recovery timer
+  startRecovery(battlePair[0]);
+  // Opponent (b) → restore to pre-battle state (no damage carried over)
+  const bCol=characters.find(c=>c.id===b.id);
+  if(bCol){
+    // Clear any recovery state from opponent - restore to what it was before
+    if(bPreHp<getEffectiveStat(bCol,'hp')){
+      bCol._recoverHp=bPreHp;bCol._recoverMp=bPreMp;bCol._recoverSp=bPreSp;
+      bCol._recoverStart=Date.now();bCol._recoverDuration=600000;
+      bCol._currentHp=bPreHp;bCol._currentMp=bPreMp;bCol._currentSp=bPreSp;
+      startRecoveryInterval(bCol.id);
+    }else{
+      // Opponent was at full health before, keep as-is
+      delete bCol._recoverStart;delete bCol._currentHp;delete bCol._currentMp;delete bCol._currentSp;
+    }
+    saveState();
+  }
+  // No EXP for random battle - show result only
+  addLog('🎲 ランダムバトル終了。経験値は獲得できません。');
+  showBattleResult(winner);
+  renderBattleSelect();
+}
+
+function showBattleResult(winner){
+  const rc=RARITY[winner.rarity]||RARITY.C;
+  document.getElementById('exp-popup-content').innerHTML=`
+    <div style="font-size:16px;font-weight:700;color:${rc.color};margin-bottom:5px;letter-spacing:2px">🏆 ${winner.kanji} 勝利！</div>
+    <div style="font-size:12px;opacity:.6;line-height:2">ランダムバトル終了<br><span style="opacity:.5">経験値は獲得できません</span></div>`;
+  document.getElementById('exp-popup').classList.add('show');
+}
+
+// ===== RECOVERY SYSTEM =====
+function startRecovery(char){
+  if(!char)return;
+  const col=characters.find(c=>c.id===char.id);
+  if(!col)return;
+  // Store depleted values
+  col._recoverHp=char._bHp;
+  col._recoverMp=char._bMp;
+  col._recoverSp=char._bSp;
+  col._recoverStart=Date.now();
+  // Full recovery takes 10 minutes (600000ms)
+  col._recoverDuration=600000;
+  saveState();
+  // Start interval
+  startRecoveryInterval(col.id);
+}
+function startRecoveryInterval(charId){
+  // Clear existing interval
+  if(window._recoveryTimers&&window._recoveryTimers[charId]){
+    clearInterval(window._recoveryTimers[charId]);
+  }
+  if(!window._recoveryTimers)window._recoveryTimers={};
+  window._recoveryTimers[charId]=setInterval(()=>{
+    const col=characters.find(c=>c.id===charId);
+    if(!col||col._recoverStart===undefined){clearInterval(window._recoveryTimers[charId]);return;}
+    const elapsed=Date.now()-col._recoverStart;
+    const pct=Math.min(1,elapsed/col._recoverDuration);
+    const maxHp=getEffectiveStat(col,'hp'),maxMp=getEffectiveStat(col,'mp'),maxSp=getEffectiveStat(col,'sp');
+    const startHp=col._recoverHp||0,startMp=col._recoverMp||0,startSp=col._recoverSp||0;
+    col._currentHp=Math.floor(startHp+(maxHp-startHp)*pct);
+    col._currentMp=Math.floor(startMp+(maxMp-startMp)*pct);
+    col._currentSp=Math.floor(startSp+(maxSp-startSp)*pct);
+    if(pct>=1){
+      delete col._recoverStart;delete col._recoverHp;delete col._recoverMp;delete col._recoverSp;
+      delete col._currentHp;delete col._currentMp;delete col._currentSp;
+      clearInterval(window._recoveryTimers[charId]);
+    }
+    saveState();
+    // Update battle slots if visible
+    if(battlePair.some(p=>p&&p.id===charId))renderBattleSelect();
+  },5000); // update every 5 seconds
+}
+function getCharHp(char){
+  if(char._currentHp!==undefined)return char._currentHp;
+  return getEffectiveStat(char,'hp');
+}
+function getCharMp(char){
+  if(char._currentMp!==undefined)return char._currentMp;
+  return getEffectiveStat(char,'mp');
+}
+function getCharSp(char){
+  if(char._currentSp!==undefined)return char._currentSp;
+  return getEffectiveStat(char,'sp');
+}
+function getRecoveryStatus(char){
+  if(!char._recoverStart)return null;
+  const elapsed=Date.now()-char._recoverStart;
+  const pct=Math.min(1,elapsed/char._recoverDuration);
+  const remaining=Math.max(0,Math.ceil((char._recoverDuration-elapsed)/60000));
+  return{pct,remaining};
+}
+// Resume recovery timers on load
+function resumeRecoveryTimers(){
+  characters.forEach(c=>{if(c._recoverStart!==undefined)startRecoveryInterval(c.id);});
+}
+
+async function getAction(char,side){
+  if(battleMode==='manual'&&side==='a'){
+    // Always show manual actions for left-side character
+    return await waitForManual(char);
+  }
+  return autoAct(char,getLevel(char.exp||0));
+}
+function autoAct(char,lv){
+  const hpPct=char._bHp/getEffectiveStat(char,'hp');
+  if(hpPct<0.2&&Math.random()<0.4)return{type:'defend'};
+  const skills=(char.skills||[]).filter(s=>char._bSp>=(s.spCost||0));
+  const magics=(char.magics||[]).filter(m=>char._bMp>=(m.mpCost||0));
+  const all=[...skills.map(s=>({type:'skill',s})),...magics.map(m=>({type:'magic',s:m}))];
+  if(all.length&&Math.random()<0.38){const pick=all[Math.floor(Math.random()*all.length)];return pick;}
+  return{type:'attack'};
+}
+
+async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
+  const atkATK=getEffectiveStat(attacker,'atk')*(attacker._buffAtk||1);
+  const atkINT=getEffectiveStat(attacker,'int')*(attacker._buffAtk||1);
+  const atkCRIT=getEffectiveStat(attacker,'crit');
+  const atkSPD=getEffectiveStat(attacker,'spd');
+  const defDEF=getEffectiveStat(defender,'def')*(defender._defUp?1.9:1)*(defender._debuffDef||1);
+  const maxHp=getEffectiveStat(attacker,'hp');
+  const aElem=attacker.element,dElem=defender.element;
+  const atkMult=affinityMult(aElem,dElem)*( attacker._debuffAtk||1);
+  const defMult=defenseAffinityMult(aElem,dElem);
+  if(attacker._buffAtk&&attacker._buffAtk>1)delete attacker._buffAtk;
+  let dmg=0,msg='',eText='',eColor='#fb923c';
+
+  if(action.type==='attack'){
+    const isCrit=Math.random()*100<atkCRIT;
+    dmg=Math.max(2,Math.floor(atkATK*(0.85+Math.random()*0.3)*(isCrit?1.8:1)*atkMult*defMult-defDEF*0.2));
+    defender._bHp=Math.max(0,defender._bHp-dmg);
+    eText=isCrit?`💥${dmg}!`:`${dmg}`;eColor=isCrit?'#FFD700':'#fb923c';
+    msg=`⚔️ ${attacker.kanji}の攻撃！${dmg}${isCrit?' 会心！':''}ダメージ${atkMult>1?' ⬆属性有利':''}`;
+    shakeEl('slot-'+defSide);
+    if(isCrit)flashAction('💥会心！','#FFD700');
+  }else if(action.type==='magic'){
+    const maxMp=getEffectiveStat(attacker,'mp');const cost=Math.floor(maxMp*0.18);
+    if(attacker._bMp<cost){dmg=Math.max(2,Math.floor(atkATK*0.7-defDEF*0.15));defender._bHp=Math.max(0,defender._bHp-dmg);msg=`⚔️ ${attacker.kanji}（MP不足）${dmg}ダメージ`;eText=`${dmg}`;}
+    else{attacker._bMp=Math.max(0,attacker._bMp-cost);dmg=Math.max(3,Math.floor(atkINT*(0.9+Math.random()*0.3)*atkMult*defMult-defDEF*0.1));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`🔮${dmg}`;eColor='#818cf8';msg=`🔮 ${attacker.kanji}の魔法！${dmg}ダメージ`;flashEl('slot-'+defSide);shakeEl('slot-'+defSide);}
+  }else if(action.type==='skill'&&action.s){
+    const sk=action.s;
+    if(attacker._bSp<sk.spCost){dmg=Math.max(2,Math.floor(atkATK*0.8-defDEF*0.2));defender._bHp=Math.max(0,defender._bHp-dmg);msg=`⚔️ ${attacker.kanji}（SP不足）${dmg}ダメージ`;eText=`${dmg}`;}
+    else{
+      attacker._bSp=Math.max(0,attacker._bSp-sk.spCost);
+      if(sk.type==='atk'){dmg=Math.max(5,Math.floor(atkATK*1.4*(0.9+Math.random()*0.35)*atkMult*defMult-defDEF*0.15));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`⚔️${dmg}!`;eColor='#FFD700';shakeEl('slot-'+defSide);flashEl('slot-'+defSide);msg=`💥 ${attacker.kanji}「${sk.name}」！${dmg}の大ダメージ！`;}
+        if(battleMode==='manual')flashAction(`⚔️必殺技！`,'#FFD700');
+      else if(sk.type==='def'){attacker._defUp=true;attacker._status='🛡️DEF×2';const h=Math.floor(maxHp*0.15);attacker._bHp=Math.min(maxHp,attacker._bHp+h);const sr=Math.floor(getEffectiveStat(attacker,'sp')*0.2);attacker._bSp=Math.min(getEffectiveStat(attacker,'sp'),attacker._bSp+sr);eText=`🛡️+${h}`;eColor='#38bdf8';msg=`🛡️ ${attacker.kanji}「${sk.name}」！防御2倍&HP+${h}&SP+${sr}`;}
+      else if(sk.type==='buff'){attacker._buffAtk=1.5;attacker._status='✨ATK×1.5';const sr=Math.floor(getEffectiveStat(attacker,'sp')*0.15);attacker._bSp=Math.min(getEffectiveStat(attacker,'sp'),attacker._bSp+sr);eText='⬆ATK';eColor='#fbbf24';msg=`✨ ${attacker.kanji}「${sk.name}」！ATK50%強化&SP+${sr}`;}
+    }
+  }else if(action.type==='magic'&&action.s){
+    const mg=action.s;
+    if(attacker._bMp<mg.mpCost){dmg=Math.max(2,Math.floor(atkATK*0.7-defDEF*0.15));defender._bHp=Math.max(0,defender._bHp-dmg);msg=`⚔️ ${attacker.kanji}（MP不足）${dmg}ダメージ`;eText=`${dmg}`;}
+    else{
+      attacker._bMp=Math.max(0,attacker._bMp-mg.mpCost);
+      if(mg.type==='magic'){dmg=Math.max(5,Math.floor(atkINT*1.5*(0.9+Math.random()*0.35)*atkMult*defMult-defDEF*0.1));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`✨${dmg}!`;eColor='#a78bfa';flashEl('slot-'+defSide);shakeEl('slot-'+defSide);msg=`✨ ${attacker.kanji}「${mg.name}」！${dmg}の魔法ダメージ！`;}
+        if(battleMode==='manual')flashAction(`🔮魔法！`,'#a78bfa');
+      else if(mg.type==='heal'){const healPct=0.25+Math.random()*0.15;const h=Math.floor(maxHp*healPct);attacker._bHp=Math.min(maxHp,attacker._bHp+h);eText=`💚+${h}`;eColor='#4ade80';msg=`💚 ${attacker.kanji}「${mg.name}」！HP+${h}（${Math.round(healPct*100)}%）回復！`;}
+      else if(mg.type==='debuff'){defender._status='💀弱体(-30%)';defender._debuffAtk=0.7;defender._debuffDef=0.7;defender._debuffTurns=2;dmg=Math.max(5,Math.floor(atkINT*0.6*atkMult));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`🌑${dmg}`;eColor='#a78bfa';msg=`🌑 ${attacker.kanji}「${mg.name}」！弱体化(ATK&DEF-30%×2ターン)+${dmg}ダメージ！`;}
+    }
+  }else if(action.type==='defend'){
+    attacker._defUp=true;attacker._status='🛡️';
+    const h=Math.floor(maxHp*0.05);attacker._bHp=Math.min(maxHp,attacker._bHp+h);
+    eText='🛡️';eColor='#38bdf8';msg=`🛡️ ${attacker.kanji}は防御！HP+${h}`;
+  }
+
+  // Debuff duration
+  if(defender._debuffTurns!==undefined){defender._debuffTurns--;if(defender._debuffTurns<=0){delete defender._debuffAtk;delete defender._debuffDef;delete defender._debuffTurns;defender._status='';}}
+
+  const pos=getSlotCenter(dmg>0?defSide:atkSide);
+  spawnEffect(eText,eColor,pos.x,pos.y);
+  addLog(msg);
+  await sleep(battleMode==='manual'?140:270);
+}
+
+function waitForManual(char){
+  return new Promise(resolve=>{
+    manualResolve=resolve;
+    // Show fullscreen battle UI
+    showBattleFullscreen(true,char);
+  });
+}
+function showBattleFullscreen(show,playerChar){
+  const fs=document.getElementById('battle-fullscreen');
+  if(!show){fs.classList.remove('active');return;}
+  fs.classList.add('active');
+  if(!playerChar)return;
+  // Render both slots big
+  const [a,b]=battlePair;
+  const bfsVs=document.getElementById('bfs-vs');
+  bfsVs.innerHTML=renderBfsSlot(a,true)+renderBfsSlot(b,false);
+  // Actions
+  document.getElementById('bfs-attack').disabled=false;
+  document.getElementById('bfs-defend').disabled=false;
+  const skills=playerChar.skills||[];
+  const skillLabel=document.getElementById('bfs-skill-label');
+  const skillsDiv=document.getElementById('bfs-skills');
+  if(skills.length){skillLabel.style.display='block';skillsDiv.innerHTML=skills.map((s,i)=>`<button class="action-big-btn" style="background:rgba(255,215,0,.15);border:1px solid rgba(255,215,0,.35);color:#FFD700;font-size:11px" ${playerChar._bSp<s.spCost?'disabled':''} onclick="manualSkill(${i})">⚔️${s.name}<br><span style="font-size:9px;opacity:.6">SP:${s.spCost}</span></button>`).join('');}
+  else{skillLabel.style.display='none';skillsDiv.innerHTML='';}
+  const magics=playerChar.magics||[];
+  const magicLabel=document.getElementById('bfs-magic-label');
+  const magicsDiv=document.getElementById('bfs-magics');
+  if(magics.length){magicLabel.style.display='block';magicsDiv.innerHTML=magics.map((m,i)=>`<button class="action-big-btn" style="background:rgba(129,140,248,.2);border:1px solid rgba(129,140,248,.4);color:#818cf8;font-size:11px" ${playerChar._bMp<m.mpCost?'disabled':''} onclick="manualMagic(${i})">🔮${m.name}<br><span style="font-size:9px;opacity:.6">MP:${m.mpCost}</span></button>`).join('');}
+  else{magicLabel.style.display='none';magicsDiv.innerHTML='';}
+}
+function renderBfsSlot(char,isPlayer){
+  if(!char)return'';
+  const rc=RARITY[char.rarity]||RARITY.C;
+  const hpPct=Math.max(0,Math.round(char._bHp/getEffectiveStat(char,'hp')*100));
+  const mpPct=Math.max(0,Math.round(char._bMp/getEffectiveStat(char,'mp')*100));
+  const hpC=hpPct>50?'#4ade80':hpPct>25?'#fb923c':'#ef4444';
+  const artEl=char.artImg?`<img src="${char.artImg}" class="battle-slot-big-art" alt="">`:`<div class="battle-slot-big-art-fb" style="color:${rc.color};background:${rc.bg}">${char.kanji}</div>`;
+  return`<div class="battle-slot-big" style="background:${rc.bg};border:2px solid ${isPlayer?rc.color:rc.color+'44'}">
+    ${artEl}
+    <div class="battle-slot-big-info">
+      <div style="font-size:10px;color:${rc.color};font-weight:700;letter-spacing:.5px">${char.charName}${isPlayer?' 🎮':' 🤖'}</div>
+      <div style="height:5px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:4px"><div style="height:100%;width:${hpPct}%;background:${hpC};border-radius:3px;transition:width .4s"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;opacity:.5;margin-top:2px"><span>HP ${char._bHp}</span><span>${char._status||''}</span></div>
+      <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:2px"><div style="height:100%;width:${mpPct}%;background:#818cf8;border-radius:2px;transition:width .4s"></div></div>
+    </div>
+  </div>`;
+}
+// Big log display - one line at a time
+async function addBigLog(msg,color){
+  const logDiv=document.getElementById('bfs-log');
+  logDiv.innerHTML='';
+  const line=document.createElement('div');
+  line.className='battle-log-big-line';
+  line.style.color=color||'#e8e0d0';
+  line.textContent=msg;
+  logDiv.appendChild(line);
+  await sleep(50);
+  line.classList.add('visible');
+  await sleep(600);
+}
+// Action flash effect
+async function flashAction(text,color){
+  const overlay=document.getElementById('action-flash-overlay');
+  overlay.innerHTML=`<div style="font-size:52px;font-weight:900;color:${color};text-shadow:0 0 30px ${color};animation:actionFlashAnim .8s ease forwards">${text}</div>`;
+  await sleep(850);
+  overlay.innerHTML='';
+}
+function manualAction(type){
+  showBattleFullscreen(false);
+  document.getElementById('manual-actions-area').style.display='none';
+  if(manualResolve){manualResolve({type});manualResolve=null;}
+}
+function manualSkill(idx){
+  showBattleFullscreen(false);
+  document.getElementById('manual-actions-area').style.display='none';
+  if(manualResolve&&battlePair[0]){manualResolve({type:'skill',s:battlePair[0].skills?.[idx]});manualResolve=null;}
+}
+function manualMagic(idx){
+  showBattleFullscreen(false);
+  document.getElementById('manual-actions-area').style.display='none';
+  if(manualResolve&&battlePair[0]){manualResolve({type:'magic',s:battlePair[0].magics?.[idx]});manualResolve=null;}
+}
+
+function showExpPopup(winner,expGain,lvBefore,lvAfter){
+  const lv=lvAfter>lvBefore;
+  document.getElementById('exp-popup-content').innerHTML=`${lv?`<div class="lv-flash">⬆ LEVEL UP!</div>`:''}
+    <div style="font-size:16px;font-weight:700;color:#FFD700;margin-bottom:5px;letter-spacing:2px">${winner.kanji} 勝利！</div>
+    <div style="font-size:12px;opacity:.6;line-height:2">EXP +${expGain}${lv?`<br><span style="color:#FFD700;font-weight:700">Lv.${lvBefore} → Lv.${lvAfter}<br>装備スロット拡張！</span>`:''}</div>`;
+  document.getElementById('exp-popup').classList.add('show');
+}
+function closeExpPopup(){document.getElementById('exp-popup').classList.remove('show');}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function showLoading(v,t,s){document.getElementById('loading').classList.toggle('show',v);if(t)document.getElementById('loading-text').textContent=t;if(s)document.getElementById('loading-sub').textContent=s;}
+function showAlert(t,m){document.getElementById('alert-area').innerHTML=`<div class="alert alert-${t}">${m}</div>`;}
+function clearAlert(){document.getElementById('alert-area').innerHTML='';}
+</script>
+</body>
+</html>
