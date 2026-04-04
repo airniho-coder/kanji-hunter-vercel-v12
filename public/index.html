@@ -267,8 +267,8 @@ body{display:flex;justify-content:center;}
 @keyframes introSlide{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
 @keyframes vsPulse{from{transform:scale(1)}to{transform:scale(1.15)}}
 @keyframes resultFade{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
-.battle-vs-big{display:flex;gap:6px;width:calc(100% - 40px);max-width:400px;margin:0 20px 10px;overflow:visible;}
-.battle-slot-big{flex:1;border-radius:14px;overflow:visible;position:relative;margin:4px;transform-origin:center center;}
+.battle-vs-big{display:flex;gap:10px;width:100%;max-width:480px;margin-bottom:10px;overflow:visible;}
+.battle-slot-big{flex:1;border-radius:14px;overflow:visible;position:relative;}
 .card-effect-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5;border-radius:14px;}
 .card-effect-text{font-size:64px;font-weight:900;opacity:0;text-shadow:0 0 20px currentColor;}
 .card-effect-text.pop{animation:cardEffectPop .7s ease forwards;}
@@ -281,8 +281,8 @@ body{display:flex;justify-content:center;}
 .magic-circle.show{animation:magicCircleAnim .8s ease forwards;}
 @keyframes cardEffectPop{0%{opacity:0;transform:scale(.3)}30%{opacity:1;transform:scale(1.3)}60%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.8)}}
 @keyframes magicCircleAnim{0%{opacity:0;transform:scale(.2) rotate(0deg)}40%{opacity:.9;transform:scale(1.1) rotate(180deg)}70%{opacity:.8;transform:scale(1) rotate(270deg)}100%{opacity:0;transform:scale(1.2) rotate(360deg)}}
-.battle-slot-big-art{width:100%;height:80px;object-fit:cover;object-position:top center;display:block;border-radius:8px 8px 0 0;}
-.battle-slot-big-art-fb{height:80px;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:900;}
+.battle-slot-big-art{width:100%;height:185px;object-fit:cover;object-position:top center;display:block;border-radius:12px 12px 0 0;}
+.battle-slot-big-art-fb{height:185px;display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:900;}
 .battle-slot-big-info{padding:7px 9px 8px;}
 .battle-log-big{width:100%;max-width:480px;background:rgba(0,0,0,.5);border-radius:12px;padding:14px;margin-bottom:10px;min-height:80px;border:1px solid rgba(255,255,255,.1);text-align:center;display:flex;flex-direction:column;justify-content:center;gap:6px;}
 .battle-log-big-line{font-size:15px;line-height:1.7;opacity:0;transition:opacity .4s;margin-bottom:0;}
@@ -2154,16 +2154,20 @@ function cardEffect(side, type, color, label){
 function shakeBfsSlot(side,size){
   const el=document.getElementById('bfs-slot-'+side);
   if(!el)return;
-  // CSSアニメーション不使用 - JS直接制御
-  const steps = size==='large'?[8,-8,6,-6,4,-4,2,0]:size==='small'?[3,-3,2,0]:[5,-5,4,-4,2,0];
-  const interval = size==='large'?55:size==='small'?50:55;
-  let i=0;
-  el.style.transition='none';
-  const timer=setInterval(()=>{
-    if(i>=steps.length){clearInterval(timer);el.style.transform='';return;}
-    el.style.transform=`translateX(${steps[i]}px)`;
-    i++;
-  },interval);
+  // 明滅エフェクト（opacity変化）- transformは使わない
+  const times = size==='large'?5:size==='small'?2:3;
+  const dur = size==='large'?80:size==='small'?70:75;
+  let count=0;
+  el.style.transition=`opacity ${dur}ms ease`;
+  const blink=setInterval(()=>{
+    el.style.opacity = (count%2===0)?'0.15':'1';
+    count++;
+    if(count>=times*2){
+      clearInterval(blink);
+      el.style.opacity='1';
+      el.style.transition='';
+    }
+  },dur);
 }
 function disableBfsActions(){
   // Hide action buttons while processing - don't close fullscreen
