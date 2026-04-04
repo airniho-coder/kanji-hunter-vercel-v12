@@ -1849,7 +1849,12 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
 
   const atkATK=getEffectiveStat(attacker,'atk')*(attacker._buffAtk||1);
   const atkINT=getEffectiveStat(attacker,'int')*(attacker._buffAtk||1);
-  const atkCRIT=getEffectiveStat(attacker,'crit');
+  const atkLCK=getEffectiveStat(attacker,'lck');
+  const defLCK=getEffectiveStat(defender,'lck');
+  // LCK → CRIT bonus (LCK/20 %) + base CRIT
+  const atkCRIT=getEffectiveStat(attacker,'crit') + atkLCK/20;
+  // Defender LCK → dodge chance (LCK/10 %, max 25%)
+  const dodgeChance=Math.min(25, defLCK/10);
   const defDEF=getEffectiveStat(defender,'def')*(defender._defUp?1.9:1)*(defender._debuffDef||1);
   const maxHp=getEffectiveStat(attacker,'hp');
   const aElem=attacker.element,dElem=defender.element;
@@ -2064,7 +2069,8 @@ function renderBfsSlot(char,isPlayer){
     <div class="card-effect-overlay" id="${slotId}-fx"></div>
     ${artEl}
     <div class="battle-slot-big-info">
-      <div style="font-size:10px;color:${rc.color};font-weight:700;letter-spacing:.5px">${char.charName}${isPlayer?' 🎮':' 🤖'}${char._status?` <span style="font-size:8px;opacity:.7">${char._status}</span>`:''}</div>
+      <div style="font-size:10px;color:${rc.color};font-weight:700;letter-spacing:.5px">${char.charName}${isPlayer?' 🎮':' 🤖'}</div>
+      ${char._status?`<div style="font-size:8px;color:${rc.color};opacity:.8;margin-top:1px">${char._status}</div>`:''}
       <div style="display:flex;justify-content:space-between;font-size:8px;margin-top:4px;opacity:.8"><span style="color:#4ade80">HP</span><span>${char._bHp}/${maxHp}</span></div>
       <div style="height:5px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:1px"><div style="height:100%;width:${hpPct}%;background:${hpC};border-radius:3px;transition:width .4s"></div></div>
       <div style="display:flex;justify-content:space-between;font-size:8px;margin-top:3px;opacity:.8"><span style="color:#818cf8">MP</span><span>${char._bMp}/${maxMp}</span></div>
