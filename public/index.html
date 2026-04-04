@@ -625,7 +625,7 @@ function saveState(){
 function saveApiKey(){
   const a=document.getElementById('api-key-input').value.trim();
   const s=document.getElementById('stability-key-input').value.trim();
-  if(!a.startsWith('sk-ant-')){alert('AnthropicのAPIキーは sk-ant- から始まります。');return;}
+  if(!a||a.length<20){alert('APIキーを正しく入力してください。');return;}
   apiKey=a;localStorage.setItem('kh_apikey',a);
   if(s){stabilityKey=s;localStorage.setItem('kh_stabilitykey',s);}
   showMainApp();
