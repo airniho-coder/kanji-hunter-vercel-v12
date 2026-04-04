@@ -260,6 +260,8 @@ body{display:flex;justify-content:center;}
 .action-big-btn:disabled{opacity:.22;cursor:not-allowed;}
 .skill-magic-grid-big{width:100%;max-width:480px;display:grid;grid-template-columns:1fr 1fr;gap:5px;}
 .skill-section-big{font-size:9px;opacity:.35;letter-spacing:2px;margin:5px 0 3px;text-transform:uppercase;width:100%;max-width:480px;}
+.speed-btn{flex:1;padding:5px 0;border-radius:7px;font-size:12px;font-weight:700;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#666;cursor:pointer;font-family:monospace;transition:all .15s;}
+.speed-btn.active{background:rgba(255,200,80,.25);border-color:rgba(255,200,80,.5);color:#FFD700;}
 .action-flash-overlay{position:fixed;inset:0;z-index:190;pointer-events:none;display:flex;align-items:center;justify-content:center;}
 @keyframes srShine{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes holoShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
@@ -421,6 +423,16 @@ body{display:flex;justify-content:center;}
         <button class="mode-btn auto-m active" id="mode-auto" onclick="setBattleMode('auto')">⚡ AUTO</button>
         <button class="mode-btn manual-m" id="mode-manual" onclick="setBattleMode('manual')">🎮 マニュアル</button>
       </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:0 0 8px">
+        <span style="font-size:10px;opacity:.4;letter-spacing:1px;white-space:nowrap">⏱ 速度</span>
+        <div style="display:flex;gap:4px;flex:1">
+          <button onclick="setBattleSpeed(1)" id="speed-btn-1" class="speed-btn">1</button>
+          <button onclick="setBattleSpeed(2)" id="speed-btn-2" class="speed-btn">2</button>
+          <button onclick="setBattleSpeed(3)" id="speed-btn-3" class="speed-btn">3</button>
+          <button onclick="setBattleSpeed(4)" id="speed-btn-4" class="speed-btn active">4</button>
+          <button onclick="setBattleSpeed(5)" id="speed-btn-5" class="speed-btn">5</button>
+        </div>
+      </div>
     </div>
     <div id="battle-hint" style="font-size:10px;opacity:.5;text-align:center;margin-bottom:9px;letter-spacing:1px">出撃するキャラクターを選んでください<br><span style="opacity:.6;font-size:9px">相手はランダムに決まります</span></div>
     <div id="battle-log-area" style="display:none"><div class="battle-log" id="battle-log"></div></div>
@@ -508,9 +520,13 @@ let battleResult=null;
 let battleMode='auto';
 let manualResolve=null;
 let battleLogs=[];
+let lastLogA='';  // most recent log for player char
+let lastLogB='';  // most recent log for opponent char
 let collTab='char';
 let equipModalTarget=null; // {charId, slotIndex}
 let selectedCardType='auto';
+let battleSpeed=4; // 1=very slow, 2=slow, 3=normal, 4=fast(default), 5=very fast
+const SPEED_MS={1:1200,2:700,3:400,4:140,5:40}; // ms delay per action
 
 const SKILL_TYPE_DESC={atk:'物理大攻撃。ATKベース',def:'防御強化+HP回復',buff:'次のATK1.5倍強化'};
 const MAGIC_TYPE_DESC={magic:'魔法攻撃。INTベース',heal:'HP25〜40%回復',debuff:'相手ATK&DEF-30%(2ターン)'};
@@ -1314,6 +1330,13 @@ function renderCollection(){
 
 // ===== BATTLE =====
 function setBattleMode(m){battleMode=m;document.getElementById('mode-auto').classList.toggle('active',m==='auto');document.getElementById('mode-manual').classList.toggle('active',m==='manual');}
+function setBattleSpeed(n){
+  battleSpeed=n;
+  for(let i=1;i<=5;i++){
+    const btn=document.getElementById('speed-btn-'+i);
+    if(btn)btn.classList.toggle('active',i===n);
+  }
+}
 
 function renderBattleSlot(el,char,isWinner,isLoser,isTurn){
   if(!char){el.className='battle-slot-empty';el.innerHTML='<div style="font-size:22px;opacity:.2">？</div><div style="font-size:8px;opacity:.3;margin-top:3px;letter-spacing:1px">未選択</div>';return;}
@@ -1423,22 +1446,39 @@ function flashEl(id){const e=document.getElementById(id);if(!e)return;e.classLis
 function getSlotCenter(side){const e=document.getElementById('slot-'+side);if(!e)return{x:200,y:200};const r=e.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/3};}
 
 // ===== BATTLE ENGINE =====
-function addLog(msg,color){
+function addLog(msg,color,side){
   battleLogs.push(msg);
   const el=document.getElementById('battle-log');
   el.innerHTML=battleLogs.map((l,i)=>`<div style="opacity:${i===battleLogs.length-1?1:.6}">${l}</div>`).join('');
   el.scrollTop=el.scrollHeight;
-  // Also update fullscreen log if active
+  // Track last log per side for 2-line BFS display
+  if(side==='a')lastLogA=msg;
+  else if(side==='b')lastLogB=msg;
+  else{lastLogA=msg;} // default to A for system messages
+  // Update fullscreen log with 2 lines
   if(battleMode==='manual'){
     const bfsLog=document.getElementById('bfs-log');
     if(bfsLog){
       bfsLog.innerHTML='';
-      const line=document.createElement('div');
-      line.className='battle-log-big-line';
-      line.style.color=color||'#e8e0d0';
-      line.textContent=msg;
-      bfsLog.appendChild(line);
-      setTimeout(()=>line.classList.add('visible'),50);
+      // Line 1: player char (A)
+      if(lastLogA){
+        const la=document.createElement('div');
+        la.className='battle-log-big-line';
+        la.style.color='#60A5FA';
+        la.textContent=lastLogA;
+        bfsLog.appendChild(la);
+        setTimeout(()=>la.classList.add('visible'),30);
+      }
+      // Line 2: opponent (B)
+      if(lastLogB){
+        const lb=document.createElement('div');
+        lb.className='battle-log-big-line';
+        lb.style.color='#f87171';
+        lb.style.marginTop='6px';
+        lb.textContent=lastLogB;
+        bfsLog.appendChild(lb);
+        setTimeout(()=>lb.classList.add('visible'),80);
+      }
     }
   }
 }
@@ -1485,6 +1525,7 @@ async function startBattle(){
   document.getElementById('battle-start-btn').style.display='none';
   document.getElementById('battle-mode-area').style.display='none';
   document.getElementById('affinity-info').style.display='none';
+  lastLogA='';lastLogB='';
   // Battle intro flash
   const arena=document.querySelector('.battle-arena');
   if(arena){arena.style.animation='none';void arena.offsetWidth;arena.style.animation='battleIntro .6s ease';}
@@ -1501,7 +1542,7 @@ async function startBattle(){
     await doAction(first,second,act1,fLv,sLv,fSide,sSide);
     updateSlots(a,b,null);
     if(second._bHp<=0)break;
-    await sleep(battleMode==='manual'?120:260);
+    await sleep(SPEED_MS[battleSpeed]||140);
     second._defUp=false;
     // Second attacker: if it's the player char (rare case), still manual; else auto
     const act2=await getAction(second);
@@ -1517,7 +1558,7 @@ async function startBattle(){
       await doAction(fast,slow,extraAct,fastLv,slowLv,fastSide,slowSide);
       updateSlots(a,b,null);
       if(slow._bHp<=0)break;
-      await sleep(180);
+      await sleep(Math.floor((SPEED_MS[battleSpeed]||140)*1.2));
     }
   }
   const winner=a._bHp>0?a:b,loser=a._bHp>0?b:a;
@@ -1643,6 +1684,8 @@ function autoAct(char,lv){
 }
 
 async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
+  // Determine which side is the player for log tracking
+  const logSide=battlePair[0]&&attacker.id===battlePair[0].id?'a':'b';
   const atkATK=getEffectiveStat(attacker,'atk')*(attacker._buffAtk||1);
   const atkINT=getEffectiveStat(attacker,'int')*(attacker._buffAtk||1);
   const atkCRIT=getEffectiveStat(attacker,'crit');
@@ -1698,8 +1741,8 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
 
   const pos=getSlotCenter(dmg>0?defSide:atkSide);
   spawnEffect(eText,eColor,pos.x,pos.y);
-  addLog(msg);
-  await sleep(battleMode==='manual'?140:270);
+  addLog(msg,null,logSide);
+  await sleep(SPEED_MS[battleSpeed]||140);
 }
 
 function waitForManual(char){
