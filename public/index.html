@@ -478,16 +478,16 @@ body{display:flex;justify-content:center;}
     <div class="affinity-info" id="affinity-info"></div>
     <div id="battle-mode-area" style="display:none">
       <div class="battle-mode-row">
-        <button class="mode-btn auto-m active" id="mode-auto" onclick="setBattleMode('auto')">⚡ AUTO</button>
-        <button class="mode-btn manual-m" id="mode-manual" onclick="setBattleMode('manual')">🎮 マニュアル</button>
+        <button class="mode-btn auto-m" id="mode-auto" onclick="setBattleMode('auto')">⚡ AUTO</button>
+        <button class="mode-btn manual-m active" id="mode-manual" onclick="setBattleMode('manual')">🎮 マニュアル</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px;padding:0 0 8px">
         <span style="font-size:10px;opacity:.4;letter-spacing:1px;white-space:nowrap">⏱ 速度</span>
         <div style="display:flex;gap:4px;flex:1">
           <button onclick="setBattleSpeed(1)" id="speed-btn-1" class="speed-btn">1</button>
           <button onclick="setBattleSpeed(2)" id="speed-btn-2" class="speed-btn">2</button>
-          <button onclick="setBattleSpeed(3)" id="speed-btn-3" class="speed-btn">3</button>
-          <button onclick="setBattleSpeed(4)" id="speed-btn-4" class="speed-btn active">4</button>
+          <button onclick="setBattleSpeed(3)" id="speed-btn-3" class="speed-btn active">3</button>
+          <button onclick="setBattleSpeed(4)" id="speed-btn-4" class="speed-btn">4</button>
           <button onclick="setBattleSpeed(5)" id="speed-btn-5" class="speed-btn">5</button>
         </div>
       </div>
@@ -575,7 +575,7 @@ let characters=[]; // character cards
 let itemCards=[];  // all non-character cards
 let battlePair=[null,null];
 let battleResult=null;
-let battleMode='auto';
+let battleMode='manual';
 let manualResolve=null;
 let battleLogs=[];
 let lastLogA='';  // most recent log for player char
@@ -583,7 +583,7 @@ let lastLogB='';  // most recent log for opponent char
 let collTab='char';
 let equipModalTarget=null; // {charId, slotIndex}
 let selectedCardType='auto';
-let battleSpeed=4; // 1=very slow, 2=slow, 3=normal, 4=fast(default), 5=very fast
+let battleSpeed=3; // 1=very slow, 2=slow, 3=normal, 4=fast(default), 5=very fast
 const SPEED_MS={1:3000,2:2000,3:1000,4:200,5:50}; // ms delay per action
 
 const SKILL_TYPE_DESC={atk:'物理大攻撃。ATKベース',def:'防御強化+HP回復',buff:'次のATK1.5倍強化'};
@@ -1728,18 +1728,20 @@ async function showBattleIntroScreen(a,b,lvA,lvB){
 // Result screen (manual only) - returns promise that resolves when user taps
 function showBattleResultScreen(winner,loser){
   return new Promise(resolve=>{
-    const rc=RARITY[winner.rarity]||RARITY.C;
     const isPlayerWin=winner.id===battlePair[0]?.id;
+    // 常に自分のキャラを表示
+    const playerChar=battlePair[0];
+    const rc=RARITY[playerChar.rarity]||RARITY.C;
     const bgColor=isPlayerWin?'rgba(0,30,0,.95)':'rgba(30,0,0,.95)';
-    const artEl=winner.artImg
-      ?`<img src="${winner.artImg}" class="result-winner-art" style="border-color:${rc.color}" alt="">`
-      :`<div class="result-winner-art-fb" style="color:${rc.color};background:${rc.bg};border-color:${rc.color}">${winner.kanji}</div>`;
+    const artEl=playerChar.artImg
+      ?`<img src="${playerChar.artImg}" class="result-winner-art" style="border-color:${rc.color}" alt="">`
+      :`<div class="result-winner-art-fb" style="color:${rc.color};background:${rc.bg};border-color:${rc.color}">${playerChar.kanji}</div>`;
     document.getElementById('result-content').innerHTML=`
       <div style="text-align:center">
-        ${isPlayerWin?'<div style="font-size:40px;margin-bottom:8px">🏆</div>':'<div style="font-size:40px;margin-bottom:8px">💀</div>'}
+        <div style="font-size:40px;margin-bottom:8px">${isPlayerWin?'🏆':'💀'}</div>
         ${artEl}
         <div class="result-text" style="color:${rc.color}">${isPlayerWin?'勝利！':'敗北...'}</div>
-        <div style="font-size:18px;font-weight:700;letter-spacing:2px;opacity:.7;margin-bottom:4px">${winner.charName}</div>
+        <div style="font-size:18px;font-weight:700;letter-spacing:2px;opacity:.7;margin-bottom:4px">${playerChar.charName}</div>
         <div class="result-sub">ランダムバトル終了<br>経験値は獲得できません</div>
         <button class="result-close-btn" style="background:${rc.color};color:#000" onclick="closeBattleResultScreen()">戻る →</button>
       </div>`;
