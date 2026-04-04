@@ -2165,13 +2165,15 @@ function cardEffect(side, type, color, label){
 // Shake BFS slot card - 3段階
 function shakeBfsSlot(side,size){
   const el=document.getElementById('bfs-slot-'+side);
-  alert('shakeBfsSlot called: side='+side+' el='+(el?'FOUND':'NULL')+' size='+size);
   if(!el)return;
+  // 背景色テスト：赤くなれば要素は正常
+  el.style.outline='4px solid red';
+  setTimeout(()=>el.style.outline='',800);
   el.style.animation='none';
   void el.offsetWidth;
-  if(size==='large'){el.style.animation='shakeLarge .4s ease';setTimeout(()=>el.style.animation='',450);}
-  else if(size==='small'){el.style.animation='shakeSmall .25s ease';setTimeout(()=>el.style.animation='',300);}
-  else{el.style.animation='shake .3s ease';setTimeout(()=>el.style.animation='',350);}
+  if(size==='large'){el.style.animation='shakeLarge .5s ease';setTimeout(()=>el.style.animation='',550);}
+  else if(size==='small'){el.style.animation='shakeSmall .3s ease';setTimeout(()=>el.style.animation='',350);}
+  else{el.style.animation='shake .4s ease';setTimeout(()=>el.style.animation='',450);}
 }
 function disableBfsActions(){
   // Hide action buttons while processing - don't close fullscreen
