@@ -2165,6 +2165,7 @@ function cardEffect(side, type, color, label){
 // Shake BFS slot card - 3段階
 function shakeBfsSlot(side,size){
   const el=document.getElementById('bfs-slot-'+side);
+  alert('shakeBfsSlot called: side='+side+' el='+(el?'FOUND':'NULL')+' size='+size);
   if(!el)return;
   el.style.animation='none';
   void el.offsetWidth;
