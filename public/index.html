@@ -625,10 +625,13 @@ function saveState(){
 function saveApiKey(){
   const a=document.getElementById('api-key-input').value.trim();
   const s=document.getElementById('stability-key-input').value.trim();
+  alert('DEBUG: key length='+a.length+' starts='+a.substring(0,8));
   if(!a||a.length<20){alert('APIキーを正しく入力してください。');return;}
   apiKey=a;localStorage.setItem('kh_apikey',a);
   if(s){stabilityKey=s;localStorage.setItem('kh_stabilitykey',s);}
+  alert('DEBUG: calling showMainApp');
   showMainApp();
+  alert('DEBUG: showMainApp called');
 }
 function showMainApp(){
   document.getElementById('page-setup').classList.remove('active');
