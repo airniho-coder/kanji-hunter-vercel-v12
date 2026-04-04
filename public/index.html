@@ -2165,17 +2165,26 @@ function cardEffect(side, type, color, label){
 function shakeBfsSlot(side,size){
   const el=document.getElementById('bfs-slot-'+side);
   if(!el)return;
-  // 明滅エフェクト（opacity変化）- transformは使わない
+  // 明滅＋枠線フラッシュ
   const times = size==='large'?5:size==='small'?2:3;
-  const dur = size==='large'?80:size==='small'?70:75;
+  const dur = size==='large'?75:size==='small'?65:70;
+  const flashColor = size==='large'?'#ef4444':size==='small'?'#fb923c':'#f87171';
+  const origBorder = el.style.border||el.style.borderColor||'';
   let count=0;
-  el.style.transition=`opacity ${dur}ms ease`;
+  el.style.transition=`opacity ${dur}ms ease, box-shadow ${dur}ms ease`;
   const blink=setInterval(()=>{
-    el.style.opacity = (count%2===0)?'0.15':'1';
+    if(count%2===0){
+      el.style.opacity='0.12';
+      el.style.boxShadow=`0 0 18px 4px ${flashColor}`;
+    }else{
+      el.style.opacity='1';
+      el.style.boxShadow='none';
+    }
     count++;
     if(count>=times*2){
       clearInterval(blink);
       el.style.opacity='1';
+      el.style.boxShadow='none';
       el.style.transition='';
     }
   },dur);
