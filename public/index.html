@@ -272,8 +272,8 @@ body{display:flex;justify-content:center;}
 .battle-slot-big-art{width:100%;height:185px;object-fit:cover;object-position:top center;display:block;}
 .battle-slot-big-art-fb{height:185px;display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:900;}
 .battle-slot-big-info{padding:7px 9px 8px;}
-.battle-log-big{width:100%;max-width:480px;background:rgba(0,0,0,.4);border-radius:12px;padding:14px;margin-bottom:10px;min-height:60px;border:1px solid rgba(255,255,255,.08);text-align:center;}
-.battle-log-big-line{font-size:15px;line-height:1.9;opacity:0;transition:opacity .5s;margin-bottom:2px;}
+.battle-log-big{width:100%;max-width:480px;background:rgba(0,0,0,.5);border-radius:12px;padding:14px;margin-bottom:10px;min-height:80px;border:1px solid rgba(255,255,255,.1);text-align:center;display:flex;flex-direction:column;justify-content:center;gap:6px;}
+.battle-log-big-line{font-size:15px;line-height:1.7;opacity:0;transition:opacity .4s;margin-bottom:0;}
 .battle-log-big-line.visible{opacity:1;}
 .battle-actions-big{width:100%;max-width:480px;display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px;}
 .action-big-btn{padding:13px;border-radius:12px;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Noto Serif JP',serif;border:none;transition:all .15s;}
@@ -283,7 +283,7 @@ body{display:flex;justify-content:center;}
 .skill-section-big{font-size:9px;opacity:.35;letter-spacing:2px;margin:5px 0 3px;text-transform:uppercase;width:100%;max-width:480px;}
 .speed-btn{flex:1;padding:5px 0;border-radius:7px;font-size:12px;font-weight:700;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#666;cursor:pointer;font-family:monospace;transition:all .15s;}
 .speed-btn.active{background:rgba(255,200,80,.25);border-color:rgba(255,200,80,.5);color:#FFD700;}
-.action-flash-overlay{position:fixed;inset:0;z-index:190;pointer-events:none;display:flex;align-items:center;justify-content:center;}
+.action-flash-overlay{position:absolute;inset:0;z-index:10;pointer-events:none;display:flex;align-items:center;justify-content:center;}
 @keyframes srShine{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes holoShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 @keyframes actionFlashAnim{0%{opacity:0;transform:scale(.4)}25%{opacity:1;transform:scale(1.3)}60%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.7)}}
@@ -343,6 +343,7 @@ body{display:flex;justify-content:center;}
   <div id="result-content"></div>
 </div>
 <div class="battle-fullscreen" id="battle-fullscreen">
+  <div class="action-flash-overlay" id="action-flash-overlay" style="position:absolute;inset:0;z-index:10;pointer-events:none;display:flex;align-items:center;justify-content:center;"></div>
   <div class="battle-vs-big" id="bfs-vs"></div>
   <div class="battle-log-big" id="bfs-log"></div>
   <div id="bfs-actions" style="width:100%;max-width:480px">
@@ -1525,7 +1526,18 @@ function addLog(msg,color,side){
     }
   }
 }
-function updateSlots(a,b,winnerId){const isWA=winnerId&&winnerId===a.id,isWB=winnerId&&winnerId===b.id;renderBattleSlot(document.getElementById('slot-a'),a,isWA,winnerId&&!isWA,false);renderBattleSlot(document.getElementById('slot-b'),b,isWB,winnerId&&!isWB,false);}
+function updateSlots(a,b,winnerId){
+  const isWA=winnerId&&winnerId===a.id,isWB=winnerId&&winnerId===b.id;
+  renderBattleSlot(document.getElementById('slot-a'),a,isWA,winnerId&&!isWA,false);
+  renderBattleSlot(document.getElementById('slot-b'),b,isWB,winnerId&&!isWB,false);
+  // Also update BFS slots if fullscreen is active
+  if(battleMode==='manual'){
+    const bfsVs=document.getElementById('bfs-vs');
+    if(bfsVs&&document.getElementById('battle-fullscreen').classList.contains('active')){
+      bfsVs.innerHTML=renderBfsSlot(a,true)+renderBfsSlot(b,false);
+    }
+  }
+}
 
 function handleBattleBtn(){
   if(battleResult&&battlePair[0]){
@@ -1610,11 +1622,14 @@ async function startBattle(){
   battleResult=winner.id;
   addLog(`🏆 「${winner.kanji}」の勝利！`);
   document.getElementById('manual-actions-area').style.display='none';
-  showBattleFullscreen(false);
+  disableBfsActions();
+  // Update final slots
   updateSlots(a,b,winner.id);
-  await sleep(400);
+  await sleep(600);
   if(battleMode==='manual'){
-    // Show result screen, wait for user to close
+    // Close fullscreen first, then show result
+    showBattleFullscreen(false);
+    await sleep(200);
     await showBattleResultScreen(winner,loser);
   } else {
     await sleep(200);
@@ -1813,7 +1828,7 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
     eText=isCrit?`💥${dmg}!`:`${dmg}`;eColor=isCrit?'#FFD700':'#fb923c';
     msg=`⚔️ ${attacker.kanji}の攻撃！${dmg}${isCrit?' 会心！':''}ダメージ${atkMult>1?' ⬆属性有利':''}`;
     shakeEl('slot-'+defSide);
-    if(isCrit)flashAction('💥会心！','#FFD700');
+    if(isCrit&&battleMode==='manual')flashAction('💥会心！','#FFD700');
   }else if(action.type==='magic'){
     const maxMp=getEffectiveStat(attacker,'mp');const cost=Math.floor(maxMp*0.18);
     if(attacker._bMp<cost){dmg=Math.max(2,Math.floor(atkATK*0.7-defDEF*0.15));defender._bHp=Math.max(0,defender._bHp-dmg);msg=`⚔️ ${attacker.kanji}（MP不足）${dmg}ダメージ`;eText=`${dmg}`;}
@@ -1856,32 +1871,41 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
 function waitForManual(char){
   return new Promise(resolve=>{
     manualResolve=resolve;
-    // Show fullscreen battle UI
-    showBattleFullscreen(true,char);
+    // Fullscreen is already open - just refresh slots and re-enable actions
+    const[a,b]=battlePair;
+    const bfsVs=document.getElementById('bfs-vs');
+    if(bfsVs)bfsVs.innerHTML=renderBfsSlot(a,true)+renderBfsSlot(b,false);
+    refreshBfsActions(char);
+    enableBfsActions();
   });
+}
+function refreshBfsActions(playerChar){
+  if(!playerChar)return;
+  const skills=playerChar.skills||[];
+  const skillLabel=document.getElementById('bfs-skill-label');
+  const skillsDiv=document.getElementById('bfs-skills');
+  if(skills.length){
+    skillLabel.style.display='block';
+    skillsDiv.innerHTML=skills.map((s,i)=>`<button class="action-big-btn" style="background:rgba(255,215,0,.15);border:1px solid rgba(255,215,0,.35);color:#FFD700;font-size:11px" ${playerChar._bSp<s.spCost?'disabled':''} onclick="manualSkill(${i})">⚔️${s.name}<br><span style="font-size:9px;opacity:.6">SP:${s.spCost}</span></button>`).join('');
+  }else{skillLabel.style.display='none';skillsDiv.innerHTML='';}
+  const magics=playerChar.magics||[];
+  const magicLabel=document.getElementById('bfs-magic-label');
+  const magicsDiv=document.getElementById('bfs-magics');
+  if(magics.length){
+    magicLabel.style.display='block';
+    magicsDiv.innerHTML=magics.map((m,i)=>`<button class="action-big-btn" style="background:rgba(129,140,248,.2);border:1px solid rgba(129,140,248,.4);color:#818cf8;font-size:11px" ${playerChar._bMp<m.mpCost?'disabled':''} onclick="manualMagic(${i})">🔮${m.name}<br><span style="font-size:9px;opacity:.6">MP:${m.mpCost}</span></button>`).join('');
+  }else{magicLabel.style.display='none';magicsDiv.innerHTML='';}
 }
 function showBattleFullscreen(show,playerChar){
   const fs=document.getElementById('battle-fullscreen');
   if(!show){fs.classList.remove('active');return;}
   fs.classList.add('active');
-  if(!playerChar)return;
-  // Render both slots big
-  const [a,b]=battlePair;
+  // Initial render
+  const[a,b]=battlePair;
   const bfsVs=document.getElementById('bfs-vs');
-  bfsVs.innerHTML=renderBfsSlot(a,true)+renderBfsSlot(b,false);
-  // Actions
-  document.getElementById('bfs-attack').disabled=false;
-  document.getElementById('bfs-defend').disabled=false;
-  const skills=playerChar.skills||[];
-  const skillLabel=document.getElementById('bfs-skill-label');
-  const skillsDiv=document.getElementById('bfs-skills');
-  if(skills.length){skillLabel.style.display='block';skillsDiv.innerHTML=skills.map((s,i)=>`<button class="action-big-btn" style="background:rgba(255,215,0,.15);border:1px solid rgba(255,215,0,.35);color:#FFD700;font-size:11px" ${playerChar._bSp<s.spCost?'disabled':''} onclick="manualSkill(${i})">⚔️${s.name}<br><span style="font-size:9px;opacity:.6">SP:${s.spCost}</span></button>`).join('');}
-  else{skillLabel.style.display='none';skillsDiv.innerHTML='';}
-  const magics=playerChar.magics||[];
-  const magicLabel=document.getElementById('bfs-magic-label');
-  const magicsDiv=document.getElementById('bfs-magics');
-  if(magics.length){magicLabel.style.display='block';magicsDiv.innerHTML=magics.map((m,i)=>`<button class="action-big-btn" style="background:rgba(129,140,248,.2);border:1px solid rgba(129,140,248,.4);color:#818cf8;font-size:11px" ${playerChar._bMp<m.mpCost?'disabled':''} onclick="manualMagic(${i})">🔮${m.name}<br><span style="font-size:9px;opacity:.6">MP:${m.mpCost}</span></button>`).join('');}
-  else{magicLabel.style.display='none';magicsDiv.innerHTML='';}
+  if(bfsVs)bfsVs.innerHTML=renderBfsSlot(a,true)+renderBfsSlot(b,false);
+  if(playerChar)refreshBfsActions(playerChar);
+  enableBfsActions();
 }
 function renderBfsSlot(char,isPlayer){
   if(!char)return'';
@@ -1920,18 +1944,27 @@ async function flashAction(text,color){
   await sleep(850);
   overlay.innerHTML='';
 }
+function disableBfsActions(){
+  // Hide action buttons while processing - don't close fullscreen
+  document.getElementById('bfs-actions').style.opacity='0.3';
+  document.getElementById('bfs-actions').style.pointerEvents='none';
+}
+function enableBfsActions(){
+  document.getElementById('bfs-actions').style.opacity='1';
+  document.getElementById('bfs-actions').style.pointerEvents='auto';
+}
 function manualAction(type){
-  showBattleFullscreen(false);
+  disableBfsActions();
   document.getElementById('manual-actions-area').style.display='none';
   if(manualResolve){manualResolve({type});manualResolve=null;}
 }
 function manualSkill(idx){
-  showBattleFullscreen(false);
+  disableBfsActions();
   document.getElementById('manual-actions-area').style.display='none';
   if(manualResolve&&battlePair[0]){manualResolve({type:'skill',s:battlePair[0].skills?.[idx]});manualResolve=null;}
 }
 function manualMagic(idx){
-  showBattleFullscreen(false);
+  disableBfsActions();
   document.getElementById('manual-actions-area').style.display='none';
   if(manualResolve&&battlePair[0]){manualResolve({type:'magic',s:battlePair[0].magics?.[idx]});manualResolve=null;}
 }
