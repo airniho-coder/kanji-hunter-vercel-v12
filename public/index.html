@@ -244,8 +244,29 @@ body{display:flex;justify-content:center;}
 .tooltip-bubble{display:none;position:absolute;bottom:110%;left:50%;transform:translateX(-50%);background:rgba(10,10,20,.97);border:1px solid rgba(255,200,80,.3);border-radius:10px;padding:8px 12px;font-size:11px;line-height:1.6;z-index:200;color:var(--text);width:180px;box-shadow:0 4px 20px rgba(0,0,0,.5);white-space:normal;}
 .tooltip-bubble::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:rgba(255,200,80,.3);}
 .tooltip-wrap.open .tooltip-bubble{display:block;}
-.battle-fullscreen{position:fixed;inset:0;z-index:180;background:rgba(5,5,8,.98);display:none;flex-direction:column;align-items:center;padding:14px 14px 100px;overflow-y:auto;}
+.battle-fullscreen{position:fixed;inset:0;z-index:180;background:rgba(5,5,8,.98);display:none;flex-direction:column;align-items:center;padding:14px 14px 20px;overflow-y:auto;}
 .battle-fullscreen.active{display:flex;}
+/* Battle intro screen */
+.battle-intro-screen{position:fixed;inset:0;z-index:185;display:none;flex-direction:column;align-items:center;justify-content:center;background:#000;}
+.battle-intro-screen.active{display:flex;}
+.intro-vs-row{display:flex;align-items:center;gap:16px;width:100%;max-width:480px;padding:0 20px;margin-bottom:24px;}
+.intro-char-art{flex:1;border-radius:14px;overflow:hidden;border:2px solid;animation:introSlide .5s ease forwards;}
+.intro-char-art-img{width:100%;height:220px;object-fit:cover;object-position:top center;display:block;}
+.intro-char-art-fb{height:220px;display:flex;align-items:center;justify-content:center;font-size:72px;font-weight:900;}
+.intro-vs-text{font-size:52px;font-weight:900;color:#FF4444;text-shadow:0 0 30px rgba(255,0,0,.6);flex-shrink:0;animation:vsPulse .6s ease infinite alternate;}
+.intro-title{font-size:13px;letter-spacing:4px;opacity:.5;margin-bottom:8px;text-transform:uppercase;}
+.intro-char-name{font-size:16px;font-weight:700;letter-spacing:1px;text-align:center;margin-top:8px;}
+/* Battle result screen */
+.battle-result-screen{position:fixed;inset:0;z-index:185;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.92);}
+.battle-result-screen.active{display:flex;animation:resultFade .4s ease;}
+.result-winner-art{width:200px;height:260px;object-fit:cover;object-position:top center;border-radius:16px;margin-bottom:16px;border:3px solid;}
+.result-winner-art-fb{width:200px;height:260px;display:flex;align-items:center;justify-content:center;font-size:100px;font-weight:900;border-radius:16px;margin-bottom:16px;border:3px solid;}
+.result-text{font-size:28px;font-weight:900;letter-spacing:3px;margin-bottom:8px;text-align:center;}
+.result-sub{font-size:12px;opacity:.5;letter-spacing:2px;text-align:center;line-height:2;}
+.result-close-btn{margin-top:24px;padding:14px 40px;border-radius:14px;font-size:14px;font-weight:700;letter-spacing:2px;cursor:pointer;font-family:'Noto Serif JP',serif;border:none;}
+@keyframes introSlide{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+@keyframes vsPulse{from{transform:scale(1)}to{transform:scale(1.15)}}
+@keyframes resultFade{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
 .battle-vs-big{display:flex;gap:10px;width:100%;max-width:480px;margin-bottom:10px;}
 .battle-slot-big{flex:1;border-radius:14px;overflow:hidden;position:relative;}
 .battle-slot-big-art{width:100%;height:185px;object-fit:cover;object-position:top center;display:block;}
@@ -299,6 +320,28 @@ body{display:flex;justify-content:center;}
   </div>
 </div>
 
+<!-- BATTLE INTRO SCREEN -->
+<div class="battle-intro-screen" id="battle-intro-screen">
+  <div class="intro-title">BATTLE START</div>
+  <div class="intro-vs-row" id="intro-vs-row"></div>
+  <div id="intro-countdown" style="font-size:80px;font-weight:900;color:#FF4444;text-shadow:0 0 40px rgba(255,0,0,.7);animation:vsPulse .4s ease infinite alternate"></div>
+</div>
+
+<!-- BATTLE RESULT SCREEN -->
+<div class="battle-result-screen" id="battle-result-screen">
+  <div id="result-content"></div>
+</div>
+
+<!-- BATTLE INTRO SCREEN -->
+<div class="battle-intro-screen" id="battle-intro-screen">
+  <div class="intro-title">BATTLE START</div>
+  <div class="intro-vs-row" id="intro-vs-row"></div>
+  <div id="intro-countdown" style="font-size:80px;font-weight:900;color:#FF4444;text-shadow:0 0 40px rgba(255,0,0,.7);animation:vsPulse .4s ease infinite alternate"></div>
+</div>
+<!-- BATTLE RESULT SCREEN -->
+<div class="battle-result-screen" id="battle-result-screen">
+  <div id="result-content"></div>
+</div>
 <div class="battle-fullscreen" id="battle-fullscreen">
   <div class="battle-vs-big" id="bfs-vs"></div>
   <div class="battle-log-big" id="bfs-log"></div>
@@ -1507,30 +1550,32 @@ function handleBattleBtn(){
 
 async function startBattle(){
   if(!battlePair[0]||!battlePair[1])return;
-  // Switch to battle tab with animation
   showTab('battle');
   await sleep(100);
   battleResult=null;battleLogs=[];
   const[a,b]=battlePair;
-  const playerCharId=a.id; // Player's char is always battlePair[0]
   const lvA=getLevel(a.exp||0),lvB=getLevel(b.exp||0);
-  // Player char (a) uses current HP; opponent (b) always starts fully healed
-  // Save opponent's pre-battle state to restore after
   const bPreHp=getCharHp(b),bPreMp=getCharMp(b),bPreSp=getCharSp(b);
   a._bHp=getCharHp(a);a._bMp=getCharMp(a);a._bSp=getCharSp(a);a._defUp=false;a._status='';a._leveledUp=false;a._debuffAtk=1;a._debuffDef=1;a._buffAtk=1;
   b._bHp=getEffectiveStat(b,'hp');b._bMp=getEffectiveStat(b,'mp');b._bSp=getEffectiveStat(b,'sp');b._defUp=false;b._status='';b._leveledUp=false;b._debuffAtk=1;b._debuffDef=1;b._buffAtk=1;
-  addLog(`🎲 ${b.charName}がランダムに選ばれました！（全快状態で参戦）`);
   document.getElementById('battle-log-area').style.display='block';
   document.getElementById('battle-log').innerHTML='';
   document.getElementById('battle-start-btn').style.display='none';
   document.getElementById('battle-mode-area').style.display='none';
   document.getElementById('affinity-info').style.display='none';
   lastLogA='';lastLogB='';
-  // Battle intro flash
-  const arena=document.querySelector('.battle-arena');
-  if(arena){arena.style.animation='none';void arena.offsetWidth;arena.style.animation='battleIntro .6s ease';}
-  addLog(`⚔️ 戦闘開始！「${a.kanji}(Lv.${lvA})」vs「${b.kanji}(Lv.${lvB})」`);
-  await sleep(500);
+
+  if(battleMode==='manual'){
+    // Show intro screen
+    await showBattleIntroScreen(a,b,lvA,lvB);
+    // Keep fullscreen battle open throughout
+    showBattleFullscreen(true,a);
+  }else{
+    const arena=document.querySelector('.battle-arena');
+    if(arena){arena.style.animation='none';void arena.offsetWidth;arena.style.animation='battleIntro .6s ease';}
+  }
+  addLog(`⚔️ 戦闘開始！「${a.kanji}(Lv.${lvA})」vs「${b.kanji}(Lv.${lvB})」`,'null','a');
+  await sleep(battleMode==='manual'?200:500);
   for(let round=1;round<=40;round++){
     const spdA=getEffectiveStat(a,'spd'),spdB=getEffectiveStat(b,'spd');
     const aFirst=spdA>=spdB;
@@ -1567,7 +1612,13 @@ async function startBattle(){
   document.getElementById('manual-actions-area').style.display='none';
   showBattleFullscreen(false);
   updateSlots(a,b,winner.id);
-  await sleep(600);
+  await sleep(400);
+  if(battleMode==='manual'){
+    // Show result screen, wait for user to close
+    await showBattleResultScreen(winner,loser);
+  } else {
+    await sleep(200);
+  }
   // Player char (a) takes damage → start recovery timer
   startRecovery(battlePair[0]);
   // Opponent (b) → restore to pre-battle state (no damage carried over)
@@ -1592,11 +1643,68 @@ async function startBattle(){
 }
 
 function showBattleResult(winner){
+  // legacy - only used in auto mode
   const rc=RARITY[winner.rarity]||RARITY.C;
   document.getElementById('exp-popup-content').innerHTML=`
     <div style="font-size:16px;font-weight:700;color:${rc.color};margin-bottom:5px;letter-spacing:2px">🏆 ${winner.kanji} 勝利！</div>
     <div style="font-size:12px;opacity:.6;line-height:2">ランダムバトル終了<br><span style="opacity:.5">経験値は獲得できません</span></div>`;
   document.getElementById('exp-popup').classList.add('show');
+}
+
+// Animated intro screen (manual only)
+async function showBattleIntroScreen(a,b,lvA,lvB){
+  const rcA=RARITY[a.rarity]||RARITY.C, rcB=RARITY[b.rarity]||RARITY.C;
+  const artA=a.artImg?`<img src="${a.artImg}" class="intro-char-art-img" alt="">`:`<div class="intro-char-art-fb" style="color:${rcA.color};background:${rcA.bg}">${a.kanji}</div>`;
+  const artB=b.artImg?`<img src="${b.artImg}" class="intro-char-art-img" alt="">`:`<div class="intro-char-art-fb" style="color:${rcB.color};background:${rcB.bg}">${b.kanji}</div>`;
+  document.getElementById('intro-vs-row').innerHTML=`
+    <div class="intro-char-art" style="border-color:${rcA.color};animation-delay:0s">
+      ${artA}
+      <div class="intro-char-name" style="color:${rcA.color}">${a.charName}</div>
+    </div>
+    <div class="intro-vs-text">VS</div>
+    <div class="intro-char-art" style="border-color:${rcB.color};animation-delay:.15s">
+      ${artB}
+      <div class="intro-char-name" style="color:${rcB.color}">${b.charName}</div>
+    </div>`;
+  const cd=document.getElementById('intro-countdown');
+  const screen=document.getElementById('battle-intro-screen');
+  screen.classList.add('active');
+  // Countdown 3→2→1→FIGHT!
+  for(const txt of['3','2','1','⚔️']){
+    cd.textContent=txt;
+    cd.style.color=txt==='⚔️'?'#FFD700':'#FF4444';
+    await sleep(600);
+  }
+  screen.classList.remove('active');
+  await sleep(150);
+}
+
+// Result screen (manual only) - returns promise that resolves when user taps
+function showBattleResultScreen(winner,loser){
+  return new Promise(resolve=>{
+    const rc=RARITY[winner.rarity]||RARITY.C;
+    const isPlayerWin=winner.id===battlePair[0]?.id;
+    const bgColor=isPlayerWin?'rgba(0,30,0,.95)':'rgba(30,0,0,.95)';
+    const artEl=winner.artImg
+      ?`<img src="${winner.artImg}" class="result-winner-art" style="border-color:${rc.color}" alt="">`
+      :`<div class="result-winner-art-fb" style="color:${rc.color};background:${rc.bg};border-color:${rc.color}">${winner.kanji}</div>`;
+    document.getElementById('result-content').innerHTML=`
+      <div style="text-align:center">
+        ${isPlayerWin?'<div style="font-size:40px;margin-bottom:8px">🏆</div>':'<div style="font-size:40px;margin-bottom:8px">💀</div>'}
+        ${artEl}
+        <div class="result-text" style="color:${rc.color}">${isPlayerWin?'勝利！':'敗北...'}</div>
+        <div style="font-size:18px;font-weight:700;letter-spacing:2px;opacity:.7;margin-bottom:4px">${winner.charName}</div>
+        <div class="result-sub">ランダムバトル終了<br>経験値は獲得できません</div>
+        <button class="result-close-btn" style="background:${rc.color};color:#000" onclick="closeBattleResultScreen()">戻る →</button>
+      </div>`;
+    document.getElementById('battle-result-screen').style.background=bgColor;
+    document.getElementById('battle-result-screen').classList.add('active');
+    window._battleResultResolve=resolve;
+  });
+}
+function closeBattleResultScreen(){
+  document.getElementById('battle-result-screen').classList.remove('active');
+  if(window._battleResultResolve){window._battleResultResolve();window._battleResultResolve=null;}
 }
 
 // ===== RECOVERY SYSTEM =====
