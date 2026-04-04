@@ -2154,11 +2154,16 @@ function cardEffect(side, type, color, label){
 function shakeBfsSlot(side,size){
   const el=document.getElementById('bfs-slot-'+side);
   if(!el)return;
-  el.style.animation='none';
-  void el.offsetWidth;
-  if(size==='large'){el.style.animation='shakeLarge .5s ease';setTimeout(()=>el.style.animation='',550);}
-  else if(size==='small'){el.style.animation='shakeSmall .3s ease';setTimeout(()=>el.style.animation='',350);}
-  else{el.style.animation='shake .4s ease';setTimeout(()=>el.style.animation='',450);}
+  // CSSアニメーション不使用 - JS直接制御
+  const steps = size==='large'?[8,-8,6,-6,4,-4,2,0]:size==='small'?[3,-3,2,0]:[5,-5,4,-4,2,0];
+  const interval = size==='large'?55:size==='small'?50:55;
+  let i=0;
+  el.style.transition='none';
+  const timer=setInterval(()=>{
+    if(i>=steps.length){clearInterval(timer);el.style.transform='';return;}
+    el.style.transform=`translateX(${steps[i]}px)`;
+    i++;
+  },interval);
 }
 function disableBfsActions(){
   // Hide action buttons while processing - don't close fullscreen
