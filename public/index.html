@@ -347,7 +347,10 @@ body{display:flex;justify-content:center;}
 </div>
 <div class="battle-fullscreen" id="battle-fullscreen">
   <div class="action-flash-overlay" id="action-flash-overlay" style="position:absolute;inset:0;z-index:10;pointer-events:none;display:flex;align-items:center;justify-content:center;"></div>
-  <div class="battle-vs-big" id="bfs-vs"></div>
+  <div class="battle-vs-big" id="bfs-vs">
+    <div class="battle-slot-big" id="bfs-slot-a" style="position:relative"></div>
+    <div class="battle-slot-big" id="bfs-slot-b" style="position:relative"></div>
+  </div>
   <div class="battle-log-big" id="bfs-log"></div>
   <div id="bfs-actions" style="width:100%;max-width:480px">
     <div class="battle-actions-big">
@@ -1551,9 +1554,8 @@ function updateSlots(a,b,winnerId){
   renderBattleSlot(document.getElementById('slot-b'),b,isWB,winnerId&&!isWB,false);
   // Also update BFS slots if fullscreen is active
   if(battleMode==='manual'){
-    const bfsVs=document.getElementById('bfs-vs');
-    if(bfsVs&&document.getElementById('battle-fullscreen').classList.contains('active')){
-      bfsVs.innerHTML=renderBfsSlot(a,true)+renderBfsSlot(b,false);
+    if(document.getElementById('battle-fullscreen').classList.contains('active')){
+      updateBfsSlots(a,b);
     }
   }
 }
@@ -2014,8 +2016,7 @@ function waitForManual(char){
       if(bfsLog)bfsLog.innerHTML='';
     }
     const[a,b]=battlePair;
-    const bfsVs=document.getElementById('bfs-vs');
-    if(bfsVs)bfsVs.innerHTML=renderBfsSlot(a,true)+renderBfsSlot(b,false);
+    updateBfsSlots(a,b);
     refreshBfsActions(char);
     enableBfsActions();
   });
@@ -2043,12 +2044,24 @@ function showBattleFullscreen(show,playerChar){
   fs.classList.add('active');
   // Initial render
   const[a,b]=battlePair;
-  const bfsVs=document.getElementById('bfs-vs');
-  if(bfsVs)bfsVs.innerHTML=renderBfsSlot(a,true)+renderBfsSlot(b,false);
+  updateBfsSlots(a,b);
   if(playerChar)refreshBfsActions(playerChar);
   enableBfsActions();
 }
+function updateBfsSlots(a,b){
+  const elA=document.getElementById('bfs-slot-a');
+  const elB=document.getElementById('bfs-slot-b');
+  if(elA)elA.innerHTML=renderBfsSlotContent(a,true);
+  if(elB)elB.innerHTML=renderBfsSlotContent(b,false);
+  // スタイルも更新
+  if(a&&elA){const rc=RARITY[a.rarity]||RARITY.C;elA.style.cssText=`background:${rc.bg};border:2px solid ${rc.color};border-radius:14px;overflow:visible;position:relative;flex:1;`;}
+  if(b&&elB){const rc=RARITY[b.rarity]||RARITY.C;elB.style.cssText=`background:${rc.bg};border:2px solid ${rc.color}44;border-radius:14px;overflow:visible;position:relative;flex:1;`;}
+}
 function renderBfsSlot(char,isPlayer){
+  // 後方互換用ラッパー
+  return renderBfsSlotContent(char,isPlayer);
+}
+function renderBfsSlotContent(char,isPlayer){
   if(!char)return'';
   const rc=RARITY[char.rarity]||RARITY.C;
   const maxHp=getEffectiveStat(char,'hp'),maxMp=getEffectiveStat(char,'mp'),maxSp=getEffectiveStat(char,'sp');
@@ -2057,9 +2070,7 @@ function renderBfsSlot(char,isPlayer){
   const spPct=Math.max(0,Math.round(char._bSp/maxSp*100));
   const hpC=hpPct>50?'#4ade80':hpPct>25?'#fb923c':'#ef4444';
   const artEl=char.artImg?`<img src="${char.artImg}" class="battle-slot-big-art" alt="">`:`<div class="battle-slot-big-art-fb" style="color:${rc.color};background:${rc.bg}">${char.kanji}</div>`;
-  const slotId='bfs-slot-'+(isPlayer?'a':'b');
-  return`<div class="battle-slot-big" id="${slotId}" style="background:${rc.bg};border:2px solid ${isPlayer?rc.color:rc.color+'44'}">
-    <div class="card-effect-overlay" id="${slotId}-fx"></div>
+  return`<div class="card-effect-overlay" id="bfs-slot-${isPlayer?'a':'b'}-fx" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5;border-radius:14px;"></div>
     ${artEl}
     <div class="battle-slot-big-info">
       <div style="font-size:10px;color:${rc.color};font-weight:700;letter-spacing:.5px">${char.charName}${isPlayer?' 🎮':' 🤖'}</div>
