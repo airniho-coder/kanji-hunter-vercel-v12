@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     const { prompt } = req.body;
     const form = new FormData();
     form.append('prompt', prompt);
-    form.append('negative_prompt', 'headless, no face, face cut off, body only, cropped head, missing head, back view, rear view, faceless, blur face, obscured face, covered face, helmet covering face, mask covering face, nsfw, nude');
+    form.append('negative_prompt', 'headless, no face, face cut off, body only, cropped head, missing head, back view, rear view, faceless, blur face, obscured face, covered face, helmet covering face, mask covering face, nsfw, nude, extra fingers, six fingers, too many fingers, deformed hands, extra limbs, malformed limbs');
     form.append('output_format', 'webp');
     form.append('aspect_ratio', '2:3');
     form.append('style_preset', 'anime');
