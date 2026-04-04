@@ -169,7 +169,7 @@ body{display:flex;justify-content:center;}
 .b-name{font-size:9px;opacity:.6;letter-spacing:1px;}
 .b-tag{font-size:8px;opacity:.4;margin-top:1px;}
 .b-hp-wrap{margin-top:4px;}
-.b-hp-label{display:flex;justify-content:space-between;font-size:8px;opacity:.4;margin-bottom:2px;}
+.b-hp-label{display:flex;justify-content:space-between;font-size:8px;opacity:.7;margin-bottom:2px;}
 .b-hp{height:5px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden;}
 .b-hp-fill{height:100%;border-radius:3px;transition:width .4s;}
 .b-mp{height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:2px;}
@@ -1432,9 +1432,11 @@ function renderBattleSlot(el,char,isWinner,isLoser,isTurn){
     ${bonusStr?`<div class="b-equip-bonus">🎒${bonusStr}</div>`:''}
     ${!char._bHp&&getRecoveryStatus(char)?`<div style="font-size:8px;color:#fb923c;opacity:.8">⏳回復中 ${getRecoveryStatus(char).remaining}分</div>`:''}
     <div class="b-hp-wrap">
-      <div class="b-hp-label"><span>HP</span><span>${char._bHp||getCharHp(char)}/${maxHp}</span></div>
+      <div class="b-hp-label"><span style="color:#4ade80">HP</span><span>${char._bHp||getCharHp(char)}/${maxHp}</span></div>
       <div class="b-hp"><div class="b-hp-fill" style="width:${hpPct}%;background:${hpC}"></div></div>
+      <div class="b-hp-label" style="margin-top:3px"><span style="color:#818cf8">MP</span><span>${char._bMp||0}/${maxMp}</span></div>
       <div class="b-mp"><div class="b-mp-fill" style="width:${mpPct}%"></div></div>
+      <div class="b-hp-label" style="margin-top:3px"><span style="color:#fbbf24">SP</span><span>${char._bSp||0}/${maxSp}</span></div>
       <div class="b-sp"><div class="b-sp-fill" style="width:${spPct}%"></div></div>
     </div>
     <div class="b-status" style="color:${rc.color}">${char._status||''}</div>
