@@ -311,7 +311,9 @@ body{display:flex;justify-content:center;}
 @keyframes efloat{0%{opacity:1;transform:translateY(0) scale(1)}
 @keyframes battleIntro{0%{opacity:0;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}100%{opacity:0;transform:translateY(-70px) scale(1.2)}}
 @keyframes battleIntro{0%{opacity:0;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
-@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+@keyframes shake{0%,100%{transform:translateX(0)}
+@keyframes shakeSmall{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes shakeLarge{0%,100%{transform:translateX(0)}10%{transform:translateX(-14px)}30%{transform:translateX(14px)}50%{transform:translateX(-10px)}70%{transform:translateX(10px)}90%{transform:translateX(-5px)}}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 @keyframes flashEl{0%,100%{opacity:1}50%{opacity:.08}}
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:rgba(255,200,80,.3);border-radius:3px;}
@@ -1303,8 +1305,14 @@ JSONのみ返してください（cardType="character"の例）:
     const data=await res.json();
     if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
     const text=data.content?.map(b=>b.text||'').join('')||'';
-    const p=JSON.parse(text.replace(/```json|```/g,'').trim());
-    if(!p.isRealBook){showAlert('error','📚 実物の本・書籍から撮影してください。');showLoading(false);return;}
+    // Robustly extract JSON - find first { to last }
+    let jsonStr=text.replace(/```json|```/g,'').trim();
+    const jsonStart=jsonStr.indexOf('{');
+    const jsonEnd=jsonStr.lastIndexOf('}');
+    if(jsonStart>=0&&jsonEnd>jsonStart)jsonStr=jsonStr.slice(jsonStart,jsonEnd+1);
+    const p=JSON.parse(jsonStr);
+    if(!p.isRealBook){showAlert('error','📚 実物の本・書籍から撮影してください。
+（デジタル画面は無効です）');showLoading(false);return;}
     if(p.warningMsg)showAlert('warn','⚠️ '+p.warningMsg);
 
     if(p.cardType==='character'){
@@ -1324,10 +1332,6 @@ JSONのみ返してください（cardType="character"の例）:
       showNewCard(char,'character');
     }else if(p.cardType==='recovery'){
       const tmpl=(RECOVERY_TEMPLATES[p.healType||'hp']||RECOVERY_TEMPLATES.hp)[p.rarity||'N']||RECOVERY_TEMPLATES.hp.N;
-      const item={id:Date.now(),cardType:'recovery',kanji:p.kanji,rarity:p.rarity||'N',name:tmpl.name,healType:p.healType||'hp',healPct:tmpl.heal,maxUses:tmpl.maxUses,usesLeft:tmpl.maxUses,bonuses:{},effectDesc:`${(tmpl.heal*100).toFixed(0)}%回復 x${tmpl.maxUses}回`,context:p.context,lore:p.lore||''};
-      showNewCard(item,'item');
-    }else if(p.cardType==='recovery'){
-      const tmpl=(RECOVERY_TEMPLATES[p.healType||'hp']||RECOVERY_TEMPLATES.hp)[p.rarity||'N']||RECOVERY_TEMPLATES.hp.N;
       const item={id:Date.now(),cardType:'recovery',kanji:p.kanji,rarity:p.rarity||'N',name:tmpl.name,healType:p.healType||'hp',healPct:tmpl.heal,maxUses:tmpl.maxUses,usesLeft:tmpl.maxUses,bonuses:{},effectDesc:`${Math.round(tmpl.heal*100)}%回復 x${tmpl.maxUses}回`,context:p.context,lore:p.lore||''};
       showNewCard(item,'item');
     }else{
@@ -1338,7 +1342,10 @@ JSONのみ返してください（cardType="character"の例）:
       }
       showNewCard(item,'item');
     }
-  }catch(e){showAlert('error','解析エラー: '+e.message);}
+  }catch(e){
+    console.error('Analyze error:',e);
+    showAlert('error','⚡ 召喚失敗！もう一度お試しください。');
+  }
   showLoading(false);
 }
 
@@ -1831,76 +1838,169 @@ function autoAct(char,lv){
 
 async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
   const logSide=battlePair[0]&&attacker.id===battlePair[0].id?'a':'b';
-  // Pause before action so effects are visible
-  if(battleMode==='manual') await sleep(Math.floor(SPEED_MS[battleSpeed]*0.4)||200);
+  const isManual=battleMode==='manual';
+
+  // Clear previous turn log at action start (except first turn)
+  if(isManual&&battleLogs.length>2){
+    const bfsLog=document.getElementById('bfs-log');
+    if(bfsLog)bfsLog.innerHTML='';
+  }
+
   const atkATK=getEffectiveStat(attacker,'atk')*(attacker._buffAtk||1);
   const atkINT=getEffectiveStat(attacker,'int')*(attacker._buffAtk||1);
   const atkCRIT=getEffectiveStat(attacker,'crit');
-  const atkSPD=getEffectiveStat(attacker,'spd');
   const defDEF=getEffectiveStat(defender,'def')*(defender._defUp?1.9:1)*(defender._debuffDef||1);
   const maxHp=getEffectiveStat(attacker,'hp');
   const aElem=attacker.element,dElem=defender.element;
-  const atkMult=affinityMult(aElem,dElem)*( attacker._debuffAtk||1);
+  const atkMult=affinityMult(aElem,dElem)*(attacker._debuffAtk||1);
   const defMult=defenseAffinityMult(aElem,dElem);
   if(attacker._buffAtk&&attacker._buffAtk>1)delete attacker._buffAtk;
-  let dmg=0,msg='',eText='',eColor='#fb923c';
 
+  let dmg=0,msg='',eText='',eColor='#fb923c';
+  let atkEffect=null,atkEffectColor='#fb923c';  // effect on attacker card
+  let defEffect=null,defEffectColor='#ef4444';  // effect on defender card
+  let dmgSize='medium'; // small/medium/large for shake intensity
+
+  // ===== DETERMINE ACTION =====
   if(action.type==='attack'){
     const isCrit=Math.random()*100<atkCRIT;
     dmg=Math.max(2,Math.floor(atkATK*(0.85+Math.random()*0.3)*(isCrit?1.8:1)*atkMult*defMult-defDEF*0.2));
     defender._bHp=Math.max(0,defender._bHp-dmg);
     eText=isCrit?`💥${dmg}!`:`${dmg}`;eColor=isCrit?'#FFD700':'#fb923c';
     msg=`⚔️ ${attacker.kanji}の攻撃！${dmg}${isCrit?' 会心！':''}ダメージ${atkMult>1?' ⬆属性有利':''}`;
-    shakeEl('slot-'+defSide);
-    if(battleMode==='manual'){
-      shakeBfsSlot(defSide);
-      if(isCrit){cardEffect(atkSide,'crit','#FFD700');flashAction('💥','#FFD700');}
-      else{cardEffect(atkSide,'attack',eColor);}
-    }
-  }else if(action.type==='magic'){
+    atkEffect=isCrit?'crit':'attack';
+    atkEffectColor=isCrit?'#FFD700':'#fb923c';
+    defEffect='damage';
+    dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+
+  }else if(action.type==='magic'&&!action.s){
+    // Generic magic (no specific spell)
     const maxMp=getEffectiveStat(attacker,'mp');const cost=Math.floor(maxMp*0.18);
-    if(attacker._bMp<cost){dmg=Math.max(2,Math.floor(atkATK*0.7-defDEF*0.15));defender._bHp=Math.max(0,defender._bHp-dmg);msg=`⚔️ ${attacker.kanji}（MP不足）${dmg}ダメージ`;eText=`${dmg}`;}
-    else{attacker._bMp=Math.max(0,attacker._bMp-cost);dmg=Math.max(3,Math.floor(atkINT*(0.9+Math.random()*0.3)*atkMult*defMult-defDEF*0.1));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`🔮${dmg}`;eColor='#818cf8';msg=`🔮 ${attacker.kanji}の魔法！${dmg}ダメージ`;flashEl('slot-'+defSide);shakeEl('slot-'+defSide);if(battleMode==='manual'){cardEffect(atkSide,'magic','#818cf8');shakeBfsSlot(defSide);}}
+    if(attacker._bMp<cost){
+      dmg=Math.max(2,Math.floor(atkATK*0.7-defDEF*0.15));
+      defender._bHp=Math.max(0,defender._bHp-dmg);
+      msg=`⚔️ ${attacker.kanji}（MP不足）通常攻撃 ${dmg}ダメージ`;eText=`${dmg}`;
+      atkEffect='attack';defEffect='damage';dmgSize='small';
+    }else{
+      attacker._bMp=Math.max(0,attacker._bMp-cost);
+      dmg=Math.max(3,Math.floor(atkINT*(0.9+Math.random()*0.3)*atkMult*defMult-defDEF*0.1));
+      defender._bHp=Math.max(0,defender._bHp-dmg);
+      eText=`🔮${dmg}`;eColor='#818cf8';
+      msg=`🔮 ${attacker.kanji}の魔法攻撃！${dmg}ダメージ`;
+      atkEffect='magic';atkEffectColor='#818cf8';defEffect='damage';
+      dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+    }
+
   }else if(action.type==='skill'&&action.s){
     const sk=action.s;
-    if(attacker._bSp<sk.spCost){dmg=Math.max(2,Math.floor(atkATK*0.8-defDEF*0.2));defender._bHp=Math.max(0,defender._bHp-dmg);msg=`⚔️ ${attacker.kanji}（SP不足）${dmg}ダメージ`;eText=`${dmg}`;}
-    else{
+    if(attacker._bSp<sk.spCost){
+      dmg=Math.max(2,Math.floor(atkATK*0.8-defDEF*0.2));
+      defender._bHp=Math.max(0,defender._bHp-dmg);
+      msg=`⚔️ ${attacker.kanji}（SP不足）通常攻撃 ${dmg}ダメージ`;eText=`${dmg}`;
+      atkEffect='attack';defEffect='damage';dmgSize='small';
+    }else{
       attacker._bSp=Math.max(0,attacker._bSp-sk.spCost);
-      if(sk.type==='atk'){dmg=Math.max(5,Math.floor(atkATK*1.4*(0.9+Math.random()*0.35)*atkMult*defMult-defDEF*0.15));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`⚔️${dmg}!`;eColor='#FFD700';shakeEl('slot-'+defSide);flashEl('slot-'+defSide);msg=`💥 ${attacker.kanji}「${sk.name}」！${dmg}の大ダメージ！`;}
-        if(battleMode==='manual')flashAction(`⚔️必殺技！`,'#FFD700');
-      else if(sk.type==='def'){if(battleMode==='manual')cardEffect(atkSide,'defend','#38bdf8');attacker._defUp=true;attacker._status='🛡️DEF×2';const h=Math.floor(maxHp*0.15);attacker._bHp=Math.min(maxHp,attacker._bHp+h);const sr=Math.floor(getEffectiveStat(attacker,'sp')*0.2);attacker._bSp=Math.min(getEffectiveStat(attacker,'sp'),attacker._bSp+sr);eText=`🛡️+${h}`;eColor='#38bdf8';msg=`🛡️ ${attacker.kanji}「${sk.name}」！防御2倍&HP+${h}&SP+${sr}`;}
-      else if(sk.type==='buff'){attacker._buffAtk=1.5;attacker._status='✨ATK×1.5';const sr=Math.floor(getEffectiveStat(attacker,'sp')*0.15);attacker._bSp=Math.min(getEffectiveStat(attacker,'sp'),attacker._bSp+sr);eText='⬆ATK';eColor='#fbbf24';msg=`✨ ${attacker.kanji}「${sk.name}」！ATK50%強化&SP+${sr}`;}
+      if(sk.type==='atk'){
+        dmg=Math.max(5,Math.floor(atkATK*1.4*(0.9+Math.random()*0.35)*atkMult*defMult-defDEF*0.15));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        eText=`⚔️${dmg}!`;eColor='#FFD700';
+        msg=`💥 ${attacker.kanji}「${sk.name}」！${dmg}の大ダメージ！`;
+        atkEffect='skill';atkEffectColor='#FFD700';defEffect='damage';dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+      }else if(sk.type==='def'){
+        const h=Math.floor(maxHp*0.15);
+        const sr=Math.floor(getEffectiveStat(attacker,'sp')*0.2);
+        attacker._defUp=true;attacker._status='🛡️DEF×2';
+        attacker._bHp=Math.min(maxHp,attacker._bHp+h);
+        attacker._bSp=Math.min(getEffectiveStat(attacker,'sp'),attacker._bSp+sr);
+        eText=`🛡️`;eColor='#38bdf8';
+        msg=`🛡️ ${attacker.kanji}「${sk.name}」！防御2倍 & HP+${h} & SP+${sr}`;
+        atkEffect='defend';atkEffectColor='#38bdf8';
+        defEffect=null; // no damage
+      }else if(sk.type==='buff'){
+        attacker._buffAtk=1.5;attacker._status='✨ATK×1.5';
+        const sr=Math.floor(getEffectiveStat(attacker,'sp')*0.15);
+        attacker._bSp=Math.min(getEffectiveStat(attacker,'sp'),attacker._bSp+sr);
+        eText='⬆';eColor='#fbbf24';
+        msg=`✨ ${attacker.kanji}「${sk.name}」！ATK×1.5強化 & SP+${sr}`;
+        atkEffect='buff';atkEffectColor='#fbbf24';
+        defEffect=null;
+      }
     }
+
   }else if(action.type==='magic'&&action.s){
     const mg=action.s;
-    if(attacker._bMp<mg.mpCost){dmg=Math.max(2,Math.floor(atkATK*0.7-defDEF*0.15));defender._bHp=Math.max(0,defender._bHp-dmg);msg=`⚔️ ${attacker.kanji}（MP不足）${dmg}ダメージ`;eText=`${dmg}`;}
-    else{
+    if(attacker._bMp<mg.mpCost){
+      dmg=Math.max(2,Math.floor(atkATK*0.7-defDEF*0.15));
+      defender._bHp=Math.max(0,defender._bHp-dmg);
+      msg=`⚔️ ${attacker.kanji}（MP不足）通常攻撃 ${dmg}ダメージ`;eText=`${dmg}`;
+      atkEffect='attack';defEffect='damage';dmgSize='small';
+    }else{
       attacker._bMp=Math.max(0,attacker._bMp-mg.mpCost);
-      if(mg.type==='magic'){dmg=Math.max(5,Math.floor(atkINT*1.5*(0.9+Math.random()*0.35)*atkMult*defMult-defDEF*0.1));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`✨${dmg}!`;eColor='#a78bfa';flashEl('slot-'+defSide);shakeEl('slot-'+defSide);if(battleMode==='manual'){cardEffect(atkSide,'magic','#a78bfa');shakeBfsSlot(defSide);}msg=`✨ ${attacker.kanji}「${mg.name}」！${dmg}の魔法ダメージ！`;}
-        if(battleMode==='manual')flashAction(`🔮魔法！`,'#a78bfa');
-      else if(mg.type==='heal'){const healPct=0.25+Math.random()*0.15;const h=Math.floor(maxHp*healPct);if(battleMode==='manual')cardEffect(atkSide,'magic','#4ade80');attacker._bHp=Math.min(maxHp,attacker._bHp+h);eText=`💚+${h}`;eColor='#4ade80';msg=`💚 ${attacker.kanji}「${mg.name}」！HP+${h}（${Math.round(healPct*100)}%）回復！`;}
-      else if(mg.type==='debuff'){
-        if(battleMode==='manual'){cardEffect(atkSide,'magic','#a78bfa');shakeBfsSlot(defSide);}
+      if(mg.type==='magic'){
+        dmg=Math.max(5,Math.floor(atkINT*1.5*(0.9+Math.random()*0.35)*atkMult*defMult-defDEF*0.1));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        eText=`✨${dmg}!`;eColor='#a78bfa';
+        msg=`✨ ${attacker.kanji}「${mg.name}」！${dmg}の魔法ダメージ！`;
+        atkEffect='magic';atkEffectColor='#a78bfa';defEffect='damage';
+        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+      }else if(mg.type==='heal'){
+        const healPct=0.25+Math.random()*0.15;
+        const h=Math.floor(maxHp*healPct);
+        attacker._bHp=Math.min(maxHp,attacker._bHp+h);
+        eText=`💚+${h}`;eColor='#4ade80';
+        msg=`💚 ${attacker.kanji}「${mg.name}」！HP+${h}（${Math.round(healPct*100)}%）回復！`;
+        atkEffect='heal';atkEffectColor='#4ade80';defEffect=null;
+      }else if(mg.type==='debuff'){
         defender._status='💀弱体(-30%)';defender._debuffAtk=0.7;defender._debuffDef=0.7;defender._debuffTurns=2;
-        dmg=Math.max(5,Math.floor(atkINT*0.6*atkMult));defender._bHp=Math.max(0,defender._bHp-dmg);
+        dmg=Math.max(5,Math.floor(atkINT*0.6*atkMult));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
         eText=`🌑${dmg}`;eColor='#a78bfa';
-        msg=`🌑 ${attacker.kanji}「${mg.name}」！弱体化(ATK&DEF-30%×2ターン)+${dmg}ダメージ！`;}
+        msg=`🌑 ${attacker.kanji}「${mg.name}」！${defender.kanji}を弱体化(ATK&DEF-30%×2ターン) +${dmg}ダメージ`;
+        atkEffect='magic';atkEffectColor='#a78bfa';defEffect='damage';dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+      }
     }
+
   }else if(action.type==='defend'){
+    const h=Math.floor(maxHp*0.05);
     attacker._defUp=true;attacker._status='🛡️';
-    const h=Math.floor(maxHp*0.05);attacker._bHp=Math.min(maxHp,attacker._bHp+h);
-    eText='🛡️';eColor='#38bdf8';msg=`🛡️ ${attacker.kanji}は防御！HP+${h}`;
-    if(battleMode==='manual')cardEffect(atkSide,'defend','#38bdf8');
-    if(battleMode==='manual')cardEffect(atkSide,'defend','#38bdf8');
+    attacker._bHp=Math.min(maxHp,attacker._bHp+h);
+    eText='🛡️';eColor='#38bdf8';
+    msg=`🛡️ ${attacker.kanji}は防御！HP+${h} DEF強化`;
+    atkEffect='defend';atkEffectColor='#38bdf8';defEffect=null;
   }
 
-  // Debuff duration
-  if(defender._debuffTurns!==undefined){defender._debuffTurns--;if(defender._debuffTurns<=0){delete defender._debuffAtk;delete defender._debuffDef;delete defender._debuffTurns;defender._status='';}}
+  // ===== EFFECTS SEQUENCE (manual only) =====
+  if(isManual){
+    // Step1: Attacker card effect
+    if(atkEffect)cardEffect(atkSide,atkEffect,atkEffectColor);
+    // Step2: Wait for attacker effect to show
+    await sleep(600);
+    // Step3: Defender effect (damage shake)
+    if(defEffect==='damage'){
+      shakeBfsSlot(defSide,dmgSize);
+      shakeEl('slot-'+defSide);
+    }
+    // Step4: Flash for big moves
+    if(atkEffect==='crit')flashAction('💥','#FFD700');
+    else if(atkEffect==='skill')flashAction('技','#FFD700');
+    else if(atkEffect==='magic'&&dmg>0)flashAction('🔮','#a78bfa');
+    // Step5: Update slots
+    updateSlots(battlePair[0],battlePair[1],null);
+    // Step6: Wait then show log
+    await sleep(400);
+  }else{
+    // Auto mode: basic effects
+    shakeEl('slot-'+defSide);
+  }
+
+  // Debuff duration tick
+  if(defender._debuffTurns!==undefined){
+    defender._debuffTurns--;
+    if(defender._debuffTurns<=0){delete defender._debuffAtk;delete defender._debuffDef;delete defender._debuffTurns;defender._status='';}
+  }
 
   const pos=getSlotCenter(dmg>0?defSide:atkSide);
   spawnEffect(eText,eColor,pos.x,pos.y);
-  // Wait for card effect to be visible before showing log
-  if(battleMode==='manual') await sleep(500);
   addLog(msg,null,logSide);
   await sleep(SPEED_MS[battleSpeed]||200);
 }
@@ -1908,7 +2008,12 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
 function waitForManual(char){
   return new Promise(resolve=>{
     manualResolve=resolve;
-    // Fullscreen is already open - just refresh slots and re-enable actions
+    // Clear previous turn logs (except very first turn)
+    if(battleLogs.length>2){
+      lastLogA='';lastLogB='';
+      const bfsLog=document.getElementById('bfs-log');
+      if(bfsLog)bfsLog.innerHTML='';
+    }
     const[a,b]=battlePair;
     const bfsVs=document.getElementById('bfs-vs');
     if(bfsVs)bfsVs.innerHTML=renderBfsSlot(a,true)+renderBfsSlot(b,false);
