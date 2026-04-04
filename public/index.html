@@ -241,7 +241,7 @@ body{display:flex;justify-content:center;}
 .card-ssr-holo{position:absolute;inset:0;background:linear-gradient(105deg,rgba(255,0,128,.12),rgba(255,200,0,.12),rgba(0,255,128,.12),rgba(0,128,255,.12),rgba(255,0,255,.12));background-size:400% 400%;animation:holoShift 3s ease infinite;pointer-events:none;border-radius:18px;mix-blend-mode:screen;z-index:1;}
 .card-ssr-holo2{position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,255,255,.04) 4px,rgba(255,255,255,.04) 8px);pointer-events:none;border-radius:18px;z-index:1;}
 .tooltip-wrap{position:relative;display:inline-block;}
-.tooltip-bubble{display:none;position:absolute;bottom:110%;left:50%;transform:translateX(-50%);background:rgba(10,10,20,.97);border:1px solid rgba(255,200,80,.3);border-radius:10px;padding:8px 12px;font-size:11px;line-height:1.6;z-index:200;color:var(--text);width:180px;box-shadow:0 4px 20px rgba(0,0,0,.5);white-space:normal;}
+.tooltip-bubble{display:none;position:fixed;background:rgba(10,10,20,.97);border:1px solid rgba(255,200,80,.3);border-radius:10px;padding:8px 12px;font-size:11px;line-height:1.6;z-index:280;color:var(--text);width:180px;box-shadow:0 4px 20px rgba(0,0,0,.5);white-space:normal;left:50%;transform:translateX(-50%);bottom:80px;}
 .tooltip-bubble::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:rgba(255,200,80,.3);}
 .tooltip-wrap.open .tooltip-bubble{display:block;}
 .battle-fullscreen{position:fixed;inset:0;z-index:180;background:rgba(5,5,8,.98);display:none;flex-direction:column;align-items:center;padding:14px 14px 20px;overflow-y:auto;}
@@ -582,7 +582,7 @@ let collTab='char';
 let equipModalTarget=null; // {charId, slotIndex}
 let selectedCardType='auto';
 let battleSpeed=4; // 1=very slow, 2=slow, 3=normal, 4=fast(default), 5=very fast
-const SPEED_MS={1:1200,2:700,3:400,4:140,5:40}; // ms delay per action
+const SPEED_MS={1:3000,2:2000,3:1000,4:200,5:50}; // ms delay per action
 
 const SKILL_TYPE_DESC={atk:'物理大攻撃。ATKベース',def:'防御強化+HP回復',buff:'次のATK1.5倍強化'};
 const MAGIC_TYPE_DESC={magic:'魔法攻撃。INTベース',heal:'HP25〜40%回復',debuff:'相手ATK&DEF-30%(2ターン)'};
@@ -591,7 +591,17 @@ function magicTooltip(m){return `<b>${m.name}</b><br>MP:${m.mpCost}<br>${MAGIC_T
 function toggleTooltip(el){
   document.querySelectorAll('.tooltip-wrap.open').forEach(e=>{if(e!==el)e.classList.remove('open');});
   el.classList.toggle('open');
-  if(el.classList.contains('open'))setTimeout(()=>el.classList.remove('open'),3000);
+  if(el.classList.contains('open')){
+    // Position tooltip above the element, centered on screen
+    const bubble=el.querySelector('.tooltip-bubble');
+    if(bubble){
+      const rect=el.getBoundingClientRect();
+      bubble.style.bottom=(window.innerHeight-rect.top+8)+'px';
+      bubble.style.left='50%';
+      bubble.style.transform='translateX(-50%)';
+    }
+    setTimeout(()=>el.classList.remove('open'),3500);
+  }
 }
 function setCardType(type){
   selectedCardType=type;
@@ -1820,8 +1830,9 @@ function autoAct(char,lv){
 }
 
 async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
-  // Determine which side is the player for log tracking
   const logSide=battlePair[0]&&attacker.id===battlePair[0].id?'a':'b';
+  // Pause before action so effects are visible
+  if(battleMode==='manual') await sleep(Math.floor(SPEED_MS[battleSpeed]*0.4)||200);
   const atkATK=getEffectiveStat(attacker,'atk')*(attacker._buffAtk||1);
   const atkINT=getEffectiveStat(attacker,'int')*(attacker._buffAtk||1);
   const atkCRIT=getEffectiveStat(attacker,'crit');
@@ -1868,7 +1879,12 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
       if(mg.type==='magic'){dmg=Math.max(5,Math.floor(atkINT*1.5*(0.9+Math.random()*0.35)*atkMult*defMult-defDEF*0.1));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`✨${dmg}!`;eColor='#a78bfa';flashEl('slot-'+defSide);shakeEl('slot-'+defSide);if(battleMode==='manual'){cardEffect(atkSide,'magic','#a78bfa');shakeBfsSlot(defSide);}msg=`✨ ${attacker.kanji}「${mg.name}」！${dmg}の魔法ダメージ！`;}
         if(battleMode==='manual')flashAction(`🔮魔法！`,'#a78bfa');
       else if(mg.type==='heal'){const healPct=0.25+Math.random()*0.15;const h=Math.floor(maxHp*healPct);if(battleMode==='manual')cardEffect(atkSide,'magic','#4ade80');attacker._bHp=Math.min(maxHp,attacker._bHp+h);eText=`💚+${h}`;eColor='#4ade80';msg=`💚 ${attacker.kanji}「${mg.name}」！HP+${h}（${Math.round(healPct*100)}%）回復！`;}
-      else if(mg.type==='debuff'){if(battleMode==='manual'){cardEffect(atkSide,'magic','#a78bfa');shakeBfsSlot(defSide);}defender._status='💀弱体(-30%)';defender._debuffAtk=0.7;defender._debuffDef=0.7;defender._debuffTurns=2;dmg=Math.max(5,Math.floor(atkINT*0.6*atkMult));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`🌑${dmg}`;eColor='#a78bfa';msg=`🌑 ${attacker.kanji}「${mg.name}」！弱体化(ATK&DEF-30%×2ターン)+${dmg}ダメージ！`;}
+      else if(mg.type==='debuff'){
+        if(battleMode==='manual'){cardEffect(atkSide,'magic','#a78bfa');shakeBfsSlot(defSide);}
+        defender._status='💀弱体(-30%)';defender._debuffAtk=0.7;defender._debuffDef=0.7;defender._debuffTurns=2;
+        dmg=Math.max(5,Math.floor(atkINT*0.6*atkMult));defender._bHp=Math.max(0,defender._bHp-dmg);
+        eText=`🌑${dmg}`;eColor='#a78bfa';
+        msg=`🌑 ${attacker.kanji}「${mg.name}」！弱体化(ATK&DEF-30%×2ターン)+${dmg}ダメージ！`;}
     }
   }else if(action.type==='defend'){
     attacker._defUp=true;attacker._status='🛡️';
@@ -1883,8 +1899,10 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
 
   const pos=getSlotCenter(dmg>0?defSide:atkSide);
   spawnEffect(eText,eColor,pos.x,pos.y);
+  // Wait for card effect to be visible before showing log
+  if(battleMode==='manual') await sleep(500);
   addLog(msg,null,logSide);
-  await sleep(SPEED_MS[battleSpeed]||140);
+  await sleep(SPEED_MS[battleSpeed]||200);
 }
 
 function waitForManual(char){
