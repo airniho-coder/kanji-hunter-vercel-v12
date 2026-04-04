@@ -269,6 +269,18 @@ body{display:flex;justify-content:center;}
 @keyframes resultFade{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
 .battle-vs-big{display:flex;gap:10px;width:100%;max-width:480px;margin-bottom:10px;}
 .battle-slot-big{flex:1;border-radius:14px;overflow:hidden;position:relative;}
+.card-effect-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5;border-radius:14px;}
+.card-effect-text{font-size:64px;font-weight:900;opacity:0;text-shadow:0 0 20px currentColor;}
+.card-effect-text.pop{animation:cardEffectPop .7s ease forwards;}
+@keyframes cardEffectPop{0%{opacity:0;transform:scale(.3)}30%{opacity:1;transform:scale(1.3)}60%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.8)}}
+@keyframes magicCircleAnim{0%{opacity:0;transform:scale(.2) rotate(0deg)}40%{opacity:.9;transform:scale(1.1) rotate(180deg)}70%{opacity:.8;transform:scale(1) rotate(270deg)}100%{opacity:0;transform:scale(1.2) rotate(360deg)}}
+.card-effect-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5;border-radius:14px;}
+.card-effect-text{font-size:64px;font-weight:900;opacity:0;text-shadow:0 0 20px currentColor;}
+.card-effect-text.pop{animation:cardEffectPop .7s ease forwards;}
+.magic-circle{position:absolute;inset:0;border-radius:14px;opacity:0;display:flex;align-items:center;justify-content:center;}
+.magic-circle.show{animation:magicCircleAnim .8s ease forwards;}
+@keyframes cardEffectPop{0%{opacity:0;transform:scale(.3)}30%{opacity:1;transform:scale(1.3)}60%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.8)}}
+@keyframes magicCircleAnim{0%{opacity:0;transform:scale(.2) rotate(0deg)}40%{opacity:.9;transform:scale(1.1) rotate(180deg)}70%{opacity:.8;transform:scale(1) rotate(270deg)}100%{opacity:0;transform:scale(1.2) rotate(360deg)}}
 .battle-slot-big-art{width:100%;height:185px;object-fit:cover;object-position:top center;display:block;}
 .battle-slot-big-art-fb{height:185px;display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:900;}
 .battle-slot-big-info{padding:7px 9px 8px;}
@@ -1578,10 +1590,11 @@ async function startBattle(){
   lastLogA='';lastLogB='';
 
   if(battleMode==='manual'){
-    // Show intro screen
-    await showBattleIntroScreen(a,b,lvA,lvB);
-    // Keep fullscreen battle open throughout
+    // Open BFS FIRST (before intro) so background is covered
     showBattleFullscreen(true,a);
+    // Then show intro on top
+    await showBattleIntroScreen(a,b,lvA,lvB);
+    // BFS stays open
   }else{
     const arena=document.querySelector('.battle-arena');
     if(arena){arena.style.animation='none';void arena.offsetWidth;arena.style.animation='battleIntro .6s ease';}
@@ -1828,11 +1841,15 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
     eText=isCrit?`💥${dmg}!`:`${dmg}`;eColor=isCrit?'#FFD700':'#fb923c';
     msg=`⚔️ ${attacker.kanji}の攻撃！${dmg}${isCrit?' 会心！':''}ダメージ${atkMult>1?' ⬆属性有利':''}`;
     shakeEl('slot-'+defSide);
-    if(isCrit&&battleMode==='manual')flashAction('💥会心！','#FFD700');
+    if(battleMode==='manual'){
+      shakeBfsSlot(defSide);
+      if(isCrit){cardEffect(atkSide,'crit','#FFD700');flashAction('💥','#FFD700');}
+      else{cardEffect(atkSide,'attack',eColor);}
+    }
   }else if(action.type==='magic'){
     const maxMp=getEffectiveStat(attacker,'mp');const cost=Math.floor(maxMp*0.18);
     if(attacker._bMp<cost){dmg=Math.max(2,Math.floor(atkATK*0.7-defDEF*0.15));defender._bHp=Math.max(0,defender._bHp-dmg);msg=`⚔️ ${attacker.kanji}（MP不足）${dmg}ダメージ`;eText=`${dmg}`;}
-    else{attacker._bMp=Math.max(0,attacker._bMp-cost);dmg=Math.max(3,Math.floor(atkINT*(0.9+Math.random()*0.3)*atkMult*defMult-defDEF*0.1));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`🔮${dmg}`;eColor='#818cf8';msg=`🔮 ${attacker.kanji}の魔法！${dmg}ダメージ`;flashEl('slot-'+defSide);shakeEl('slot-'+defSide);}
+    else{attacker._bMp=Math.max(0,attacker._bMp-cost);dmg=Math.max(3,Math.floor(atkINT*(0.9+Math.random()*0.3)*atkMult*defMult-defDEF*0.1));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`🔮${dmg}`;eColor='#818cf8';msg=`🔮 ${attacker.kanji}の魔法！${dmg}ダメージ`;flashEl('slot-'+defSide);shakeEl('slot-'+defSide);if(battleMode==='manual'){cardEffect(atkSide,'magic','#818cf8');shakeBfsSlot(defSide);}}
   }else if(action.type==='skill'&&action.s){
     const sk=action.s;
     if(attacker._bSp<sk.spCost){dmg=Math.max(2,Math.floor(atkATK*0.8-defDEF*0.2));defender._bHp=Math.max(0,defender._bHp-dmg);msg=`⚔️ ${attacker.kanji}（SP不足）${dmg}ダメージ`;eText=`${dmg}`;}
@@ -1840,7 +1857,7 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
       attacker._bSp=Math.max(0,attacker._bSp-sk.spCost);
       if(sk.type==='atk'){dmg=Math.max(5,Math.floor(atkATK*1.4*(0.9+Math.random()*0.35)*atkMult*defMult-defDEF*0.15));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`⚔️${dmg}!`;eColor='#FFD700';shakeEl('slot-'+defSide);flashEl('slot-'+defSide);msg=`💥 ${attacker.kanji}「${sk.name}」！${dmg}の大ダメージ！`;}
         if(battleMode==='manual')flashAction(`⚔️必殺技！`,'#FFD700');
-      else if(sk.type==='def'){attacker._defUp=true;attacker._status='🛡️DEF×2';const h=Math.floor(maxHp*0.15);attacker._bHp=Math.min(maxHp,attacker._bHp+h);const sr=Math.floor(getEffectiveStat(attacker,'sp')*0.2);attacker._bSp=Math.min(getEffectiveStat(attacker,'sp'),attacker._bSp+sr);eText=`🛡️+${h}`;eColor='#38bdf8';msg=`🛡️ ${attacker.kanji}「${sk.name}」！防御2倍&HP+${h}&SP+${sr}`;}
+      else if(sk.type==='def'){if(battleMode==='manual')cardEffect(atkSide,'defend','#38bdf8');attacker._defUp=true;attacker._status='🛡️DEF×2';const h=Math.floor(maxHp*0.15);attacker._bHp=Math.min(maxHp,attacker._bHp+h);const sr=Math.floor(getEffectiveStat(attacker,'sp')*0.2);attacker._bSp=Math.min(getEffectiveStat(attacker,'sp'),attacker._bSp+sr);eText=`🛡️+${h}`;eColor='#38bdf8';msg=`🛡️ ${attacker.kanji}「${sk.name}」！防御2倍&HP+${h}&SP+${sr}`;}
       else if(sk.type==='buff'){attacker._buffAtk=1.5;attacker._status='✨ATK×1.5';const sr=Math.floor(getEffectiveStat(attacker,'sp')*0.15);attacker._bSp=Math.min(getEffectiveStat(attacker,'sp'),attacker._bSp+sr);eText='⬆ATK';eColor='#fbbf24';msg=`✨ ${attacker.kanji}「${sk.name}」！ATK50%強化&SP+${sr}`;}
     }
   }else if(action.type==='magic'&&action.s){
@@ -1848,15 +1865,17 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
     if(attacker._bMp<mg.mpCost){dmg=Math.max(2,Math.floor(atkATK*0.7-defDEF*0.15));defender._bHp=Math.max(0,defender._bHp-dmg);msg=`⚔️ ${attacker.kanji}（MP不足）${dmg}ダメージ`;eText=`${dmg}`;}
     else{
       attacker._bMp=Math.max(0,attacker._bMp-mg.mpCost);
-      if(mg.type==='magic'){dmg=Math.max(5,Math.floor(atkINT*1.5*(0.9+Math.random()*0.35)*atkMult*defMult-defDEF*0.1));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`✨${dmg}!`;eColor='#a78bfa';flashEl('slot-'+defSide);shakeEl('slot-'+defSide);msg=`✨ ${attacker.kanji}「${mg.name}」！${dmg}の魔法ダメージ！`;}
+      if(mg.type==='magic'){dmg=Math.max(5,Math.floor(atkINT*1.5*(0.9+Math.random()*0.35)*atkMult*defMult-defDEF*0.1));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`✨${dmg}!`;eColor='#a78bfa';flashEl('slot-'+defSide);shakeEl('slot-'+defSide);if(battleMode==='manual'){cardEffect(atkSide,'magic','#a78bfa');shakeBfsSlot(defSide);}msg=`✨ ${attacker.kanji}「${mg.name}」！${dmg}の魔法ダメージ！`;}
         if(battleMode==='manual')flashAction(`🔮魔法！`,'#a78bfa');
-      else if(mg.type==='heal'){const healPct=0.25+Math.random()*0.15;const h=Math.floor(maxHp*healPct);attacker._bHp=Math.min(maxHp,attacker._bHp+h);eText=`💚+${h}`;eColor='#4ade80';msg=`💚 ${attacker.kanji}「${mg.name}」！HP+${h}（${Math.round(healPct*100)}%）回復！`;}
-      else if(mg.type==='debuff'){defender._status='💀弱体(-30%)';defender._debuffAtk=0.7;defender._debuffDef=0.7;defender._debuffTurns=2;dmg=Math.max(5,Math.floor(atkINT*0.6*atkMult));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`🌑${dmg}`;eColor='#a78bfa';msg=`🌑 ${attacker.kanji}「${mg.name}」！弱体化(ATK&DEF-30%×2ターン)+${dmg}ダメージ！`;}
+      else if(mg.type==='heal'){const healPct=0.25+Math.random()*0.15;const h=Math.floor(maxHp*healPct);if(battleMode==='manual')cardEffect(atkSide,'magic','#4ade80');attacker._bHp=Math.min(maxHp,attacker._bHp+h);eText=`💚+${h}`;eColor='#4ade80';msg=`💚 ${attacker.kanji}「${mg.name}」！HP+${h}（${Math.round(healPct*100)}%）回復！`;}
+      else if(mg.type==='debuff'){if(battleMode==='manual'){cardEffect(atkSide,'magic','#a78bfa');shakeBfsSlot(defSide);}defender._status='💀弱体(-30%)';defender._debuffAtk=0.7;defender._debuffDef=0.7;defender._debuffTurns=2;dmg=Math.max(5,Math.floor(atkINT*0.6*atkMult));defender._bHp=Math.max(0,defender._bHp-dmg);eText=`🌑${dmg}`;eColor='#a78bfa';msg=`🌑 ${attacker.kanji}「${mg.name}」！弱体化(ATK&DEF-30%×2ターン)+${dmg}ダメージ！`;}
     }
   }else if(action.type==='defend'){
     attacker._defUp=true;attacker._status='🛡️';
     const h=Math.floor(maxHp*0.05);attacker._bHp=Math.min(maxHp,attacker._bHp+h);
     eText='🛡️';eColor='#38bdf8';msg=`🛡️ ${attacker.kanji}は防御！HP+${h}`;
+    if(battleMode==='manual')cardEffect(atkSide,'defend','#38bdf8');
+    if(battleMode==='manual')cardEffect(atkSide,'defend','#38bdf8');
   }
 
   // Debuff duration
@@ -1914,7 +1933,9 @@ function renderBfsSlot(char,isPlayer){
   const mpPct=Math.max(0,Math.round(char._bMp/getEffectiveStat(char,'mp')*100));
   const hpC=hpPct>50?'#4ade80':hpPct>25?'#fb923c':'#ef4444';
   const artEl=char.artImg?`<img src="${char.artImg}" class="battle-slot-big-art" alt="">`:`<div class="battle-slot-big-art-fb" style="color:${rc.color};background:${rc.bg}">${char.kanji}</div>`;
-  return`<div class="battle-slot-big" style="background:${rc.bg};border:2px solid ${isPlayer?rc.color:rc.color+'44'}">
+  const slotId='bfs-slot-'+(isPlayer?'a':'b');
+  return`<div class="battle-slot-big" id="${slotId}" style="background:${rc.bg};border:2px solid ${isPlayer?rc.color:rc.color+'44'}">
+    <div class="card-effect-overlay" id="${slotId}-fx"></div>
     ${artEl}
     <div class="battle-slot-big-info">
       <div style="font-size:10px;color:${rc.color};font-weight:700;letter-spacing:.5px">${char.charName}${isPlayer?' 🎮':' 🤖'}</div>
@@ -1943,6 +1964,45 @@ async function flashAction(text,color){
   overlay.innerHTML=`<div style="font-size:52px;font-weight:900;color:${color};text-shadow:0 0 30px ${color};animation:actionFlashAnim .8s ease forwards">${text}</div>`;
   await sleep(850);
   overlay.innerHTML='';
+}
+
+// Card effect overlay - shows icon/symbol on attacker's card
+function cardEffect(side, type, color){
+  const fx=document.getElementById('bfs-slot-'+side+'-fx');
+  if(!fx)return;
+  let inner='';
+  if(type==='attack'){
+    inner=`<div style="font-size:80px;opacity:0;color:${color};text-shadow:0 0 20px ${color}" class="card-effect-text pop">⚔️</div>`;
+  }else if(type==='skill'){
+    inner=`<div style="font-size:72px;font-weight:900;opacity:0;color:${color};text-shadow:0 0 25px ${color};font-family:'Noto Serif JP',serif" class="card-effect-text pop">技</div>`;
+  }else if(type==='magic'){
+    // Magic circle SVG
+    inner=`<div class="magic-circle show" style="background:radial-gradient(circle,${color}22 0%,transparent 70%)">
+      <svg width="140" height="140" viewBox="0 0 140 140" style="opacity:.0;animation:magicCircleAnim .8s ease forwards">
+        <circle cx="70" cy="70" r="60" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="8 4"/>
+        <circle cx="70" cy="70" r="45" fill="none" stroke="${color}" stroke-width="1.5" stroke-dasharray="4 6"/>
+        <polygon points="70,20 115,95 25,95" fill="none" stroke="${color}" stroke-width="1.5" opacity=".8"/>
+        <polygon points="70,120 25,45 115,45" fill="none" stroke="${color}" stroke-width="1.5" opacity=".8"/>
+        <circle cx="70" cy="70" r="8" fill="${color}" opacity=".6"/>
+      </svg>
+    </div>`;
+  }else if(type==='defend'){
+    inner=`<div style="font-size:80px;opacity:0;color:${color};text-shadow:0 0 20px ${color}" class="card-effect-text pop">🛡️</div>`;
+  }else if(type==='crit'){
+    inner=`<div style="font-size:72px;font-weight:900;opacity:0;color:#FFD700;text-shadow:0 0 30px #FFD700" class="card-effect-text pop">💥</div>`;
+  }
+  fx.innerHTML=inner;
+  setTimeout(()=>{fx.innerHTML='';},900);
+}
+
+// Shake BFS slot card
+function shakeBfsSlot(side){
+  const el=document.getElementById('bfs-slot-'+side);
+  if(!el)return;
+  el.style.animation='none';
+  void el.offsetWidth;
+  el.style.animation='shake .3s ease';
+  setTimeout(()=>el.style.animation='',350);
 }
 function disableBfsActions(){
   // Hide action buttons while processing - don't close fullscreen
