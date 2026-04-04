@@ -341,18 +341,6 @@ body{display:flex;justify-content:center;}
   <div class="intro-vs-row" id="intro-vs-row"></div>
   <div id="intro-countdown" style="font-size:80px;font-weight:900;color:#FF4444;text-shadow:0 0 40px rgba(255,0,0,.7);animation:vsPulse .4s ease infinite alternate"></div>
 </div>
-
-<!-- BATTLE RESULT SCREEN -->
-<div class="battle-result-screen" id="battle-result-screen">
-  <div id="result-content"></div>
-</div>
-
-<!-- BATTLE INTRO SCREEN -->
-<div class="battle-intro-screen" id="battle-intro-screen">
-  <div class="intro-title">BATTLE START</div>
-  <div class="intro-vs-row" id="intro-vs-row"></div>
-  <div id="intro-countdown" style="font-size:80px;font-weight:900;color:#FF4444;text-shadow:0 0 40px rgba(255,0,0,.7);animation:vsPulse .4s ease infinite alternate"></div>
-</div>
 <!-- BATTLE RESULT SCREEN -->
 <div class="battle-result-screen" id="battle-result-screen">
   <div id="result-content"></div>
@@ -2166,9 +2154,6 @@ function cardEffect(side, type, color, label){
 function shakeBfsSlot(side,size){
   const el=document.getElementById('bfs-slot-'+side);
   if(!el)return;
-  // 背景色テスト：赤くなれば要素は正常
-  el.style.outline='4px solid red';
-  setTimeout(()=>el.style.outline='',800);
   el.style.animation='none';
   void el.offsetWidth;
   if(size==='large'){el.style.animation='shakeLarge .5s ease';setTimeout(()=>el.style.animation='',550);}
