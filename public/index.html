@@ -208,7 +208,7 @@ body{display:flex;justify-content:center;}
 
 /* EFFECTS */
 .effect-overlay{position:fixed;inset:0;z-index:150;pointer-events:none;overflow:hidden;}
-.effect-text{position:absolute;font-size:28px;font-weight:900;pointer-events:none;animation:efloat 1.8s ease forwards;white-space:nowrap;}
+.effect-text{position:absolute;font-size:28px;font-weight:900;pointer-events:none;white-space:nowrap;}
 .shake{animation:shake .3s ease !important;}
 .flash-el{animation:flashEl .25s ease !important;}
 
@@ -1506,7 +1506,15 @@ function renderBattleSelect(){
 }
 
 // ===== EFFECTS =====
-function spawnEffect(text,color,x,y){const el=document.createElement('div');el.className='effect-text';el.style.cssText=`left:${x-18}px;top:${y}px;color:${color};text-shadow:0 0 10px ${color};`;el.textContent=text;document.getElementById('effect-overlay').appendChild(el);setTimeout(()=>el.remove(),1800);}
+function spawnEffect(text,color,x,y){
+  const lifetime={1:2500,2:1800,3:900,4:300,5:150}[battleSpeed]||900;
+  const el=document.createElement('div');
+  el.className='effect-text';
+  el.style.cssText=`left:${x-18}px;top:${y}px;color:${color};text-shadow:0 0 10px ${color};animation:efloat ${lifetime/1000}s ease forwards;`;
+  el.textContent=text;
+  document.getElementById('effect-overlay').appendChild(el);
+  setTimeout(()=>el.remove(),lifetime);
+}
 function shakeEl(id){const e=document.getElementById(id);if(!e)return;e.classList.remove('shake');void e.offsetWidth;e.classList.add('shake');setTimeout(()=>e.classList.remove('shake'),350);}
 function flashEl(id){const e=document.getElementById(id);if(!e)return;e.classList.remove('flash-el');void e.offsetWidth;e.classList.add('flash-el');setTimeout(()=>e.classList.remove('flash-el'),300);}
 function getSlotCenter(side){const e=document.getElementById('slot-'+side);if(!e)return{x:200,y:200};const r=e.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/3};}
