@@ -2165,28 +2165,19 @@ function cardEffect(side, type, color, label){
 function shakeBfsSlot(side,size){
   const el=document.getElementById('bfs-slot-'+side);
   if(!el)return;
-  // 明滅＋枠線フラッシュ
-  const times = size==='large'?5:size==='small'?2:3;
-  const dur = size==='large'?75:size==='small'?65:70;
-  const flashColor = size==='large'?'#ef4444':size==='small'?'#fb923c':'#f87171';
-  const origBorder = el.style.border||el.style.borderColor||'';
+  // ① 揺れ: shakeElと同じclassベース方式
+  el.classList.remove('shake');
+  void el.offsetWidth;
+  el.classList.add('shake');
+  setTimeout(()=>el.classList.remove('shake'),400);
+  // ② 明滅: opacityを直接変化
+  const times=size==='large'?5:size==='small'?2:3;
+  const dur=size==='large'?75:size==='small'?65:70;
   let count=0;
-  el.style.transition=`opacity ${dur}ms ease, box-shadow ${dur}ms ease`;
   const blink=setInterval(()=>{
-    if(count%2===0){
-      el.style.opacity='0.12';
-      el.style.boxShadow=`0 0 18px 4px ${flashColor}`;
-    }else{
-      el.style.opacity='1';
-      el.style.boxShadow='none';
-    }
+    el.style.opacity=(count%2===0)?'0.15':'1';
     count++;
-    if(count>=times*2){
-      clearInterval(blink);
-      el.style.opacity='1';
-      el.style.boxShadow='none';
-      el.style.transition='';
-    }
+    if(count>=times*2){clearInterval(blink);el.style.opacity='1';}
   },dur);
 }
 function disableBfsActions(){
