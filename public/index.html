@@ -312,6 +312,7 @@ body{display:flex;justify-content:center;}
 @keyframes battleIntro{0%{opacity:0;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}100%{opacity:0;transform:translateY(-70px) scale(1.2)}}
 @keyframes battleIntro{0%{opacity:0;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
 @keyframes shake{0%,100%{transform:translateX(0)}
+@keyframes critFlash{0%{opacity:0;transform:scale(.5)}40%{opacity:1;transform:scale(1.4)}70%{opacity:.8;transform:scale(1.1)}100%{opacity:0;transform:scale(1.6)}}
 @keyframes shakeSmall{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 @keyframes shakeLarge{0%,100%{transform:translateX(0)}10%{transform:translateX(-14px)}30%{transform:translateX(14px)}50%{transform:translateX(-10px)}70%{transform:translateX(10px)}90%{transform:translateX(-5px)}}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 @keyframes flashEl{0%,100%{opacity:1}50%{opacity:.08}}
@@ -2109,26 +2110,33 @@ function cardEffect(side, type, color, label){
   if(!fx)return;
   let inner='';
   if(type==='attack'){
-    // 剣1本SVG
-    inner=`<div style="opacity:0;animation:cardEffectPop .7s ease forwards" class="card-effect-text">
-      <svg width="80" height="80" viewBox="0 0 80 80">
-        <line x1="12" y1="68" x2="68" y2="12" stroke="${color}" stroke-width="5" stroke-linecap="round"/>
-        <line x1="12" y1="68" x2="12" y2="52" stroke="${color}" stroke-width="3" stroke-linecap="round"/>
-        <line x1="12" y1="68" x2="28" y2="68" stroke="${color}" stroke-width="3" stroke-linecap="round"/>
-        <polygon points="68,12 56,26 74,26" fill="${color}"/>
+    // 剣2本交差SVG（大きく鮮明に）
+    inner=`<div style="opacity:0;animation:cardEffectPop .8s ease forwards;display:flex;align-items:center;justify-content:center">
+      <svg width="110" height="110" viewBox="0 0 110 110">
+        <line x1="15" y1="95" x2="95" y2="15" stroke="${color}" stroke-width="7" stroke-linecap="round"/>
+        <line x1="15" y1="95" x2="15" y2="72" stroke="${color}" stroke-width="4" stroke-linecap="round"/>
+        <line x1="15" y1="95" x2="38" y2="95" stroke="${color}" stroke-width="4" stroke-linecap="round"/>
+        <polygon points="95,15 78,32 98,32" fill="${color}"/>
+        <line x1="95" y1="95" x2="15" y2="15" stroke="${color}" stroke-width="7" stroke-linecap="round"/>
+        <line x1="95" y1="95" x2="95" y2="72" stroke="${color}" stroke-width="4" stroke-linecap="round"/>
+        <line x1="95" y1="95" x2="72" y2="95" stroke="${color}" stroke-width="4" stroke-linecap="round"/>
+        <polygon points="15,15 32,32 12,32" fill="${color}"/>
       </svg></div>`;
   }else if(type==='crit'){
-    // 炎をまとった剣SVG
-    inner=`<div style="opacity:0;animation:cardEffectPop .7s ease forwards" class="card-effect-text">
-      <svg width="90" height="90" viewBox="0 0 90 90">
-        <line x1="15" y1="75" x2="75" y2="15" stroke="#FFD700" stroke-width="5" stroke-linecap="round"/>
-        <line x1="15" y1="75" x2="15" y2="58" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
-        <line x1="15" y1="75" x2="32" y2="75" stroke="#FFD700" stroke-width="3" stroke-linecap="round"/>
-        <polygon points="75,15 62,29 80,29" fill="#FFD700"/>
-        <ellipse cx="66" cy="22" rx="10" ry="16" fill="#FF4400" opacity=".85" transform="rotate(-45 66 22)"/>
-        <ellipse cx="66" cy="22" rx="6" ry="10" fill="#FFD700" opacity=".95" transform="rotate(-45 66 22)"/>
-        <ellipse cx="66" cy="22" rx="3" ry="5" fill="#fff" opacity=".7" transform="rotate(-45 66 22)"/>
-      </svg></div>`;
+    // 剣2本交差 + ピカっと光るエフェクト
+    inner=`<div style="position:relative;display:flex;align-items:center;justify-content:center;width:130px;height:130px">
+      <svg width="110" height="110" viewBox="0 0 110 110" style="animation:cardEffectPop .8s ease forwards;opacity:0;position:absolute">
+        <line x1="15" y1="95" x2="95" y2="15" stroke="#FFD700" stroke-width="7" stroke-linecap="round"/>
+        <line x1="15" y1="95" x2="15" y2="72" stroke="#FFD700" stroke-width="4" stroke-linecap="round"/>
+        <line x1="15" y1="95" x2="38" y2="95" stroke="#FFD700" stroke-width="4" stroke-linecap="round"/>
+        <polygon points="95,15 78,32 98,32" fill="#FFD700"/>
+        <line x1="95" y1="95" x2="15" y2="15" stroke="#FFD700" stroke-width="7" stroke-linecap="round"/>
+        <line x1="95" y1="95" x2="95" y2="72" stroke="#FFD700" stroke-width="4" stroke-linecap="round"/>
+        <line x1="95" y1="95" x2="72" y2="95" stroke="#FFD700" stroke-width="4" stroke-linecap="round"/>
+        <polygon points="15,15 32,32 12,32" fill="#FFD700"/>
+      </svg>
+      <div style="position:absolute;width:130px;height:130px;border-radius:50%;animation:critFlash .6s ease .4s forwards;opacity:0;background:radial-gradient(circle,#FFD70088 0%,#FFD70022 50%,transparent 70%)"></div>
+    </div>`;
   }else if(type==='skill'){
     inner=`<div style="font-size:80px;font-weight:900;opacity:0;color:${color};text-shadow:0 0 25px ${color};font-family:'Noto Serif JP',serif" class="card-effect-text pop">技</div>`;
   }else if(type==='magic'){
