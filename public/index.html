@@ -2053,8 +2053,10 @@ function showBattleFullscreen(show,playerChar){
 function renderBfsSlot(char,isPlayer){
   if(!char)return'';
   const rc=RARITY[char.rarity]||RARITY.C;
-  const hpPct=Math.max(0,Math.round(char._bHp/getEffectiveStat(char,'hp')*100));
-  const mpPct=Math.max(0,Math.round(char._bMp/getEffectiveStat(char,'mp')*100));
+  const maxHp=getEffectiveStat(char,'hp'),maxMp=getEffectiveStat(char,'mp'),maxSp=getEffectiveStat(char,'sp');
+  const hpPct=Math.max(0,Math.round(char._bHp/maxHp*100));
+  const mpPct=Math.max(0,Math.round(char._bMp/maxMp*100));
+  const spPct=Math.max(0,Math.round(char._bSp/maxSp*100));
   const hpC=hpPct>50?'#4ade80':hpPct>25?'#fb923c':'#ef4444';
   const artEl=char.artImg?`<img src="${char.artImg}" class="battle-slot-big-art" alt="">`:`<div class="battle-slot-big-art-fb" style="color:${rc.color};background:${rc.bg}">${char.kanji}</div>`;
   const slotId='bfs-slot-'+(isPlayer?'a':'b');
@@ -2062,10 +2064,13 @@ function renderBfsSlot(char,isPlayer){
     <div class="card-effect-overlay" id="${slotId}-fx"></div>
     ${artEl}
     <div class="battle-slot-big-info">
-      <div style="font-size:10px;color:${rc.color};font-weight:700;letter-spacing:.5px">${char.charName}${isPlayer?' 🎮':' 🤖'}</div>
-      <div style="height:5px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:4px"><div style="height:100%;width:${hpPct}%;background:${hpC};border-radius:3px;transition:width .4s"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:9px;opacity:.5;margin-top:2px"><span>HP ${char._bHp}</span><span>${char._status||''}</span></div>
-      <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:2px"><div style="height:100%;width:${mpPct}%;background:#818cf8;border-radius:2px;transition:width .4s"></div></div>
+      <div style="font-size:10px;color:${rc.color};font-weight:700;letter-spacing:.5px">${char.charName}${isPlayer?' 🎮':' 🤖'}${char._status?` <span style="font-size:8px;opacity:.7">${char._status}</span>`:''}</div>
+      <div style="display:flex;justify-content:space-between;font-size:8px;margin-top:4px;opacity:.8"><span style="color:#4ade80">HP</span><span>${char._bHp}/${maxHp}</span></div>
+      <div style="height:5px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:1px"><div style="height:100%;width:${hpPct}%;background:${hpC};border-radius:3px;transition:width .4s"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:8px;margin-top:3px;opacity:.8"><span style="color:#818cf8">MP</span><span>${char._bMp}/${maxMp}</span></div>
+      <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:1px"><div style="height:100%;width:${mpPct}%;background:#818cf8;border-radius:2px;transition:width .4s"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:8px;margin-top:3px;opacity:.8"><span style="color:#fbbf24">SP</span><span>${char._bSp}/${maxSp}</span></div>
+      <div style="height:3px;border-radius:2px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:1px"><div style="height:100%;width:${spPct}%;background:#fbbf24;border-radius:2px;transition:width .4s"></div></div>
     </div>
   </div>`;
 }
