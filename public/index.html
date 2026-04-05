@@ -426,7 +426,7 @@ body{display:flex;justify-content:center;}
         <button class="card-type-btn" data-type="magic" onclick="setCardType('magic')">🔮<span>魔法</span></button>
         <button class="card-type-btn" data-type="weapon" onclick="setCardType('weapon')">🗡️<span>武器</span></button>
         <button class="card-type-btn" data-type="armor" onclick="setCardType('armor')">🛡️<span>防具</span></button>
-        <button class="card-type-btn" data-type="tool" onclick="setCardType('tool')">🔧<span>道具</span></button>
+        <button class="card-type-btn" data-type="item" onclick="setCardType('item')">💊<span>アイテム</span></button>
         <button class="card-type-btn" data-type="recovery" onclick="setCardType('recovery')">💉<span>回復</span></button>
       </div>
       <div class="btn-row">
@@ -644,8 +644,8 @@ function showTab(name){
 }
 function setCollTab(t){
   collTab=t;
-  ['char','skill','magic','item'].forEach(x=>document.getElementById('ctab-'+x).classList.remove('active'));
-  document.getElementById('ctab-'+t).classList.add('active');
+  ['char','skill','magic','weapon','armor','item','recovery'].forEach(x=>{const el=document.getElementById('ctab-'+x);if(el)el.classList.remove('active');});
+  const activeEl=document.getElementById('ctab-'+t);if(activeEl)activeEl.classList.add('active');
   renderCollection();
 }
 function updateHeaderCount(){
@@ -1221,8 +1221,17 @@ function openEquipModal(charId,slotIdx,evt){
 function closeEquipModal(evt){
   if(evt&&evt.target!==document.getElementById('equip-modal'))return;
   document.getElementById('equip-modal').style.display='none';
+  const prevTarget=equipModalTarget;
   equipModalTarget=null;
   renderCollection();
+  // キャラ詳細が開いていたら再描画
+  if(prevTarget){
+    const charDetailEl=document.getElementById('char-detail-'+prevTarget.charId);
+    if(charDetailEl){
+      const char=characters.find(c=>c.id===prevTarget.charId);
+      if(char){charDetailEl.innerHTML=charDetailHTML(char,true);charDetailEl.style.display='block';}
+    }
+  }
 }
 function rebuildCharSkills(char){
   // Rebuild skills/magics from innate + equipped skill/magic cards
@@ -1428,6 +1437,33 @@ JSONのみ返してください（cardType="character"の例）:
 }
 
 // ===== おまかせ5枚召喚 =====
+function buildOmakasePrompt(cardType,jobHint,raceHint,rarityNote){
+  return `漢字ハンターゲームのカードを生成してください。画像内のテキストから漢字を1文字選び、以下の仕様でJSONを返してください。
+
+カード種類: ${cardType}（必須）
+レア度: ${rarityNote}
+jobヒント: ${jobHint}、raceヒント: ${raceHint}
+
+必須フィールド:
+- isRealBook: true/false（デジタル画面ならfalse）
+- cardType: "${cardType}"
+- kanji: 選んだ漢字1文字
+- rarity: C/N/R/SR/SSR
+- context: 画像から読んだ実際の文章（20〜50文字）
+
+${cardType==='character'?`characterの場合追加:
+- job, race, gender, element, baseVal(50-200), charName, monsterType, skills(最大2個), magics(最大2個), lore, artMood`:`非characterの場合追加:
+- name: カード名
+- bonuses: {atk:XX}等（weapon:atk中心, armor:def中心, item:atk/def以外1種, skill/magic:{}）
+- effectDesc: 効果説明
+${cardType==='skill'?'- skillData: {name,spCost:15-40,type:"atk"/"heal"/"buff",desc}':''}
+${cardType==='magic'?'- magicData: {name,mpCost:15-50,type:"magic"/"heal"/"debuff",desc}':''}
+${cardType==='recovery'?'- healType: "hp"/"mp"/"sp"':''}
+- lore`}
+
+JSONのみ返してください。`;
+}
+
 async function analyzeOmakase(){
   if(!currentImage)return;
   clearAlert();clearNewCard();
@@ -1517,13 +1553,17 @@ function registerCard(){
   if(!pendingCard)return;
   const card=pendingCard;
   const type=pendingType;
+  pendingCard=null;pendingType=null; // 先にクリアして二重登録防止
   if(type==='character')characters.push(card);
   else itemCards.push(card);
-  saveState();updateHeaderCount();clearNewCard();clearImage();
+  saveState();updateHeaderCount();
+  document.getElementById('new-card-area').innerHTML='';
+  clearImage();
   const isChar=type==='character';
   const cardId=card.id;
   showTab('collection');
-  setCollTab(isChar?'char':['skill','magic'].includes(type)?type:'item');
+  const tabMap={character:'char',skill:'skill',magic:'magic',weapon:'weapon',armor:'armor',recovery:'recovery',item:'item',tool:'item'};
+  setCollTab(tabMap[card.cardType]||'item');
   // Open detail modal after render completes
   if(isChar){
     // Use requestAnimationFrame to ensure DOM is ready
@@ -1545,9 +1585,21 @@ function renderCollection(){
     const items=itemCards.filter(i=>i.cardType==='magic');
     if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">🔮</div><div>魔法カードはまだありません</div></div>';return;}
     el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
+  }else if(collTab==='weapon'){
+    const items=itemCards.filter(i=>i.cardType==='weapon');
+    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">🗡️</div><div>武器カードはまだありません</div></div>';return;}
+    el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
+  }else if(collTab==='armor'){
+    const items=itemCards.filter(i=>i.cardType==='armor');
+    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">🛡️</div><div>防具カードはまだありません</div></div>';return;}
+    el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
+  }else if(collTab==='recovery'){
+    const items=itemCards.filter(i=>i.cardType==='recovery');
+    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">💉</div><div>回復薬カードはまだありません</div></div>';return;}
+    el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
   }else{
-    const items=itemCards.filter(i=>!['skill','magic'].includes(i.cardType));
-    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">🎒</div><div>武器・防具・アイテムは<br>まだありません</div></div>';return;}
+    const items=itemCards.filter(i=>i.cardType==='item'||i.cardType==='tool');
+    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">💊</div><div>アイテムカードはまだありません</div></div>';return;}
     el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
   }
 }
