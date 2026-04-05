@@ -1481,6 +1481,53 @@ ${cardType==='recovery'?'- healType: "hp"/"mp"/"sp"':''}
 JSONのみ返してください。`;
 }
 
+async function buildCardFromParsed(p){
+  if(!p||!p.kanji)return null;
+  if(p.cardType==='character'){
+    const stats=buildStats(p.job||'剣士',p.baseVal||100);
+    const char={
+      id:Date.now()+Math.random()*1000,cardType:'character',
+      kanji:p.kanji,rarity:p.rarity||'N',
+      job:p.job||'剣士',race:p.race||'人族',gender:p.gender||'男',
+      element:p.element||'火',baseVal:p.baseVal||100,...stats,
+      innateSkills:limitInnateSkills(p.skills||[],p.rarity||'N'),
+      innateMagics:limitInnateSkills(p.magics||[],p.rarity||'N'),
+      skills:limitInnateSkills(p.skills||[],p.rarity||'N'),
+      magics:limitInnateSkills(p.magics||[],p.rarity||'N'),
+      monsterType:p.monsterType||'',context:p.context||'',lore:p.lore||'',
+      artMood:p.artMood||'',charName:p.charName||p.kanji,
+      exp:0,artImg:null,artType:null,equippedSlots:[]
+    };
+    if(shouldUseAPI(char.rarity)){
+      char.artImg=await generateCharImage(char);
+    }else{
+      char.artType='gemini';
+      char.charImgPath=getCharImagePath(char);
+      char.jobBgPath=getJobBgPath(char.job);
+    }
+    return char;
+  }else if(p.cardType==='recovery'){
+    const healType=p.healType||'hp';
+    const tmpl=(RECOVERY_TEMPLATES[healType]||RECOVERY_TEMPLATES.hp)[p.rarity||'N']||RECOVERY_TEMPLATES.hp.N;
+    return{
+      id:Date.now()+Math.random()*1000,cardType:'recovery',
+      kanji:p.kanji,rarity:p.rarity||'N',name:tmpl.name,
+      healType,healPct:p.healPct||tmpl.heal,
+      maxUses:p.maxUses||tmpl.maxUses,usesLeft:p.maxUses||tmpl.maxUses,
+      bonuses:{},effectDesc:`${Math.round((p.healPct||tmpl.heal)*100)}%回復 x${p.maxUses||tmpl.maxUses}回`,
+      context:p.context||'',lore:p.lore||''
+    };
+  }else{
+    return{
+      id:Date.now()+Math.random()*1000,
+      cardType:p.cardType||'item',kanji:p.kanji,rarity:p.rarity||'N',
+      name:p.name||p.kanji,bonuses:p.bonuses||{},
+      effectDesc:p.effectDesc||'',context:p.context||'',lore:p.lore||'',
+      artImg:null,skillData:p.skillData||null,magicData:p.magicData||null
+    };
+  }
+}
+
 async function analyzeOmakase(){
   if(!currentImage)return;
   clearAlert();clearNewCard();
@@ -1531,13 +1578,29 @@ JSON配列のみ返答（他のテキスト一切不要）:
     if(aS<0||aE<=aS)throw new Error('JSON配列なし。レスポンス:'+rawText.slice(0,300));
     const parsed=JSON.parse(rawText.slice(aS,aE+1));
     if(!Array.isArray(parsed)||parsed.length===0)throw new Error('配列が空');
+    // デバッグ：パース結果を表示
+    const debugInfo=parsed.map((p,i)=>`${i+1}:${p?.kanji||'?'}(${p?.cardType||'?'})`).join(' ');
+    console.log('parsed cards:',debugInfo,parsed);
     for(const p of parsed){
-      if(!p||!p.kanji)continue;
-      // isRealBookがない場合はtrueとみなす（5枚まとめ召喚なので）
+      if(!p||!p.kanji){console.warn('skip: no kanji',p);continue;}
       try{
         const card=await buildCardFromParsed(p);
         if(card)omakaseCards.push(card);
-      }catch(e2){console.error('card build error',p.kanji,e2);}
+        else console.warn('buildCardFromParsed returned null for',p.kanji);
+      }catch(e2){
+        console.error('card build error',p.kanji,e2);
+        // ビルドエラーでもシンプルカードとして追加
+        try{
+          const fallback={id:Date.now()+Math.random(),cardType:p.cardType||'item',kanji:p.kanji,rarity:p.rarity||'N',name:p.name||p.charName||p.kanji,bonuses:p.bonuses||{},effectDesc:p.effectDesc||'',context:p.context||'',lore:p.lore||'',skillData:p.skillData||null,magicData:p.magicData||null};
+          omakaseCards.push(fallback);
+          console.log('fallback card added:',p.kanji);
+        }catch(e3){console.error('fallback failed',e3);}
+      }
+    }
+    if(omakaseCards.length===0){
+      showLoading(false);
+      showAlert('error','⚡ パース済み'+parsed.length+'枚→0枚。デバッグ:'+debugInfo);
+      return;
     }
   }catch(e){
     showLoading(false);
