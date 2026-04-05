@@ -101,8 +101,12 @@
   </div>
 
   <div id="sel-actions">
-    <button class="sel-btn" id="sel-clear-btn" onclick="clearSelection()">✕ 選択解除（全体に適用）</button>
+    <button class="sel-btn" id="sel-clear-btn" onclick="clearSelection()">✕ 選択解除</button>
     <button class="sel-btn" id="sel-apply-btn" onclick="runRemoval(true)">✓ 選択範囲のみ除去</button>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:12px">
+    <button class="sel-btn" id="undo-btn" onclick="doUndo()" style="border-color:rgba(100,120,255,.4);background:rgba(100,120,255,.1);color:#818cf8;display:none">↩ 1つ戻す</button>
+    <button class="sel-btn" id="lasso-add-btn" onclick="startLassoAdd()" style="border-color:rgba(255,215,0,.4);background:rgba(255,215,0,.08);color:#FFD700;display:none">✏️ なぞりを追加</button>
   </div>
 
   <div class="color-row">
@@ -160,8 +164,13 @@ let rectDragStart=null;
 let rectSelStart=null;
 
 // なぞり選択
-let lassoPoints=[];
-let lassoDrawing=false;
+let lassoPoints=[];       // 確定済みの点列
+let lassoDrawing=false;   // 描画中フラグ
+let lassoAddMode=false;   // 追加モード（指離した後の追加なぞり）
+
+// Undo履歴
+let undoHistory=[];  // {imageData, rect, lasso}のスタック
+const MAX_UNDO=10;
 
 // 属性ボタン
 const er=document.getElementById('elem-row');
@@ -394,10 +403,18 @@ function handleStart(pos,clientX,clientY){
     return;
   }
   if(currentMode==='lasso'){
-    lassoDrawing=true;
-    lassoPoints=[{x:pos.x,y:pos.y}];
-    drawSelOverlay();
-    return;
+    if(lassoAddMode){
+      // 追加なぞり：既存のlassoPointsに追加
+      lassoDrawing=true;
+      lassoAddMode=false;
+      // 最も近い点の近くから追加開始
+      lassoPoints.push({x:pos.x,y:pos.y});
+    }else{
+      // 新規なぞり
+      lassoDrawing=true;
+      lassoPoints=[{x:pos.x,y:pos.y}];
+    }
+    drawSelOverlay();return;
   }
 }
 
@@ -448,9 +465,9 @@ function handleEnd(){
   }
   if(currentMode==='lasso'&&lassoDrawing){
     lassoDrawing=false;
-    if(lassoPoints.length>10){
-      lassoPoints.push(lassoPoints[0]); // 閉じる
+    if(lassoPoints.length>5){
       document.getElementById('sel-actions').style.display='flex';
+      document.getElementById('lasso-add-btn').style.display='block';
     }else{lassoPoints=[];}
     drawSelOverlay();return;
   }
@@ -480,40 +497,78 @@ function drawSelOverlay(){
   }
 
   if(currentMode==='lasso'&&lassoPoints.length>1){
-    // 暗幕
+    // パスを作る
+    ctx.beginPath();
+    ctx.moveTo(lassoPoints[0].x,lassoPoints[0].y);
+    lassoPoints.forEach(p=>ctx.lineTo(p.x,p.y));
+    ctx.closePath();
+    // 暗幕（選択外）
+    ctx.save();
     ctx.fillStyle='rgba(0,0,0,0.45)';
     ctx.fillRect(0,0,so.width,so.height);
-    // なぞりパス
-    ctx.beginPath();
-    ctx.moveTo(lassoPoints[0].x,lassoPoints[0].y);
-    lassoPoints.forEach(p=>ctx.lineTo(p.x,p.y));
-    if(!lassoDrawing)ctx.closePath();
-    ctx.save();ctx.clip();
-    ctx.clearRect(0,0,so.width,so.height);ctx.restore();
-    // 線
+    ctx.globalCompositeOperation='destination-out';
+    ctx.fill();
+    ctx.restore();
+    // 枠線
     ctx.setLineDash([6,4]);ctx.strokeStyle='#FFD700';ctx.lineWidth=2;
-    ctx.beginPath();
-    ctx.moveTo(lassoPoints[0].x,lassoPoints[0].y);
+    ctx.beginPath();ctx.moveTo(lassoPoints[0].x,lassoPoints[0].y);
     lassoPoints.forEach(p=>ctx.lineTo(p.x,p.y));
-    if(!lassoDrawing)ctx.closePath();
-    ctx.stroke();ctx.setLineDash([]);
+    ctx.closePath();ctx.stroke();ctx.setLineDash([]);
     // 始点マーカー
-    ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(lassoPoints[0].x,lassoPoints[0].y,6,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(lassoPoints[0].x,lassoPoints[0].y,7,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(lassoPoints[0].x,lassoPoints[0].y,3,0,Math.PI*2);ctx.fill();
+    // 描画中なら最後の点にもマーカー
+    if(lassoDrawing&&lassoPoints.length>1){
+      const last=lassoPoints[lassoPoints.length-1];
+      ctx.fillStyle='rgba(255,215,0,.6)';ctx.beginPath();ctx.arc(last.x,last.y,4,0,Math.PI*2);ctx.fill();
+    }
   }
 }
 
 function clearSelection(){
-  rectSel=null;lassoPoints=[];
+  rectSel=null;lassoPoints=[];lassoAddMode=false;lassoDrawing=false;
   const so=document.getElementById('sel-overlay');
   so.getContext('2d').clearRect(0,0,so.width,so.height);
   document.getElementById('sel-actions').style.display='none';
+  document.getElementById('lasso-add-btn').style.display='none';
+}
+
+function startLassoAdd(){
+  lassoAddMode=true;
+  document.getElementById('canvas-hint').textContent='追加でなぞって選択範囲を修正してください';
 }
 
 // 背景除去
 document.getElementById('run-btn').addEventListener('click',()=>runRemoval(false));
 
+function doUndo(){
+  if(undoHistory.length===0)return;
+  const prev=undoHistory.pop();
+  resultCanvas=prev;
+  // main canvasに戻す
+  const mc=document.getElementById('main-canvas');
+  mc.getContext('2d').drawImage(prev,0,0);
+  // after previewも更新
+  const ab=document.getElementById('after-box');
+  if(ab.querySelector('img'))ab.querySelector('img').src=prev.toDataURL('image/png');
+  drawElemPreview();
+  if(undoHistory.length===0)document.getElementById('undo-btn').style.display='none';
+}
+
+function saveUndo(){
+  if(!resultCanvas)return;
+  const copy=document.createElement('canvas');
+  copy.width=resultCanvas.width;copy.height=resultCanvas.height;
+  copy.getContext('2d').drawImage(resultCanvas,0,0);
+  undoHistory.push(copy);
+  if(undoHistory.length>MAX_UNDO)undoHistory.shift();
+  document.getElementById('undo-btn').style.display='block';
+}
+
 function runRemoval(selOnly){
   if(!origImage)return;
+  // Undo用に現状を保存
+  if(resultCanvas)saveUndo();
   const bg=hexToRgb(document.getElementById('bg-color').value);
   const tol=parseInt(document.getElementById('tolerance').value);
   const wc=document.getElementById('work-canvas');
