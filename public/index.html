@@ -697,6 +697,45 @@ async function compressImage(dataUrl,maxW=1200,quality=0.85){
 }
 
 // ===== STABILITY IMAGE =====
+// ===== Gemini製キャラ画像マッピング =====
+const BASE_CHAR_URL='/chars/';
+
+// 種族×性別 → ファイル名
+function getCharImagePath(char){
+  const race=char.race||'人族';
+  const gender=char.gender||'不明';
+  // モンスター族は特殊処理
+  if(race==='モンスター族'){
+    const mt=(char.monsterType||'').toLowerCase();
+    if(mt.includes('slime')||mt.includes('スライム'))return BASE_CHAR_URL+'モンスター_スライム.png';
+    if(mt.includes('goblin')||mt.includes('ゴブリン'))return BASE_CHAR_URL+'モンスター_ゴブリン.png';
+    if(gender==='男')return BASE_CHAR_URL+'モンスター_男.png';
+    if(gender==='女')return BASE_CHAR_URL+'モンスター_女.png';
+    // 不明はランダムで不明1か不明2
+    return BASE_CHAR_URL+'モンスター_不明'+(Math.random()<0.5?'1':'2')+'.png';
+  }
+  // 人族は不明あり
+  if(race==='人族'){
+    if(gender==='男')return BASE_CHAR_URL+'人族_男.png';
+    if(gender==='女')return BASE_CHAR_URL+'人族_女.png';
+    return BASE_CHAR_URL+'人族_不明.png';
+  }
+  // その他の種族は男女のみ
+  const validRaces=['エルフ族','ハーフエルフ族','ダークエルフ族','ホビット族','ドワーフ族','魔族','竜族'];
+  if(validRaces.includes(race)){
+    const g=(gender==='女')?'女':'男'; // 不明は男扱い
+    return BASE_CHAR_URL+race+'_'+g+'.png';
+  }
+  return BASE_CHAR_URL+'人族_'+(gender==='女'?'女':'男')+'.png';
+}
+
+// 職業背景画像パス
+function getJobBgPath(job){
+  const validJobs=['剣士','魔法使い','僧侶','忍者','竜騎士','吟遊詩人','召喚士','賢者','暗黒騎士','聖騎士'];
+  if(validJobs.includes(job))return BASE_CHAR_URL+'bg_'+job+'.png';
+  return null;
+}
+
 function shouldUseAPI(rarity){
   if(rarity==='C'||rarity==='N')return false;
   if(rarity==='R')return Math.random()<0.6;
@@ -924,7 +963,17 @@ function statRow(label,val,color,max){return`<div class="stat-row"><div class="s
 function elemColor(e){return{火:'#ef4444',水:'#38bdf8',木:'#4ade80',土:'#fbbf24',風:'#a3e635',金:'#f0abfc',闇:'#a78bfa',光:'#fde68a'}[e]||'#fff';}
 
 function artHTML(char,h){
-  if(char.artImg)return`<img src="${char.artImg}" style="width:100%;height:${h}px;object-fit:contain;object-position:center center;display:block" alt="">`;
+  if(char.artImg)return`<img src="${char.artImg}" style="width:100%;height:${h}px;object-fit:cover;object-position:top center;display:block" alt="">`;
+  if(char.artType==='gemini'&&char.charImgPath){
+    const rc=RARITY[char.rarity]||RARITY.C;
+    const elemBgMap={火:'linear-gradient(160deg,#2a0800,#6b1a00)',水:'linear-gradient(160deg,#001828,#003060)',木:'linear-gradient(160deg,#001a08,#003820)',土:'linear-gradient(160deg,#1a1000,#3a2800)',風:'linear-gradient(160deg,#081828,#1a3040)',金:'linear-gradient(160deg,#1a0020,#380050)',闇:'linear-gradient(160deg,#080010,#1a0030)',光:'linear-gradient(160deg,#1a1808,#3a3010)'};
+    const bg=elemBgMap[char.element]||rc.bg;
+    const jobBg=char.jobBgPath?`<img src="${char.jobBgPath}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.25;mix-blend-mode:screen" alt="">` :'';
+    return`<div style="height:${h}px;position:relative;overflow:hidden;background:${bg}">
+      ${jobBg}
+      <img src="${char.charImgPath}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:top center" alt="" onerror="this.parentElement.innerHTML='${char.kanji}'">
+    </div>`;
+  }
   if(char.artType==='pixel'||char.rarity==='C'||char.rarity==='N')return`<div style="height:${h}px;overflow:hidden;flex-shrink:0">${generatePixelArt(char)}</div>`;
   return`<div style="height:${h}px;overflow:hidden;flex-shrink:0">${kanjiOnlyDisplay(char)}</div>`;
 }
@@ -1319,7 +1368,10 @@ JSONのみ返してください（cardType="character"の例）:
         showLoading(true,'キャラクター画像を生成中...','DQ風イラストを描いています');
         char.artImg=await generateCharImage(char);
       }else{
-        char.artType=char.rarity==='R'&&Math.random()<0.5?'kanji':'pixel';
+        // C/NはGemini製画像を使用（artImgはnullのままにしてcompositeで描画）
+        char.artType='gemini';
+        char.charImgPath=getCharImagePath(char);
+        char.jobBgPath=getJobBgPath(char.job);
       }
       showNewCard(char,'character');
     }else if(p.cardType==='recovery'){
@@ -1418,7 +1470,17 @@ function renderBattleSlot(el,char,isWinner,isLoser,isTurn){
   const bonusStr=Object.entries(bonus).filter(([,v])=>v>0).map(([k,v])=>`${k}+${v}`).join(' ');
   el.className='battle-slot';
   el.style.cssText=`background:${rc.bg};border:1px solid ${rc.color}${isTurn?'99':'2a'};outline:${isWinner?`2px solid ${rc.color}`:'none'};opacity:${isLoser?.38:1};transition:all .3s;flex:1;border-radius:12px;padding:9px;text-align:center;position:relative;overflow:hidden;`;
-  const artEl=char.artImg?`<img src="${char.artImg}" class="b-art" alt="">`:`<div class="b-art-fallback" style="color:${rc.color}">${char.kanji}</div>`;
+  let artEl;
+  if(char.artImg){
+    artEl=`<img src="${char.artImg}" class="b-art" alt="">`;
+  }else if(char.artType==='gemini'&&char.charImgPath){
+    const elemBgMap={火:'#2a0800',水:'#001828',木:'#001a08',土:'#1a1000',風:'#081828',金:'#1a0020',闇:'#080010',光:'#1a1808'};
+    const slotBg=elemBgMap[char.element]||'#111';
+    const jobBgEl=char.jobBgPath?`<img src="${char.jobBgPath}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.2;mix-blend-mode:screen" alt="">`:'';
+    artEl=`<div style="position:relative;width:100%;height:90px;overflow:hidden;background:${slotBg};border-radius:7px;margin-bottom:4px">${jobBgEl}<img src="${char.charImgPath}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:top center" alt=""></div>`;
+  }else{
+    artEl=`<div class="b-art-fallback" style="color:${rc.color}">${char.kanji}</div>`;
+  }
   el.innerHTML=`${isWinner?`<div class="winner-crown">👑</div>`:''}${artEl}
     <div class="b-name" style="color:${rc.color}">${char.charName}</div>
     <div class="b-tag">Lv.${lv} ${ELEM_ICONS[char.element]||''}</div>
@@ -1811,7 +1873,15 @@ function getRecoveryStatus(char){
 }
 // Resume recovery timers on load
 function resumeRecoveryTimers(){
-  characters.forEach(c=>{if(c._recoverStart!==undefined)startRecoveryInterval(c.id);});
+  characters.forEach(c=>{
+    if(c._recoverStart!==undefined)startRecoveryInterval(c.id);
+    // artTypeがgeminiだがパスがない古いデータを補完
+    if((c.rarity==='C'||c.rarity==='N')&&!c.artImg&&c.artType!=='gemini'){
+      c.artType='gemini';
+      c.charImgPath=getCharImagePath(c);
+      c.jobBgPath=getJobBgPath(c.job);
+    }
+  });
 }
 
 async function getAction(char){
