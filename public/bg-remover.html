@@ -6,232 +6,57 @@
 <title>背景除去ツール</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+  :root { --bg:#0a0a0f; --surface:#13131a; --border:#2a2a3a; --gold:#c9a84c; --text:#e8e4d8; --muted:#666680; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Noto Serif JP',serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:32px 16px; }
+  h1 { font-size:22px; font-weight:900; letter-spacing:4px; color:var(--gold); margin-bottom:4px; }
+  .subtitle { font-size:10px; letter-spacing:3px; color:var(--muted); margin-bottom:32px; text-transform:uppercase; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px; width:100%; max-width:480px; margin-bottom:16px; }
+  .card-title { font-size:10px; letter-spacing:3px; color:var(--gold); margin-bottom:16px; text-transform:uppercase; }
+  #drop-zone { border:2px dashed var(--border); border-radius:12px; padding:40px 20px; text-align:center; cursor:pointer; transition:all .2s; position:relative; }
+  #drop-zone:hover, #drop-zone.dragover { border-color:var(--gold); background:rgba(201,168,76,.05); }
+  #drop-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .drop-icon { font-size:40px; margin-bottom:12px; }
+  .drop-text { font-size:13px; color:var(--muted); line-height:1.8; }
 
-  :root {
-    --bg: #0a0a0f;
-    --surface: #13131a;
-    --border: #2a2a3a;
-    --gold: #c9a84c;
-    --gold-light: #e8c97a;
-    --text: #e8e4d8;
-    --muted: #666680;
-  }
+  /* スポイトエリア */
+  #picker-area { display:none; margin-bottom:16px; }
+  .picker-hint { font-size:10px; color:var(--muted); background:rgba(201,168,76,.08); border:1px solid rgba(201,168,76,.2); border-radius:8px; padding:8px 12px; margin-bottom:10px; line-height:1.7; }
+  #picker-canvas-wrap { position:relative; border-radius:10px; overflow:hidden; cursor:crosshair; border:2px solid rgba(201,168,76,.3); transition:border-color .2s; }
+  #picker-canvas-wrap.picking { border-color:var(--gold); box-shadow:0 0 16px rgba(201,168,76,.3); }
+  #picker-canvas { display:block; width:100%; height:auto; touch-action:none; user-select:none; }
+  #crosshair { position:absolute; pointer-events:none; display:none; width:24px; height:24px; transform:translate(-50%,-50%); }
+  #crosshair::before { content:''; position:absolute; width:1px; height:24px; background:#fff; left:50%; top:0; box-shadow:0 0 3px #000; }
+  #crosshair::after  { content:''; position:absolute; height:1px; width:24px; background:#fff; top:50%; left:0; box-shadow:0 0 3px #000; }
+  #picked-preview { position:absolute; top:8px; right:8px; width:32px; height:32px; border-radius:6px; border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,.5); display:none; }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  .color-row { display:flex; align-items:center; gap:12px; margin:0 0 16px; }
+  .color-label { font-size:11px; color:var(--muted); letter-spacing:1px; white-space:nowrap; }
+  #bg-color { width:44px; height:44px; border:2px solid var(--border); border-radius:8px; cursor:pointer; background:none; padding:2px; flex-shrink:0; }
+  #color-preview { flex:1; height:36px; border-radius:8px; border:1px solid var(--border); background:#c0c0c0; transition:background .15s; }
+  #color-hex { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); min-width:60px; }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Noto Serif JP', serif;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 32px 16px;
-  }
+  .tolerance-row { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+  #tolerance { flex:1; accent-color:var(--gold); }
+  #tolerance-val { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--gold); min-width:28px; text-align:right; }
 
-  h1 {
-    font-size: 22px;
-    font-weight: 900;
-    letter-spacing: 4px;
-    color: var(--gold);
-    margin-bottom: 4px;
-  }
-  .subtitle {
-    font-size: 10px;
-    letter-spacing: 3px;
-    color: var(--muted);
-    margin-bottom: 32px;
-    text-transform: uppercase;
-  }
+  #run-btn { width:100%; padding:14px; background:linear-gradient(135deg,#c9a84c,#e8c97a); border:none; border-radius:10px; font-size:14px; font-weight:700; font-family:'Noto Serif JP',serif; color:#0a0a0f; cursor:pointer; letter-spacing:3px; transition:opacity .15s; }
+  #run-btn:hover { opacity:.85; }
+  #run-btn:disabled { opacity:.4; cursor:not-allowed; }
 
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 24px;
-    width: 100%;
-    max-width: 480px;
-    margin-bottom: 16px;
-  }
+  .preview-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+  .preview-box { border-radius:10px; overflow:hidden; border:1px solid var(--border); aspect-ratio:2/3; display:flex; align-items:center; justify-content:center; position:relative; }
+  .preview-box.checker { background-image:linear-gradient(45deg,#222 25%,transparent 25%),linear-gradient(-45deg,#222 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#222 75%),linear-gradient(-45deg,transparent 75%,#222 75%); background-size:16px 16px; background-position:0 0,0 8px,8px -8px,-8px 0; background-color:#111; }
+  .preview-label { position:absolute; bottom:6px; left:50%; transform:translateX(-50%); font-size:9px; letter-spacing:2px; color:var(--muted); background:rgba(0,0,0,.7); padding:2px 8px; border-radius:4px; white-space:nowrap; }
+  .preview-box img { width:100%; height:100%; object-fit:contain; }
 
-  .card-title {
-    font-size: 10px;
-    letter-spacing: 3px;
-    color: var(--gold);
-    margin-bottom: 16px;
-    text-transform: uppercase;
-  }
+  .elem-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .elem-btn { padding:5px 10px; border-radius:6px; font-size:10px; cursor:pointer; border:1px solid transparent; font-family:'Noto Serif JP',serif; letter-spacing:1px; transition:all .15s; opacity:.6; background:transparent; }
+  .elem-btn.active { opacity:1; border-color:currentColor; }
 
-  /* ドロップゾーン */
-  #drop-zone {
-    border: 2px dashed var(--border);
-    border-radius: 12px;
-    padding: 40px 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: all .2s;
-    position: relative;
-  }
-  #drop-zone:hover, #drop-zone.dragover {
-    border-color: var(--gold);
-    background: rgba(201,168,76,.05);
-  }
-  #drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .drop-icon { font-size: 40px; margin-bottom: 12px; }
-  .drop-text { font-size: 13px; color: var(--muted); line-height: 1.8; }
-
-  /* 色選択 */
-  .color-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 16px 0 8px;
-  }
-  .color-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; white-space: nowrap; }
-  #bg-color {
-    width: 44px; height: 44px;
-    border: 2px solid var(--border);
-    border-radius: 8px;
-    cursor: pointer;
-    background: none;
-    padding: 2px;
-  }
-  .tolerance-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-  #tolerance {
-    flex: 1;
-    accent-color: var(--gold);
-  }
-  #tolerance-val {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    color: var(--gold);
-    min-width: 28px;
-    text-align: right;
-  }
-
-  /* スポイトボタン */
-  #eyedropper-btn {
-    display: flex; align-items: center; gap: 8px;
-    background: rgba(201,168,76,.1);
-    border: 1px solid rgba(201,168,76,.3);
-    border-radius: 8px;
-    padding: 8px 14px;
-    font-size: 11px;
-    color: var(--gold);
-    cursor: pointer;
-    letter-spacing: 1px;
-    font-family: 'Noto Serif JP', serif;
-    width: 100%;
-    justify-content: center;
-    margin-bottom: 16px;
-    transition: all .15s;
-  }
-  #eyedropper-btn:hover { background: rgba(201,168,76,.2); }
-
-  /* 実行ボタン */
-  #run-btn {
-    width: 100%;
-    padding: 14px;
-    background: linear-gradient(135deg, #c9a84c, #e8c97a);
-    border: none;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 700;
-    font-family: 'Noto Serif JP', serif;
-    color: #0a0a0f;
-    cursor: pointer;
-    letter-spacing: 3px;
-    transition: opacity .15s;
-  }
-  #run-btn:hover { opacity: .85; }
-  #run-btn:disabled { opacity: .4; cursor: not-allowed; }
-
-  /* プレビュー */
-  .preview-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-  .preview-box {
-    border-radius: 10px;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    aspect-ratio: 2/3;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-  }
-  .preview-box.checker {
-    background-image:
-      linear-gradient(45deg, #222 25%, transparent 25%),
-      linear-gradient(-45deg, #222 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, #222 75%),
-      linear-gradient(-45deg, transparent 75%, #222 75%);
-    background-size: 16px 16px;
-    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
-    background-color: #111;
-  }
-  .preview-label {
-    position: absolute;
-    bottom: 6px; left: 50%;
-    transform: translateX(-50%);
-    font-size: 9px;
-    letter-spacing: 2px;
-    color: var(--muted);
-    background: rgba(0,0,0,.7);
-    padding: 2px 8px;
-    border-radius: 4px;
-    white-space: nowrap;
-  }
-  .preview-box img, .preview-box canvas {
-    width: 100%; height: 100%;
-    object-fit: contain;
-  }
-
-  /* 属性プレビュー */
-  .elem-row {
-    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;
-  }
-  .elem-btn {
-    padding: 5px 10px;
-    border-radius: 6px;
-    font-size: 10px;
-    cursor: pointer;
-    border: 1px solid transparent;
-    font-family: 'Noto Serif JP', serif;
-    letter-spacing: 1px;
-    transition: all .15s;
-    opacity: .6;
-  }
-  .elem-btn.active { opacity: 1; border-color: currentColor; }
-
-  /* DLボタン */
-  #dl-btn {
-    width: 100%;
-    padding: 12px;
-    background: rgba(201,168,76,.12);
-    border: 1px solid rgba(201,168,76,.4);
-    border-radius: 10px;
-    font-size: 13px;
-    font-weight: 700;
-    font-family: 'Noto Serif JP', serif;
-    color: var(--gold);
-    cursor: pointer;
-    letter-spacing: 2px;
-    transition: all .15s;
-    display: none;
-  }
-  #dl-btn:hover { background: rgba(201,168,76,.2); }
-
-  canvas { display: none; }
+  #dl-btn { width:100%; padding:12px; background:rgba(201,168,76,.12); border:1px solid rgba(201,168,76,.4); border-radius:10px; font-size:13px; font-weight:700; font-family:'Noto Serif JP',serif; color:var(--gold); cursor:pointer; letter-spacing:2px; transition:all .15s; display:none; }
+  #dl-btn:hover { background:rgba(201,168,76,.2); }
+  canvas#work-canvas { display:none; }
 </style>
 </head>
 <body>
@@ -239,7 +64,6 @@
 <h1>⚗ 背景除去</h1>
 <p class="subtitle">単色背景 → 透過PNG変換ツール</p>
 
-<!-- アップロード -->
 <div class="card">
   <div class="card-title">① 画像をアップロード</div>
   <div id="drop-zone">
@@ -249,17 +73,27 @@
   </div>
 </div>
 
-<!-- 設定 -->
 <div class="card">
-  <div class="card-title">② 背景色と許容範囲を設定</div>
+  <div class="card-title">② 背景色を指定・許容範囲を設定</div>
 
-  <div class="color-row">
-    <span class="color-label">背景色</span>
-    <input type="color" id="bg-color" value="#c0c0c0">
-    <span style="font-size:11px;color:var(--muted)">← クリックで変更</span>
+  <div id="picker-area">
+    <div class="picker-hint">
+      🔍 除去したい背景部分をタップ（またはドラッグ）して色を取得<br>
+      取得した色が「背景色」に自動反映されます
+    </div>
+    <div id="picker-canvas-wrap">
+      <canvas id="picker-canvas"></canvas>
+      <div id="crosshair"></div>
+      <div id="picked-preview"></div>
+    </div>
   </div>
 
-  <button id="eyedropper-btn">🔍 画像から色を自動取得（左上のピクセル）</button>
+  <div class="color-row" style="margin-top:12px">
+    <span class="color-label">背景色</span>
+    <input type="color" id="bg-color" value="#c0c0c0">
+    <div id="color-preview"></div>
+    <span id="color-hex">#c0c0c0</span>
+  </div>
 
   <div class="tolerance-row">
     <span class="color-label" style="white-space:nowrap">許容範囲</span>
@@ -270,7 +104,6 @@
   <button id="run-btn" disabled>✨ 背景を除去する</button>
 </div>
 
-<!-- プレビュー -->
 <div class="card" id="preview-card" style="display:none">
   <div class="card-title">③ プレビュー</div>
   <div class="preview-row">
@@ -283,194 +116,191 @@
       <div class="preview-label">AFTER</div>
     </div>
   </div>
-
-  <!-- 属性背景プレビュー -->
   <div class="card-title" style="margin-top:4px">属性背景で確認</div>
   <div class="elem-row" id="elem-row"></div>
   <div class="preview-box" id="elem-preview" style="aspect-ratio:2/3;margin-bottom:16px;border-radius:12px;overflow:hidden">
     <canvas id="elem-canvas" style="display:block;width:100%;height:100%;object-fit:contain"></canvas>
   </div>
-
   <button id="dl-btn">⬇ 透過PNGをダウンロード</button>
 </div>
 
 <canvas id="work-canvas"></canvas>
 
 <script>
-const ELEMENTS = [
-  {name:'火', color:'#ef4444', bg:'linear-gradient(135deg,#2a0800,#6b1a00)'},
-  {name:'水', color:'#38bdf8', bg:'linear-gradient(135deg,#001828,#003060)'},
-  {name:'木', color:'#4ade80', bg:'linear-gradient(135deg,#001a08,#003820)'},
-  {name:'土', color:'#fbbf24', bg:'linear-gradient(135deg,#1a1000,#3a2800)'},
-  {name:'風', color:'#a3e635', bg:'linear-gradient(135deg,#081828,#1a3040)'},
-  {name:'金', color:'#f0abfc', bg:'linear-gradient(135deg,#1a0020,#380050)'},
-  {name:'闇', color:'#a78bfa', bg:'linear-gradient(135deg,#080010,#1a0030)'},
-  {name:'光', color:'#fde68a', bg:'linear-gradient(135deg,#1a1808,#3a3010)'},
+const ELEMENTS=[
+  {name:'火',bg:['#2a0800','#6b1a00'],color:'#ef4444'},
+  {name:'水',bg:['#001828','#003060'],color:'#38bdf8'},
+  {name:'木',bg:['#001a08','#003820'],color:'#4ade80'},
+  {name:'土',bg:['#1a1000','#3a2800'],color:'#fbbf24'},
+  {name:'風',bg:['#081828','#1a3040'],color:'#a3e635'},
+  {name:'金',bg:['#1a0020','#380050'],color:'#f0abfc'},
+  {name:'闇',bg:['#080010','#1a0030'],color:'#a78bfa'},
+  {name:'光',bg:['#1a1808','#3a3010'],color:'#fde68a'},
 ];
 
-let origImage = null;
-let resultCanvas = null;
-let selectedElem = 0;
+let origImage=null, resultCanvas=null, selectedElem=0;
 
-// 要素作成
-const elemRow = document.getElementById('elem-row');
-ELEMENTS.forEach((e, i) => {
-  const btn = document.createElement('button');
-  btn.className = 'elem-btn' + (i===0?' active':'');
-  btn.style.color = e.color;
-  btn.textContent = e.name;
-  btn.onclick = () => {
+// 属性ボタン
+const elemRow=document.getElementById('elem-row');
+ELEMENTS.forEach((e,i)=>{
+  const btn=document.createElement('button');
+  btn.className='elem-btn'+(i===0?' active':'');
+  btn.style.color=e.color;
+  btn.textContent=e.name;
+  btn.onclick=()=>{
     document.querySelectorAll('.elem-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    selectedElem = i;
+    selectedElem=i;
     drawElemPreview();
   };
   elemRow.appendChild(btn);
 });
 
 // ファイル入力
-const fileInput = document.getElementById('file-input');
-const dropZone = document.getElementById('drop-zone');
+document.getElementById('file-input').addEventListener('change',e=>loadFile(e.target.files[0]));
+const dz=document.getElementById('drop-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');loadFile(e.dataTransfer.files[0]);});
+document.getElementById('tolerance').addEventListener('input',e=>document.getElementById('tolerance-val').textContent=e.target.value);
+document.getElementById('bg-color').addEventListener('input',e=>setColor(e.target.value));
 
-fileInput.addEventListener('change', e => loadFile(e.target.files[0]));
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); loadFile(e.dataTransfer.files[0]); });
+function setColor(hex){
+  document.getElementById('bg-color').value=hex;
+  document.getElementById('color-preview').style.background=hex;
+  document.getElementById('color-hex').textContent=hex;
+}
 
-document.getElementById('tolerance').addEventListener('input', e => {
-  document.getElementById('tolerance-val').textContent = e.target.value;
-});
-
-function loadFile(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    const img = new Image();
-    img.onload = () => {
-      origImage = img;
+function loadFile(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const img=new Image();
+    img.onload=()=>{
+      origImage=img;
       // before preview
-      const beforeBox = document.getElementById('before-box');
-      beforeBox.innerHTML = '';
-      const previewImg = document.createElement('img');
-      previewImg.src = ev.target.result;
-      previewImg.style.cssText = 'width:100%;height:100%;object-fit:contain';
-      beforeBox.appendChild(previewImg);
-      const lbl = document.createElement('div');
-      lbl.className = 'preview-label';
-      lbl.textContent = 'BEFORE';
-      beforeBox.appendChild(lbl);
-
-      // 左上ピクセルから色取得
-      const c = document.getElementById('work-canvas');
-      c.width = img.width; c.height = img.height;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const d = ctx.getImageData(0, 0, 1, 1).data;
-      document.getElementById('bg-color').value = rgbToHex(d[0], d[1], d[2]);
-
-      document.getElementById('run-btn').disabled = false;
+      const bb=document.getElementById('before-box');
+      bb.innerHTML='';
+      const pi=document.createElement('img');
+      pi.src=ev.target.result;
+      pi.style.cssText='width:100%;height:100%;object-fit:contain';
+      bb.appendChild(pi);
+      const lbl=document.createElement('div');
+      lbl.className='preview-label';lbl.textContent='BEFORE';
+      bb.appendChild(lbl);
+      // work canvas
+      const wc=document.getElementById('work-canvas');
+      wc.width=img.width;wc.height=img.height;
+      wc.getContext('2d').drawImage(img,0,0);
+      // 初期色（左上ピクセル）
+      const d=wc.getContext('2d').getImageData(0,0,1,1).data;
+      setColor(rgbToHex(d[0],d[1],d[2]));
+      // スポイト設定
+      setupPicker(img);
+      document.getElementById('run-btn').disabled=false;
     };
-    img.src = ev.target.result;
+    img.src=ev.target.result;
   };
   reader.readAsDataURL(file);
 }
 
-// 自動色取得
-document.getElementById('eyedropper-btn').addEventListener('click', () => {
-  if (!origImage) { alert('先に画像をアップロードしてください'); return; }
-  const c = document.getElementById('work-canvas');
-  const ctx = c.getContext('2d');
-  const d = ctx.getImageData(0, 0, 1, 1).data;
-  document.getElementById('bg-color').value = rgbToHex(d[0], d[1], d[2]);
-});
+function setupPicker(img){
+  document.getElementById('picker-area').style.display='block';
+  const pc=document.getElementById('picker-canvas');
+  const wrap=document.getElementById('picker-canvas-wrap');
+  const crosshair=document.getElementById('crosshair');
+  const preview=document.getElementById('picked-preview');
+  pc.width=img.width; pc.height=img.height;
+  pc.getContext('2d').drawImage(img,0,0);
 
-function rgbToHex(r,g,b){ return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join(''); }
-function hexToRgb(hex){ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return{r,g,b}; }
-function colorDist(r1,g1,b1,r2,g2,b2){ return Math.sqrt((r1-r2)**2+(g1-g2)**2+(b1-b2)**2); }
+  function pick(clientX,clientY){
+    const rect=pc.getBoundingClientRect();
+    const sx=pc.width/rect.width, sy=pc.height/rect.height;
+    const px=Math.max(0,Math.min(pc.width-1,Math.floor((clientX-rect.left)*sx)));
+    const py=Math.max(0,Math.min(pc.height-1,Math.floor((clientY-rect.top)*sy)));
+    const d=pc.getContext('2d').getImageData(px,py,1,1).data;
+    const hex=rgbToHex(d[0],d[1],d[2]);
+    setColor(hex);
+    // crosshair位置
+    const cx=clientX-rect.left, cy=clientY-rect.top;
+    crosshair.style.left=cx+'px'; crosshair.style.top=cy+'px';
+    crosshair.style.display='block';
+    // 取得色プレビュー
+    preview.style.background=hex; preview.style.display='block';
+  }
+
+  // タッチ
+  pc.addEventListener('touchstart',e=>{e.preventDefault();wrap.classList.add('picking');pick(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+  pc.addEventListener('touchmove',e=>{e.preventDefault();pick(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+  pc.addEventListener('touchend',()=>wrap.classList.remove('picking'));
+  // マウス
+  let mouseDown=false;
+  pc.addEventListener('mousedown',e=>{mouseDown=true;wrap.classList.add('picking');pick(e.clientX,e.clientY);});
+  pc.addEventListener('mousemove',e=>{if(mouseDown)pick(e.clientX,e.clientY);});
+  pc.addEventListener('mouseup',()=>{mouseDown=false;wrap.classList.remove('picking');});
+  pc.addEventListener('mouseleave',()=>{crosshair.style.display='none';});
+}
+
+function rgbToHex(r,g,b){return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');}
+function hexToRgb(hex){return{r:parseInt(hex.slice(1,3),16),g:parseInt(hex.slice(3,5),16),b:parseInt(hex.slice(5,7),16)};}
+function colorDist(r1,g1,b1,r2,g2,b2){return Math.sqrt((r1-r2)**2+(g1-g2)**2+(b1-b2)**2);}
 
 // 背景除去
-document.getElementById('run-btn').addEventListener('click', () => {
-  if (!origImage) return;
-  const bgColor = hexToRgb(document.getElementById('bg-color').value);
-  const tol = parseInt(document.getElementById('tolerance').value);
-
-  const c = document.getElementById('work-canvas');
-  c.width = origImage.width; c.height = origImage.height;
-  const ctx = c.getContext('2d');
-  ctx.drawImage(origImage, 0, 0);
-
-  const imgData = ctx.getImageData(0, 0, c.width, c.height);
-  const data = imgData.data;
-
-  for (let i = 0; i < data.length; i += 4) {
-    const dist = colorDist(data[i],data[i+1],data[i+2], bgColor.r,bgColor.g,bgColor.b);
-    if (dist <= tol) {
-      // フェード：距離に応じて半透明に
-      const alpha = Math.max(0, Math.min(255, Math.round((dist / tol) * 255 * 0.5)));
-      data[i+3] = alpha;
+document.getElementById('run-btn').addEventListener('click',()=>{
+  if(!origImage)return;
+  const bg=hexToRgb(document.getElementById('bg-color').value);
+  const tol=parseInt(document.getElementById('tolerance').value);
+  const wc=document.getElementById('work-canvas');
+  wc.width=origImage.width; wc.height=origImage.height;
+  const ctx=wc.getContext('2d');
+  ctx.drawImage(origImage,0,0);
+  const imgData=ctx.getImageData(0,0,wc.width,wc.height);
+  const data=imgData.data;
+  for(let i=0;i<data.length;i+=4){
+    const dist=colorDist(data[i],data[i+1],data[i+2],bg.r,bg.g,bg.b);
+    if(dist<=tol){
+      data[i+3]=Math.max(0,Math.min(255,Math.round((dist/tol)*255*0.5)));
     }
   }
-  ctx.putImageData(imgData, 0, 0);
-
-  // 結果保存
-  resultCanvas = document.createElement('canvas');
-  resultCanvas.width = c.width; resultCanvas.height = c.height;
-  resultCanvas.getContext('2d').putImageData(imgData, 0, 0);
-
+  ctx.putImageData(imgData,0,0);
+  resultCanvas=document.createElement('canvas');
+  resultCanvas.width=wc.width; resultCanvas.height=wc.height;
+  resultCanvas.getContext('2d').putImageData(imgData,0,0);
   // after preview
-  const afterBox = document.getElementById('after-box');
-  afterBox.innerHTML = '';
-  afterBox.style.backgroundImage = 'linear-gradient(45deg,#222 25%,transparent 25%),linear-gradient(-45deg,#222 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#222 75%),linear-gradient(-45deg,transparent 75%,#222 75%)';
-  afterBox.style.backgroundSize = '16px 16px';
-  afterBox.style.backgroundPosition = '0 0,0 8px,8px -8px,-8px 0';
-  afterBox.style.backgroundColor = '#111';
-  const afterImg = document.createElement('img');
-  afterImg.src = resultCanvas.toDataURL('image/png');
-  afterImg.style.cssText = 'width:100%;height:100%;object-fit:contain;position:relative;z-index:1';
-  afterBox.appendChild(afterImg);
-  const lbl2 = document.createElement('div');
-  lbl2.className = 'preview-label';
-  lbl2.textContent = 'AFTER';
-  afterBox.appendChild(lbl2);
-
-  document.getElementById('preview-card').style.display = 'block';
-  document.getElementById('dl-btn').style.display = 'block';
+  const ab=document.getElementById('after-box');
+  ab.innerHTML='';
+  ab.style.cssText='border-radius:10px;overflow:hidden;border:1px solid var(--border);aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;position:relative;background-image:linear-gradient(45deg,#222 25%,transparent 25%),linear-gradient(-45deg,#222 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#222 75%),linear-gradient(-45deg,transparent 75%,#222 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;background-color:#111;';
+  const ai=document.createElement('img');
+  ai.src=resultCanvas.toDataURL('image/png');
+  ai.style.cssText='width:100%;height:100%;object-fit:contain;z-index:1;position:relative';
+  ab.appendChild(ai);
+  const lbl2=document.createElement('div');
+  lbl2.className='preview-label';lbl2.textContent='AFTER';
+  ab.appendChild(lbl2);
+  document.getElementById('preview-card').style.display='block';
+  document.getElementById('dl-btn').style.display='block';
   drawElemPreview();
   document.getElementById('preview-card').scrollIntoView({behavior:'smooth'});
 });
 
-// 属性プレビュー描画
-function drawElemPreview() {
-  if (!resultCanvas) return;
-  const elem = ELEMENTS[selectedElem];
-  const ec = document.getElementById('elem-canvas');
-  const ratio = resultCanvas.width / resultCanvas.height;
-  ec.width = 300; ec.height = Math.round(300 / ratio);
-  const ctx = ec.getContext('2d');
-
-  // 属性グラデ背景
-  const grad = ctx.createLinearGradient(0,0,ec.width,ec.height);
-  // グラデ色を属性から生成
-  const bgColors = {
-    '火':['#2a0800','#6b1a00'],'水':['#001828','#003060'],'木':['#001a08','#003820'],
-    '土':['#1a1000','#3a2800'],'風':['#081828','#1a3040'],'金':['#1a0020','#380050'],
-    '闇':['#080010','#1a0030'],'光':['#1a1808','#3a3010']
-  };
-  const [c1,c2] = bgColors[elem.name] || ['#111','#222'];
-  grad.addColorStop(0, c1); grad.addColorStop(1, c2);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0,0,ec.width,ec.height);
-
-  // キャラ画像を重ねる
-  ctx.drawImage(resultCanvas, 0, 0, ec.width, ec.height);
+function drawElemPreview(){
+  if(!resultCanvas)return;
+  const e=ELEMENTS[selectedElem];
+  const ec=document.getElementById('elem-canvas');
+  const ratio=resultCanvas.width/resultCanvas.height;
+  ec.width=300; ec.height=Math.round(300/ratio);
+  const ctx=ec.getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,ec.width,ec.height);
+  grad.addColorStop(0,e.bg[0]); grad.addColorStop(1,e.bg[1]);
+  ctx.fillStyle=grad; ctx.fillRect(0,0,ec.width,ec.height);
+  ctx.drawImage(resultCanvas,0,0,ec.width,ec.height);
 }
 
-// ダウンロード
-document.getElementById('dl-btn').addEventListener('click', () => {
-  if (!resultCanvas) return;
-  const a = document.createElement('a');
-  a.download = 'character_transparent.png';
-  a.href = resultCanvas.toDataURL('image/png');
+document.getElementById('dl-btn').addEventListener('click',()=>{
+  if(!resultCanvas)return;
+  const a=document.createElement('a');
+  a.download='character_transparent.png';
+  a.href=resultCanvas.toDataURL('image/png');
   a.click();
 });
 </script>
