@@ -1234,16 +1234,32 @@ function closeEquipModal(evt){
   }
 }
 function rebuildCharSkills(char){
-  // Rebuild skills/magics from innate + equipped skill/magic cards
-  const innateS=char.innateSkills||char.skills?.slice(0,2)||[];
-  const innateM=char.innateMagics||char.magics?.slice(0,2)||[];
+  const innateS=char.innateSkills||[];
+  const innateM=char.innateMagics||[];
   const cardSkills=[],cardMagics=[];
   (char.equippedSlots||[]).forEach(itemId=>{
     if(!itemId)return;
     const item=itemCards.find(i=>i.id===itemId);
     if(!item)return;
-    if(item.cardType==='skill'&&item.grantSkill)cardSkills.push(item.grantSkill);
-    if(item.cardType==='magic'&&item.grantMagic)cardMagics.push(item.grantMagic);
+    // スキルカード → skillData または grantSkill
+    if(item.cardType==='skill'){
+      const s=item.skillData||item.grantSkill;
+      if(s)cardSkills.push({...s,fromCard:item.id});
+    }
+    // 魔法カード → magicData または grantMagic
+    if(item.cardType==='magic'){
+      const m=item.magicData||item.grantMagic;
+      if(m)cardMagics.push({...m,fromCard:item.id});
+    }
+    // 回復薬カード → バトル中の魔法スロットに回復アクションとして追加
+    if(item.cardType==='recovery'&&(item.usesLeft===undefined||item.usesLeft>0)){
+      cardMagics.push({
+        name:item.name,mpCost:0,type:'heal',
+        healPct:item.healPct||0.3,
+        fromCard:item.id,isRecovery:true,
+        desc:`HP${Math.round((item.healPct||0.3)*100)}%回復（残${item.usesLeft??item.maxUses}回）`
+      });
+    }
   });
   char.skills=[...innateS,...cardSkills];
   char.magics=[...innateM,...cardMagics];
@@ -1422,7 +1438,7 @@ JSONのみ返してください（cardType="character"の例）:
       const item={id:Date.now(),cardType:'recovery',kanji:p.kanji,rarity:p.rarity||'N',name:tmpl.name,healType:p.healType||'hp',healPct:tmpl.heal,maxUses:tmpl.maxUses,usesLeft:tmpl.maxUses,bonuses:{},effectDesc:`${Math.round(tmpl.heal*100)}%回復 x${tmpl.maxUses}回`,context:p.context,lore:p.lore||''};
       showNewCard(item,'item');
     }else{
-      const item={id:Date.now(),cardType:p.cardType||'item',kanji:p.kanji,rarity:p.rarity||'N',name:p.name||p.kanji,bonuses:p.bonuses||{},effectDesc:p.effectDesc||'',context:p.context,lore:p.lore,artImg:null};
+      const item={id:Date.now(),cardType:p.cardType||'item',kanji:p.kanji,rarity:p.rarity||'N',name:p.name||p.kanji,bonuses:p.bonuses||{},effectDesc:p.effectDesc||'',context:p.context,lore:p.lore,artImg:null,skillData:p.skillData||null,magicData:p.magicData||null};
       if(stabilityKey&&(item.rarity==='SR'||item.rarity==='SSR')){
         showLoading(true,'アイテム画像を生成中...','イラストを描いています');
         item.artImg=await generateItemImage(item);
@@ -1812,6 +1828,9 @@ async function startBattle(){
   const[a,b]=battlePair;
   const lvA=getLevel(a.exp||0),lvB=getLevel(b.exp||0);
   const bPreHp=getCharHp(b),bPreMp=getCharMp(b),bPreSp=getCharSp(b);
+  // バトル開始前にスキル・魔法を再構築（装備カード反映）
+  rebuildCharSkills(a);
+    rebuildCharSkills(a);
   a._bHp=getCharHp(a);a._bMp=getCharMp(a);a._bSp=getCharSp(a);a._defUp=false;a._status='';a._leveledUp=false;a._debuffAtk=1;a._debuffDef=1;a._buffAtk=1;
   b._bHp=getEffectiveStat(b,'hp');b._bMp=getEffectiveStat(b,'mp');b._bSp=getEffectiveStat(b,'sp');b._defUp=false;b._status='';b._leveledUp=false;b._debuffAtk=1;b._debuffDef=1;b._buffAtk=1;
   document.getElementById('battle-log-area').style.display='block';
