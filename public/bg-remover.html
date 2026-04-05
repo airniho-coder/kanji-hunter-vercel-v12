@@ -2,86 +2,79 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>背景除去ツール</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
-  :root { --bg:#0a0a0f; --surface:#13131a; --border:#2a2a3a; --gold:#c9a84c; --text:#e8e4d8; --muted:#666680; }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); font-family:'Noto Serif JP',serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:32px 16px; }
-  h1 { font-size:22px; font-weight:900; letter-spacing:4px; color:var(--gold); margin-bottom:4px; }
-  .subtitle { font-size:10px; letter-spacing:3px; color:var(--muted); margin-bottom:32px; text-transform:uppercase; }
-  .card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px; width:100%; max-width:480px; margin-bottom:16px; }
-  .card-title { font-size:10px; letter-spacing:3px; color:var(--gold); margin-bottom:16px; text-transform:uppercase; }
+  :root{--bg:#0a0a0f;--surface:#13131a;--border:#2a2a3a;--gold:#c9a84c;--text:#e8e4d8;--muted:#666680;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Noto Serif JP',serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px;}
+  h1{font-size:20px;font-weight:900;letter-spacing:4px;color:var(--gold);margin-bottom:4px;}
+  .subtitle{font-size:10px;letter-spacing:3px;color:var(--muted);margin-bottom:24px;text-transform:uppercase;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;width:100%;max-width:480px;margin-bottom:14px;}
+  .card-title{font-size:10px;letter-spacing:3px;color:var(--gold);margin-bottom:14px;text-transform:uppercase;}
+  #drop-zone{border:2px dashed var(--border);border-radius:12px;padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
+  #drop-zone:hover,#drop-zone.dragover{border-color:var(--gold);background:rgba(201,168,76,.05);}
+  #drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+  .drop-icon{font-size:36px;margin-bottom:10px;}
+  .drop-text{font-size:12px;color:var(--muted);line-height:1.8;}
 
-  /* アップロード */
-  #drop-zone { border:2px dashed var(--border); border-radius:12px; padding:40px 20px; text-align:center; cursor:pointer; transition:all .2s; position:relative; }
-  #drop-zone:hover, #drop-zone.dragover { border-color:var(--gold); background:rgba(201,168,76,.05); }
-  #drop-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; }
-  .drop-icon { font-size:40px; margin-bottom:12px; }
-  .drop-text { font-size:13px; color:var(--muted); line-height:1.8; }
+  /* モード */
+  .mode-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+  .mode-btn{flex:1;min-width:80px;padding:8px 4px;border-radius:8px;font-size:10px;font-family:'Noto Serif JP',serif;letter-spacing:.5px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;}
+  .mode-btn.active{background:rgba(201,168,76,.15);border-color:var(--gold);color:var(--gold);}
 
-  /* モード切替 */
-  .mode-row { display:flex; gap:8px; margin-bottom:14px; }
-  .mode-btn { flex:1; padding:9px; border-radius:8px; font-size:11px; font-family:'Noto Serif JP',serif; letter-spacing:1px; cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--muted); transition:all .15s; }
-  .mode-btn.active { background:rgba(201,168,76,.15); border-color:var(--gold); color:var(--gold); }
+  /* キャンバスビューポート（ズーム・パン用） */
+  #canvas-area{display:none;margin-bottom:14px;}
+  .canvas-hint{font-size:10px;color:var(--muted);background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);border-radius:8px;padding:8px 12px;margin-bottom:10px;line-height:1.7;}
+  #viewport{width:100%;aspect-ratio:3/4;background:#111;border-radius:12px;border:2px solid rgba(201,168,76,.3);overflow:hidden;position:relative;touch-action:none;}
+  #viewport.active-mode{border-color:var(--gold);}
+  /* inner: 実際の変換がかかるコンテナ */
+  #inner{position:absolute;transform-origin:0 0;will-change:transform;}
+  #main-canvas{display:block;touch-action:none;user-select:none;}
+  /* 矩形選択オーバーレイ */
+  #sel-overlay{position:absolute;top:0;left:0;pointer-events:none;}
+  /* ハンドル */
+  .handle{position:absolute;width:20px;height:20px;background:var(--gold);border:2px solid #fff;border-radius:4px;touch-action:none;cursor:pointer;transform:translate(-50%,-50%);}
 
-  /* キャンバスエリア */
-  #canvas-area { display:none; margin-bottom:16px; }
-  .canvas-hint { font-size:10px; color:var(--muted); background:rgba(201,168,76,.08); border:1px solid rgba(201,168,76,.2); border-radius:8px; padding:8px 12px; margin-bottom:10px; line-height:1.7; }
-  #main-canvas-wrap { position:relative; border-radius:10px; overflow:hidden; border:2px solid rgba(201,168,76,.3); transition:border-color .2s; }
-  #main-canvas-wrap.active-mode { border-color:var(--gold); box-shadow:0 0 16px rgba(201,168,76,.2); }
-  #main-canvas { display:block; width:100%; height:auto; touch-action:none; user-select:none; }
-  /* 選択矩形 */
-  #sel-rect { position:absolute; border:2px dashed #FFD700; background:rgba(255,215,0,.08); pointer-events:none; display:none; }
-  /* crosshair */
-  #crosshair { position:absolute; pointer-events:none; display:none; width:20px; height:20px; transform:translate(-50%,-50%); }
-  #crosshair::before { content:''; position:absolute; width:1px; height:20px; background:#fff; left:50%; top:0; box-shadow:0 0 2px #000; }
-  #crosshair::after  { content:''; position:absolute; height:1px; width:20px; background:#fff; top:50%; left:0; box-shadow:0 0 2px #000; }
-  #picked-dot { position:absolute; top:8px; right:8px; width:28px; height:28px; border-radius:50%; border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,.5); display:none; }
+  /* 選択アクション */
+  #sel-actions{display:none;gap:6px;margin-bottom:12px;flex-direction:column;}
+  .sel-btn{padding:9px;border-radius:8px;font-size:11px;font-family:'Noto Serif JP',serif;letter-spacing:1px;cursor:pointer;border:1px solid;transition:all .15s;width:100%;}
+  #sel-clear-btn{border-color:var(--border);background:transparent;color:var(--muted);}
+  #sel-apply-btn{border-color:rgba(201,168,76,.5);background:rgba(201,168,76,.12);color:var(--gold);}
 
-  /* 選択範囲ボタン */
-  #sel-actions { display:none; flex-direction:column; gap:8px; margin-bottom:12px; }
-  .sel-btn { padding:9px; border-radius:8px; font-size:11px; font-family:'Noto Serif JP',serif; letter-spacing:1px; cursor:pointer; border:1px solid; transition:all .15s; width:100%; }
-  #sel-clear-btn { border-color:var(--border); background:transparent; color:var(--muted); }
-  #sel-apply-btn { border-color:rgba(201,168,76,.5); background:rgba(201,168,76,.12); color:var(--gold); }
+  .color-row{display:flex;align-items:center;gap:10px;margin:0 0 12px;}
+  .color-label{font-size:11px;color:var(--muted);letter-spacing:1px;white-space:nowrap;}
+  #bg-color{width:38px;height:38px;border:2px solid var(--border);border-radius:8px;cursor:pointer;background:none;padding:2px;flex-shrink:0;}
+  #color-preview{flex:1;height:30px;border-radius:8px;border:1px solid var(--border);background:#c0c0c0;transition:background .15s;}
+  #color-hex{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);min-width:56px;}
+  .tol-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  #tolerance{flex:1;accent-color:var(--gold);}
+  #tolerance-val{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold);min-width:26px;text-align:right;}
 
-  /* 色・許容範囲 */
-  .color-row { display:flex; align-items:center; gap:10px; margin:0 0 14px; }
-  .color-label { font-size:11px; color:var(--muted); letter-spacing:1px; white-space:nowrap; }
-  #bg-color { width:40px; height:40px; border:2px solid var(--border); border-radius:8px; cursor:pointer; background:none; padding:2px; flex-shrink:0; }
-  #color-preview { flex:1; height:32px; border-radius:8px; border:1px solid var(--border); background:#c0c0c0; transition:background .15s; }
-  #color-hex { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); min-width:56px; }
-  .tol-row { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
-  #tolerance { flex:1; accent-color:var(--gold); }
-  #tolerance-val { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--gold); min-width:26px; text-align:right; }
-
-  #run-btn { width:100%; padding:14px; background:linear-gradient(135deg,#c9a84c,#e8c97a); border:none; border-radius:10px; font-size:14px; font-weight:700; font-family:'Noto Serif JP',serif; color:#0a0a0f; cursor:pointer; letter-spacing:3px; transition:opacity .15s; }
-  #run-btn:hover { opacity:.85; }
-  #run-btn:disabled { opacity:.4; cursor:not-allowed; }
+  #run-btn{width:100%;padding:13px;background:linear-gradient(135deg,#c9a84c,#e8c97a);border:none;border-radius:10px;font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;color:#0a0a0f;cursor:pointer;letter-spacing:3px;transition:opacity .15s;}
+  #run-btn:hover{opacity:.85;}
+  #run-btn:disabled{opacity:.4;cursor:not-allowed;}
 
   /* プレビュー */
-  .preview-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
-  .preview-box { border-radius:10px; overflow:hidden; border:1px solid var(--border); aspect-ratio:2/3; display:flex; align-items:center; justify-content:center; position:relative; }
-  .checker { background-image:linear-gradient(45deg,#222 25%,transparent 25%),linear-gradient(-45deg,#222 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#222 75%),linear-gradient(-45deg,transparent 75%,#222 75%); background-size:16px 16px; background-position:0 0,0 8px,8px -8px,-8px 0; background-color:#111; }
-  .preview-label { position:absolute; bottom:6px; left:50%; transform:translateX(-50%); font-size:9px; letter-spacing:2px; color:var(--muted); background:rgba(0,0,0,.7); padding:2px 8px; border-radius:4px; white-space:nowrap; }
-  .preview-box img { width:100%; height:100%; object-fit:contain; }
-  .elem-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
-  .elem-btn { padding:5px 10px; border-radius:6px; font-size:10px; cursor:pointer; border:1px solid transparent; font-family:'Noto Serif JP',serif; letter-spacing:1px; transition:all .15s; opacity:.6; background:transparent; }
-  .elem-btn.active { opacity:1; border-color:currentColor; }
-  #dl-btn { width:100%; padding:12px; background:rgba(201,168,76,.12); border:1px solid rgba(201,168,76,.4); border-radius:10px; font-size:13px; font-weight:700; font-family:'Noto Serif JP',serif; color:var(--gold); cursor:pointer; letter-spacing:2px; transition:all .15s; display:none; }
-  #dl-btn:hover { background:rgba(201,168,76,.2); }
-  canvas#work-canvas { display:none; }
-
-  .range-info { font-size:10px; color:rgba(201,168,76,.7); margin-top:6px; letter-spacing:1px; display:none; }
+  .preview-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .preview-box{border-radius:10px;overflow:hidden;border:1px solid var(--border);aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;position:relative;}
+  .checker{background-image:linear-gradient(45deg,#222 25%,transparent 25%),linear-gradient(-45deg,#222 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#222 75%),linear-gradient(-45deg,transparent 75%,#222 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;background-color:#111;}
+  .preview-label{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:2px;color:var(--muted);background:rgba(0,0,0,.7);padding:2px 8px;border-radius:4px;white-space:nowrap;}
+  .preview-box img{width:100%;height:100%;object-fit:contain;}
+  .elem-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+  .elem-btn{padding:4px 9px;border-radius:6px;font-size:10px;cursor:pointer;border:1px solid transparent;font-family:'Noto Serif JP',serif;transition:all .15s;opacity:.6;background:transparent;}
+  .elem-btn.active{opacity:1;border-color:currentColor;}
+  #dl-btn{width:100%;padding:11px;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.4);border-radius:10px;font-size:12px;font-weight:700;font-family:'Noto Serif JP',serif;color:var(--gold);cursor:pointer;letter-spacing:2px;transition:all .15s;display:none;}
+  #dl-btn:hover{background:rgba(201,168,76,.2);}
+  canvas#work-canvas{display:none;}
+  .zoom-info{text-align:center;font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:6px;}
 </style>
 </head>
 <body>
-
 <h1>⚗ 背景除去</h1>
 <p class="subtitle">単色背景 → 透過PNG変換ツール</p>
 
-<!-- ① アップロード -->
 <div class="card">
   <div class="card-title">① 画像をアップロード</div>
   <div id="drop-zone">
@@ -91,29 +84,29 @@
   </div>
 </div>
 
-<!-- ② 設定 -->
 <div class="card">
   <div class="card-title">② 操作モードを選択</div>
-
   <div class="mode-row">
-    <button class="mode-btn active" id="mode-pick" onclick="setMode('pick')">🔍 色を取得</button>
-    <button class="mode-btn" id="mode-select" onclick="setMode('select')">⬛ 範囲を選択</button>
+    <button class="mode-btn active" id="mode-pick" onclick="setMode('pick')">🔍 色取得</button>
+    <button class="mode-btn" id="mode-rect" onclick="setMode('rect')">⬛ 矩形選択</button>
+    <button class="mode-btn" id="mode-lasso" onclick="setMode('lasso')">✏️ なぞり選択</button>
+    <button class="mode-btn" id="mode-pan" onclick="setMode('pan')">✋ 移動・拡大</button>
   </div>
 
   <div id="canvas-area">
-    <div class="canvas-hint" id="canvas-hint">画像をタップして背景色を取得してください</div>
-    <div id="main-canvas-wrap">
-      <canvas id="main-canvas"></canvas>
-      <div id="sel-rect"></div>
-      <div id="crosshair"></div>
-      <div id="picked-dot"></div>
+    <div class="canvas-hint" id="canvas-hint">画像をタップして背景色を取得</div>
+    <div id="viewport">
+      <div id="inner">
+        <canvas id="main-canvas"></canvas>
+        <canvas id="sel-overlay"></canvas>
+      </div>
     </div>
-    <div class="range-info" id="range-info"></div>
+    <div class="zoom-info" id="zoom-info">2本指でピンチ拡大 / 1本指でパン（移動モード時）</div>
   </div>
 
   <div id="sel-actions">
-    <button class="sel-btn" id="sel-clear-btn" onclick="clearSelection()">✕ 選択範囲をリセット（全体に適用）</button>
-    <button class="sel-btn" id="sel-apply-btn" onclick="applyToSelection()">✓ この範囲だけに背景除去を適用</button>
+    <button class="sel-btn" id="sel-clear-btn" onclick="clearSelection()">✕ 選択解除（全体に適用）</button>
+    <button class="sel-btn" id="sel-apply-btn" onclick="runRemoval(true)">✓ 選択範囲のみ除去</button>
   </div>
 
   <div class="color-row">
@@ -122,37 +115,27 @@
     <div id="color-preview" style="background:#c0c0c0"></div>
     <span id="color-hex">#c0c0c0</span>
   </div>
-
   <div class="tol-row">
     <span class="color-label" style="white-space:nowrap">許容範囲</span>
     <input type="range" id="tolerance" min="0" max="120" value="35">
     <span id="tolerance-val">35</span>
   </div>
-
-  <button id="run-btn" disabled>✨ 背景を除去する</button>
+  <button id="run-btn" disabled>✨ 背景を除去する（全体）</button>
 </div>
 
-<!-- ③ プレビュー -->
 <div class="card" id="preview-card" style="display:none">
   <div class="card-title">③ プレビュー</div>
   <div class="preview-row">
-    <div class="preview-box" id="before-box">
-      <span style="color:var(--muted);font-size:11px">元画像</span>
-      <div class="preview-label">BEFORE</div>
-    </div>
-    <div class="preview-box checker" id="after-box">
-      <span style="color:var(--muted);font-size:11px">処理後</span>
-      <div class="preview-label">AFTER</div>
-    </div>
+    <div class="preview-box" id="before-box"><span style="color:var(--muted);font-size:11px">元画像</span><div class="preview-label">BEFORE</div></div>
+    <div class="preview-box checker" id="after-box"><span style="color:var(--muted);font-size:11px">処理後</span><div class="preview-label">AFTER</div></div>
   </div>
   <div class="card-title" style="margin-top:4px">属性背景で確認</div>
   <div class="elem-row" id="elem-row"></div>
-  <div class="preview-box" id="elem-preview" style="aspect-ratio:2/3;margin-bottom:16px;border-radius:12px;overflow:hidden">
+  <div class="preview-box" id="elem-preview" style="aspect-ratio:2/3;margin-bottom:14px;border-radius:12px;overflow:hidden">
     <canvas id="elem-canvas" style="display:block;width:100%;height:100%;object-fit:contain"></canvas>
   </div>
   <button id="dl-btn">⬇ 透過PNGをダウンロード</button>
 </div>
-
 <canvas id="work-canvas"></canvas>
 
 <script>
@@ -168,41 +151,31 @@ const ELEMENTS=[
 ];
 
 let origImage=null, resultCanvas=null, selectedElem=0;
-let currentMode='pick'; // 'pick' or 'select'
-let selStart=null, selEnd=null, selRect=null; // 選択範囲（キャンバス座標）
-let isDrawing=false;
+let currentMode='pick';
+
+// ズーム・パン状態
+let scale=1, panX=0, panY=0;
+let lastPinchDist=null, lastPanPos=null;
+
+// 矩形選択
+let rectSel=null; // {x0,y0,x1,y1} キャンバス座標
+let rectDragging=null; // null|'new'|'tl'|'tr'|'bl'|'br'|'move'
+let rectDragStart=null;
+let rectSelStart=null;
+
+// なぞり選択
+let lassoPoints=[];
+let lassoDrawing=false;
 
 // 属性ボタン
 const er=document.getElementById('elem-row');
 ELEMENTS.forEach((e,i)=>{
   const btn=document.createElement('button');
   btn.className='elem-btn'+(i===0?' active':'');
-  btn.style.color=e.color;
-  btn.textContent=e.name;
+  btn.style.color=e.color;btn.textContent=e.name;
   btn.onclick=()=>{document.querySelectorAll('.elem-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selectedElem=i;drawElemPreview();};
   er.appendChild(btn);
 });
-
-// モード切替
-function setMode(m){
-  currentMode=m;
-  document.getElementById('mode-pick').classList.toggle('active',m==='pick');
-  document.getElementById('mode-select').classList.toggle('active',m==='select');
-  const wrap=document.getElementById('main-canvas-wrap');
-  wrap.classList.toggle('active-mode', origImage!==null);
-  if(m==='pick'){
-    document.getElementById('canvas-hint').textContent='画像をタップして背景色を取得してください';
-    document.getElementById('main-canvas').style.cursor='crosshair';
-    document.getElementById('sel-rect').style.display='none';
-    document.getElementById('sel-actions').style.display='none';
-    document.getElementById('range-info').style.display='none';
-  }else{
-    document.getElementById('canvas-hint').textContent='除去したい範囲をドラッグして選択してください';
-    document.getElementById('main-canvas').style.cursor='cell';
-    document.getElementById('crosshair').style.display='none';
-    document.getElementById('picked-dot').style.display='none';
-  }
-}
 
 // ファイル入力
 document.getElementById('file-input').addEventListener('change',e=>loadFile(e.target.files[0]));
@@ -219,6 +192,20 @@ function setColor(hex){
   document.getElementById('color-hex').textContent=hex;
 }
 
+function setMode(m){
+  currentMode=m;
+  ['pick','rect','lasso','pan'].forEach(n=>document.getElementById('mode-'+n).classList.toggle('active',n===m));
+  const hints={
+    pick:'タップ（またはドラッグ）して背景色を取得',
+    rect:'ドラッグで矩形選択。角・辺をドラッグして微調整できます',
+    lasso:'指でなぞった輪郭内を選択（始点に戻ると確定）',
+    pan:'1本指でパン・2本指でピンチ拡大縮小'
+  };
+  document.getElementById('canvas-hint').textContent=hints[m];
+  const vp=document.getElementById('viewport');
+  vp.classList.toggle('active-mode',m!=='pan');
+}
+
 function loadFile(file){
   if(!file)return;
   const reader=new FileReader();
@@ -227,153 +214,344 @@ function loadFile(file){
     img.onload=()=>{
       origImage=img;
       // before preview
-      const bb=document.getElementById('before-box');
-      bb.innerHTML='';
-      const pi=document.createElement('img');pi.src=ev.target.result;pi.style.cssText='width:100%;height:100%;object-fit:contain';
-      bb.appendChild(pi);
+      const bb=document.getElementById('before-box');bb.innerHTML='';
+      const pi=document.createElement('img');pi.src=ev.target.result;pi.style.cssText='width:100%;height:100%;object-fit:contain';bb.appendChild(pi);
       const lbl=document.createElement('div');lbl.className='preview-label';lbl.textContent='BEFORE';bb.appendChild(lbl);
+      // canvases
+      const mc=document.getElementById('main-canvas');
+      mc.width=img.width;mc.height=img.height;
+      mc.getContext('2d').drawImage(img,0,0);
+      const so=document.getElementById('sel-overlay');
+      so.width=img.width;so.height=img.height;
       // work canvas
       const wc=document.getElementById('work-canvas');
       wc.width=img.width;wc.height=img.height;
       wc.getContext('2d').drawImage(img,0,0);
-      // main canvas（操作用）
-      const mc=document.getElementById('main-canvas');
-      mc.width=img.width;mc.height=img.height;
-      mc.getContext('2d').drawImage(img,0,0);
       // 初期色
       const d=wc.getContext('2d').getImageData(0,0,1,1).data;
       setColor(rgbToHex(d[0],d[1],d[2]));
-      // 表示
+      // ビューポートにフィット
+      fitToViewport();
       document.getElementById('canvas-area').style.display='block';
       document.getElementById('run-btn').disabled=false;
       setupEvents();
-      setMode(currentMode);
+      setMode('pick');
     };
     img.src=ev.target.result;
   };
   reader.readAsDataURL(file);
 }
 
-function setupEvents(){
+function fitToViewport(){
+  const vp=document.getElementById('viewport');
+  const vpW=vp.clientWidth, vpH=vp.clientHeight;
   const mc=document.getElementById('main-canvas');
-  const wrap=document.getElementById('main-canvas-wrap');
-  const crosshair=document.getElementById('crosshair');
-  const pickedDot=document.getElementById('picked-dot');
-  const selRectEl=document.getElementById('sel-rect');
+  scale=Math.min(vpW/mc.width, vpH/mc.height);
+  panX=(vpW-mc.width*scale)/2;
+  panY=(vpH-mc.height*scale)/2;
+  applyTransform();
+}
 
-  function getPos(clientX,clientY){
-    const rect=mc.getBoundingClientRect();
-    const sx=mc.width/rect.width, sy=mc.height/rect.height;
-    return {
-      px:Math.max(0,Math.min(mc.width-1,Math.floor((clientX-rect.left)*sx))),
-      py:Math.max(0,Math.min(mc.height-1,Math.floor((clientY-rect.top)*sy))),
-      cx:clientX-rect.left, cy:clientY-rect.top,
-      rect
-    };
+function applyTransform(){
+  document.getElementById('inner').style.transform=`translate(${panX}px,${panY}px) scale(${scale})`;
+}
+
+// キャンバス座標変換
+function vpToCanvas(clientX, clientY){
+  const vp=document.getElementById('viewport');
+  const rect=vp.getBoundingClientRect();
+  return {
+    x:(clientX-rect.left-panX)/scale,
+    y:(clientY-rect.top-panY)/scale
+  };
+}
+
+// ハンドル判定（矩形の角・移動）
+function getHandleAt(x,y){
+  if(!rectSel)return null;
+  const {x0,y0,x1,y1}=rectSel;
+  const cx=Math.min(x0,x1),cy=Math.min(y0,y1),cw=Math.abs(x1-x0),ch=Math.abs(y1-y0);
+  const HIT=12/scale;
+  const corners=[
+    {id:'tl',hx:cx,hy:cy},{id:'tr',hx:cx+cw,hy:cy},
+    {id:'bl',hx:cx,hy:cy+ch},{id:'br',hx:cx+cw,hy:cy+ch}
+  ];
+  for(const c of corners){
+    if(Math.abs(x-c.hx)<HIT&&Math.abs(y-c.hy)<HIT)return c.id;
   }
+  // 辺
+  if(x>cx-HIT&&x<cx+cw+HIT&&y>cy-HIT&&y<cy+ch+HIT)return 'move';
+  return null;
+}
 
-  function pickColor(px,py,cx,cy){
-    const d=mc.getContext('2d').getImageData(px,py,1,1).data;
-    const hex=rgbToHex(d[0],d[1],d[2]);
-    setColor(hex);
-    crosshair.style.left=cx+'px';crosshair.style.top=cy+'px';crosshair.style.display='block';
-    pickedDot.style.background=hex;pickedDot.style.display='block';
-  }
+function clampCanvas(v,max){return Math.max(0,Math.min(max,v));}
 
-  function updateSelRect(x1,y1,x2,y2){
-    const mc=document.getElementById('main-canvas');
-    const rect=mc.getBoundingClientRect();
-    const sx=rect.width/mc.width, sy=rect.height/mc.height;
-    const left=Math.min(x1,x2)*sx, top=Math.min(y1,y2)*sy;
-    const w=Math.abs(x2-x1)*sx, h=Math.abs(y2-y1)*sy;
-    selRectEl.style.cssText=`display:block;left:${left}px;top:${top}px;width:${w}px;height:${h}px;`;
-    // 選択情報表示
-    const ri=document.getElementById('range-info');
-    ri.style.display='block';
-    ri.textContent=`選択範囲: ${Math.min(x1,x2)},${Math.min(y1,y2)} ～ ${Math.max(x1,x2)},${Math.max(y1,y2)} (${Math.abs(x2-x1)}×${Math.abs(y2-y1)}px)`;
-    document.getElementById('sel-actions').style.display='flex';
-  }
+function setupEvents(){
+  const vp=document.getElementById('viewport');
 
-  // タッチ
-  mc.addEventListener('touchstart',e=>{
-    e.preventDefault();
-    const {px,py,cx,cy}=getPos(e.touches[0].clientX,e.touches[0].clientY);
-    if(currentMode==='pick'){pickColor(px,py,cx,cy);}
-    else{isDrawing=true;selStart={px,py};selEnd={px,py};updateSelRect(px,py,px,py);}
+  // ======= タッチ =======
+  vp.addEventListener('touchstart',e=>{
+    if(e.touches.length===2){
+      // ピンチ開始
+      lastPinchDist=pinchDist(e.touches);
+      lastPanPos=pinchCenter(e.touches);
+      e.preventDefault();return;
+    }
+    if(e.touches.length===1){
+      const t=e.touches[0];
+      const pos=vpToCanvas(t.clientX,t.clientY);
+      handleStart(pos,t.clientX,t.clientY);
+      e.preventDefault();
+    }
   },{passive:false});
-  mc.addEventListener('touchmove',e=>{
-    e.preventDefault();
-    const {px,py,cx,cy}=getPos(e.touches[0].clientX,e.touches[0].clientY);
-    if(currentMode==='pick'){pickColor(px,py,cx,cy);}
-    else if(isDrawing){selEnd={px,py};updateSelRect(selStart.px,selStart.py,px,py);}
-  },{passive:false});
-  mc.addEventListener('touchend',()=>{isDrawing=false;});
 
-  // マウス
+  vp.addEventListener('touchmove',e=>{
+    if(e.touches.length===2){
+      // ピンチ
+      const dist=pinchDist(e.touches);
+      const center=pinchCenter(e.touches);
+      if(lastPinchDist){
+        const ds=dist/lastPinchDist;
+        const vr=vp.getBoundingClientRect();
+        const cx=center.x-vr.left, cy=center.y-vr.top;
+        panX=(panX-cx)*ds+cx;
+        panY=(panY-cy)*ds+cy;
+        scale*=ds;
+        applyTransform();
+      }
+      // パンも（2本指スワイプ）
+      if(lastPanPos){
+        panX+=center.x-lastPanPos.x;
+        panY+=center.y-lastPanPos.y;
+        applyTransform();
+      }
+      lastPinchDist=dist;lastPanPos=center;
+      e.preventDefault();return;
+    }
+    if(e.touches.length===1){
+      const t=e.touches[0];
+      const pos=vpToCanvas(t.clientX,t.clientY);
+      handleMove(pos,t.clientX,t.clientY);
+      e.preventDefault();
+    }
+  },{passive:false});
+
+  vp.addEventListener('touchend',e=>{
+    lastPinchDist=null;lastPanPos=null;
+    handleEnd();
+    e.preventDefault();
+  },{passive:false});
+
+  // ======= マウス =======
   let md=false;
-  mc.addEventListener('mousedown',e=>{
-    const {px,py,cx,cy}=getPos(e.clientX,e.clientY);
-    if(currentMode==='pick'){pickColor(px,py,cx,cy);}
-    else{md=true;isDrawing=true;selStart={px,py};selEnd={px,py};updateSelRect(px,py,px,py);}
+  vp.addEventListener('mousedown',e=>{
+    md=true;
+    const pos=vpToCanvas(e.clientX,e.clientY);
+    handleStart(pos,e.clientX,e.clientY);
   });
-  mc.addEventListener('mousemove',e=>{
-    const {px,py,cx,cy}=getPos(e.clientX,e.clientY);
-    if(currentMode==='pick'&&e.buttons===1){pickColor(px,py,cx,cy);}
-    else if(currentMode==='select'&&isDrawing&&md){selEnd={px,py};updateSelRect(selStart.px,selStart.py,px,py);}
+  vp.addEventListener('mousemove',e=>{
+    if(!md)return;
+    const pos=vpToCanvas(e.clientX,e.clientY);
+    handleMove(pos,e.clientX,e.clientY);
   });
-  mc.addEventListener('mouseup',()=>{md=false;isDrawing=false;});
-  mc.addEventListener('mouseleave',()=>{
-    if(currentMode==='pick'){crosshair.style.display='none';}
-  });
+  vp.addEventListener('mouseup',()=>{md=false;handleEnd();});
+  vp.addEventListener('mouseleave',()=>{if(md){md=false;handleEnd();}});
+  // ホイールズーム
+  vp.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const vr=vp.getBoundingClientRect();
+    const cx=e.clientX-vr.left, cy=e.clientY-vr.top;
+    const ds=e.deltaY<0?1.1:0.9;
+    panX=(panX-cx)*ds+cx;panY=(panY-cy)*ds+cy;scale*=ds;
+    applyTransform();
+  },{passive:false});
+}
+
+// ======= ハンドラ =======
+function handleStart(pos,clientX,clientY){
+  const mc=document.getElementById('main-canvas');
+  const px=clampCanvas(Math.floor(pos.x),mc.width-1);
+  const py=clampCanvas(Math.floor(pos.y),mc.height-1);
+
+  if(currentMode==='pan'){
+    lastPanPos={x:clientX,y:clientY};
+    return;
+  }
+  if(currentMode==='pick'){
+    const d=mc.getContext('2d').getImageData(px,py,1,1).data;
+    setColor(rgbToHex(d[0],d[1],d[2]));
+    return;
+  }
+  if(currentMode==='rect'){
+    const h=getHandleAt(pos.x,pos.y);
+    if(h){
+      // 既存矩形の操作
+      rectDragging=h;
+      rectDragStart={x:pos.x,y:pos.y,sel:{...rectSel}};
+    }else{
+      // 新規矩形
+      rectDragging='new';
+      rectSelStart={x:pos.x,y:pos.y};
+      rectSel={x0:pos.x,y0:pos.y,x1:pos.x,y1:pos.y};
+    }
+    return;
+  }
+  if(currentMode==='lasso'){
+    lassoDrawing=true;
+    lassoPoints=[{x:pos.x,y:pos.y}];
+    drawSelOverlay();
+    return;
+  }
+}
+
+function handleMove(pos,clientX,clientY){
+  const mc=document.getElementById('main-canvas');
+  const px=clampCanvas(Math.floor(pos.x),mc.width-1);
+  const py=clampCanvas(Math.floor(pos.y),mc.height-1);
+
+  if(currentMode==='pan'&&lastPanPos){
+    panX+=clientX-lastPanPos.x;panY+=clientY-lastPanPos.y;
+    lastPanPos={x:clientX,y:clientY};
+    applyTransform();return;
+  }
+  if(currentMode==='pick'){
+    const d=mc.getContext('2d').getImageData(px,py,1,1).data;
+    setColor(rgbToHex(d[0],d[1],d[2]));return;
+  }
+  if(currentMode==='rect'&&rectDragging){
+    if(rectDragging==='new'){
+      rectSel={x0:rectSelStart.x,y0:rectSelStart.y,x1:pos.x,y1:pos.y};
+    }else if(rectDragging==='move'){
+      const dx=pos.x-rectDragStart.x, dy=pos.y-rectDragStart.y;
+      const s=rectDragStart.sel;
+      rectSel={x0:s.x0+dx,y0:s.y0+dy,x1:s.x1+dx,y1:s.y1+dy};
+    }else{
+      // 角ドラッグ
+      const s=rectDragStart.sel;
+      const opp={tl:{x:s.x1,y:s.y1},tr:{x:s.x0,y:s.y1},bl:{x:s.x1,y:s.y0},br:{x:s.x0,y:s.y0}};
+      const o=opp[rectDragging];
+      rectSel={x0:o.x,y0:o.y,x1:pos.x,y1:pos.y};
+    }
+    drawSelOverlay();return;
+  }
+  if(currentMode==='lasso'&&lassoDrawing){
+    lassoPoints.push({x:pos.x,y:pos.y});
+    drawSelOverlay();return;
+  }
+}
+
+function handleEnd(){
+  if(currentMode==='pan'){lastPanPos=null;return;}
+  if(currentMode==='rect'&&rectDragging){
+    rectDragging=null;rectDragStart=null;rectSelStart=null;
+    if(rectSel&&Math.abs(rectSel.x1-rectSel.x0)>4&&Math.abs(rectSel.y1-rectSel.y0)>4){
+      document.getElementById('sel-actions').style.display='flex';
+    }
+    drawSelOverlay();return;
+  }
+  if(currentMode==='lasso'&&lassoDrawing){
+    lassoDrawing=false;
+    if(lassoPoints.length>10){
+      lassoPoints.push(lassoPoints[0]); // 閉じる
+      document.getElementById('sel-actions').style.display='flex';
+    }else{lassoPoints=[];}
+    drawSelOverlay();return;
+  }
+}
+
+function drawSelOverlay(){
+  const so=document.getElementById('sel-overlay');
+  const ctx=so.getContext('2d');
+  ctx.clearRect(0,0,so.width,so.height);
+
+  if(currentMode==='rect'&&rectSel){
+    const {x0,y0,x1,y1}=rectSel;
+    const lx=Math.min(x0,x1),ly=Math.min(y0,y1),lw=Math.abs(x1-x0),lh=Math.abs(y1-y0);
+    // 暗幕（選択外）
+    ctx.fillStyle='rgba(0,0,0,0.45)';
+    ctx.fillRect(0,0,so.width,so.height);
+    ctx.clearRect(lx,ly,lw,lh);
+    // 点線枠
+    ctx.setLineDash([6,4]);ctx.strokeStyle='#FFD700';ctx.lineWidth=2;
+    ctx.strokeRect(lx,ly,lw,lh);ctx.setLineDash([]);
+    // ハンドル
+    const corners=[{x:lx,y:ly},{x:lx+lw,y:ly},{x:lx,y:ly+lh},{x:lx+lw,y:ly+lh}];
+    ctx.fillStyle='#FFD700';
+    corners.forEach(c=>{ctx.beginPath();ctx.arc(c.x,c.y,6,0,Math.PI*2);ctx.fill();});
+    ctx.strokeStyle='#fff';ctx.lineWidth=1.5;
+    corners.forEach(c=>{ctx.beginPath();ctx.arc(c.x,c.y,6,0,Math.PI*2);ctx.stroke();});
+  }
+
+  if(currentMode==='lasso'&&lassoPoints.length>1){
+    // 暗幕
+    ctx.fillStyle='rgba(0,0,0,0.45)';
+    ctx.fillRect(0,0,so.width,so.height);
+    // なぞりパス
+    ctx.beginPath();
+    ctx.moveTo(lassoPoints[0].x,lassoPoints[0].y);
+    lassoPoints.forEach(p=>ctx.lineTo(p.x,p.y));
+    if(!lassoDrawing)ctx.closePath();
+    ctx.save();ctx.clip();
+    ctx.clearRect(0,0,so.width,so.height);ctx.restore();
+    // 線
+    ctx.setLineDash([6,4]);ctx.strokeStyle='#FFD700';ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(lassoPoints[0].x,lassoPoints[0].y);
+    lassoPoints.forEach(p=>ctx.lineTo(p.x,p.y));
+    if(!lassoDrawing)ctx.closePath();
+    ctx.stroke();ctx.setLineDash([]);
+    // 始点マーカー
+    ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(lassoPoints[0].x,lassoPoints[0].y,6,0,Math.PI*2);ctx.fill();
+  }
 }
 
 function clearSelection(){
-  selStart=null;selEnd=null;
-  document.getElementById('sel-rect').style.display='none';
+  rectSel=null;lassoPoints=[];
+  const so=document.getElementById('sel-overlay');
+  so.getContext('2d').clearRect(0,0,so.width,so.height);
   document.getElementById('sel-actions').style.display='none';
-  document.getElementById('range-info').style.display='none';
-}
-
-function applyToSelection(){
-  // 選択範囲に除去を適用
-  runRemoval(true);
 }
 
 // 背景除去
 document.getElementById('run-btn').addEventListener('click',()=>runRemoval(false));
 
-function runRemoval(selectionOnly){
+function runRemoval(selOnly){
   if(!origImage)return;
   const bg=hexToRgb(document.getElementById('bg-color').value);
   const tol=parseInt(document.getElementById('tolerance').value);
   const wc=document.getElementById('work-canvas');
-
-  // 前回の結果があればそれをベースに重ね掛け、なければ元画像から
   const base=resultCanvas||origImage;
   wc.width=origImage.width;wc.height=origImage.height;
   const ctx=wc.getContext('2d');
   ctx.drawImage(base,0,0);
-
   const imgData=ctx.getImageData(0,0,wc.width,wc.height);
   const data=imgData.data;
 
-  // 処理範囲の決定
-  let x0=0,y0=0,x1=wc.width,y1=wc.height;
-  if(selectionOnly&&selStart&&selEnd){
-    x0=Math.min(selStart.px,selEnd.px);
-    y0=Math.min(selStart.py,selEnd.py);
-    x1=Math.max(selStart.px,selEnd.px);
-    y1=Math.max(selStart.py,selEnd.py);
-  }
-
-  for(let y=y0;y<y1;y++){
-    for(let x=x0;x<x1;x++){
-      const i=(y*wc.width+x)*4;
-      const dist=colorDist(data[i],data[i+1],data[i+2],bg.r,bg.g,bg.b);
-      if(dist<=tol){
-        data[i+3]=Math.max(0,Math.min(255,Math.round((dist/tol)*255*0.5)));
+  // マスク作成
+  let mask=null;
+  if(selOnly){
+    mask=new Uint8Array(wc.width*wc.height);
+    if(currentMode==='rect'&&rectSel){
+      const lx=Math.round(Math.min(rectSel.x0,rectSel.x1));
+      const ly=Math.round(Math.min(rectSel.y0,rectSel.y1));
+      const lx2=Math.round(Math.max(rectSel.x0,rectSel.x1));
+      const ly2=Math.round(Math.max(rectSel.y0,rectSel.y1));
+      for(let y=ly;y<ly2;y++)for(let x=lx;x<lx2;x++)if(y>=0&&y<wc.height&&x>=0&&x<wc.width)mask[y*wc.width+x]=1;
+    }else if(currentMode==='lasso'&&lassoPoints.length>2){
+      // ポリゴン内判定（Ray casting）
+      for(let y=0;y<wc.height;y++){
+        for(let x=0;x<wc.width;x++){
+          if(pointInPoly(x,y,lassoPoints))mask[y*wc.width+x]=1;
+        }
       }
     }
+  }
+
+  for(let i=0;i<data.length;i+=4){
+    const idx=i/4;
+    if(mask&&!mask[idx])continue;
+    const dist=colorDist(data[i],data[i+1],data[i+2],bg.r,bg.g,bg.b);
+    if(dist<=tol)data[i+3]=Math.max(0,Math.min(255,Math.round((dist/tol)*255*0.5)));
   }
   ctx.putImageData(imgData,0,0);
 
@@ -381,21 +559,18 @@ function runRemoval(selectionOnly){
   resultCanvas.width=wc.width;resultCanvas.height=wc.height;
   resultCanvas.getContext('2d').putImageData(imgData,0,0);
 
-  // main canvasも更新（除去後の状態を反映）
-  const mc=document.getElementById('main-canvas');
-  mc.getContext('2d').putImageData(imgData,0,0);
-  // 除去後は選択矩形を再描画
-  if(selStart&&selEnd)updateSelRectOnMain();
+  // main canvasに反映
+  document.getElementById('main-canvas').getContext('2d').putImageData(imgData,0,0);
+  clearSelection();
 
   // after preview
   const ab=document.getElementById('after-box');
-  ab.innerHTML='';
-  ab.className='preview-box checker';
+  ab.innerHTML='';ab.className='preview-box checker';
   const ai=document.createElement('img');
   ai.src=resultCanvas.toDataURL('image/png');
   ai.style.cssText='width:100%;height:100%;object-fit:contain;z-index:1;position:relative';
   ab.appendChild(ai);
-  const lbl2=document.createElement('div');lbl2.className='preview-label';lbl2.textContent='AFTER';ab.appendChild(lbl2);
+  const lbl=document.createElement('div');lbl.className='preview-label';lbl.textContent='AFTER';ab.appendChild(lbl);
 
   document.getElementById('preview-card').style.display='block';
   document.getElementById('dl-btn').style.display='block';
@@ -403,15 +578,22 @@ function runRemoval(selectionOnly){
   document.getElementById('preview-card').scrollIntoView({behavior:'smooth'});
 }
 
-function updateSelRectOnMain(){
-  if(!selStart||!selEnd)return;
-  const mc=document.getElementById('main-canvas');
-  const rect=mc.getBoundingClientRect();
-  const sx=rect.width/mc.width,sy=rect.height/mc.height;
-  const sr=document.getElementById('sel-rect');
-  const left=Math.min(selStart.px,selEnd.px)*sx,top=Math.min(selStart.py,selEnd.py)*sy;
-  const w=Math.abs(selEnd.px-selStart.px)*sx,h=Math.abs(selEnd.py-selStart.py)*sy;
-  sr.style.cssText=`display:block;left:${left}px;top:${top}px;width:${w}px;height:${h}px;`;
+function pointInPoly(x,y,pts){
+  let inside=false;
+  for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const xi=pts[i].x,yi=pts[i].y,xj=pts[j].x,yj=pts[j].y;
+    if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))inside=!inside;
+  }
+  return inside;
+}
+
+function pinchDist(touches){
+  const dx=touches[0].clientX-touches[1].clientX;
+  const dy=touches[0].clientY-touches[1].clientY;
+  return Math.sqrt(dx*dx+dy*dy);
+}
+function pinchCenter(touches){
+  return{x:(touches[0].clientX+touches[1].clientX)/2,y:(touches[0].clientY+touches[1].clientY)/2};
 }
 
 function rgbToHex(r,g,b){return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');}
