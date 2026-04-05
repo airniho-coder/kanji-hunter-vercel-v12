@@ -1272,8 +1272,9 @@ function equipItem(charId,slotIdx,itemId){
   saveState();
   document.getElementById('equip-modal').style.display='none';
   equipModalTarget=null;
-  refreshDetailModal(charId);
+  // コレクション再描画してから詳細モーダルを更新
   renderCollection();
+  setTimeout(()=>refreshDetailModal(charId),30);
 }
 function unequipItem(charId,slotIdx){
   const char=characters.find(c=>c.id===charId);if(!char)return;
@@ -1282,8 +1283,8 @@ function unequipItem(charId,slotIdx){
   saveState();
   document.getElementById('equip-modal').style.display='none';
   equipModalTarget=null;
-  refreshDetailModal(charId);
   renderCollection();
+  setTimeout(()=>refreshDetailModal(charId),30);
 }
 
 // ===== FILE HANDLING =====
@@ -1577,14 +1578,14 @@ function registerCard(){
   clearImage();
   const isChar=type==='character';
   const cardId=card.id;
-  showTab('collection');
   const tabMap={character:'char',skill:'skill',magic:'magic',weapon:'weapon',armor:'armor',recovery:'recovery',item:'item',tool:'item'};
-  setCollTab(tabMap[card.cardType]||'item');
-  // Open detail modal after render completes
-  if(isChar){
-    // Use requestAnimationFrame to ensure DOM is ready
-    requestAnimationFrame(()=>requestAnimationFrame(()=>openCharDetail(cardId)));
-  }
+  const targetTab=tabMap[card.cardType]||'item';
+  // タブ切り替え→レンダー→モーダル の順で確実に実行
+  showTab('collection');
+  setTimeout(()=>{
+    setCollTab(targetTab);
+    if(isChar)setTimeout(()=>openCharDetail(cardId),100);
+  },50);
 }
 
 // ===== COLLECTION RENDER =====
@@ -1830,7 +1831,6 @@ async function startBattle(){
   const bPreHp=getCharHp(b),bPreMp=getCharMp(b),bPreSp=getCharSp(b);
   // バトル開始前にスキル・魔法を再構築（装備カード反映）
   rebuildCharSkills(a);
-    rebuildCharSkills(a);
   a._bHp=getCharHp(a);a._bMp=getCharMp(a);a._bSp=getCharSp(a);a._defUp=false;a._status='';a._leveledUp=false;a._debuffAtk=1;a._debuffDef=1;a._buffAtk=1;
   b._bHp=getEffectiveStat(b,'hp');b._bMp=getEffectiveStat(b,'mp');b._bSp=getEffectiveStat(b,'sp');b._defUp=false;b._status='';b._leveledUp=false;b._debuffAtk=1;b._debuffDef=1;b._buffAtk=1;
   document.getElementById('battle-log-area').style.display='block';
@@ -2047,7 +2047,8 @@ function startRecoveryInterval(charId){
     col._currentSp=Math.floor(startSp+(maxSp-startSp)*pct);
     if(pct>=1){
       delete col._recoverStart;delete col._recoverHp;delete col._recoverMp;delete col._recoverSp;
-      delete col._currentHp;delete col._currentMp;delete col._currentSp;
+      // _currentHpは削除せずに最大値を明示的にセット（削除するとgetCharHpが常に最大を返す）
+      col._currentHp=maxHp;col._currentMp=maxMp;col._currentSp=maxSp;
       clearInterval(window._recoveryTimers[charId]);
     }
     saveState();
@@ -2218,12 +2219,29 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         atkEffect='magic';atkEffectColor='#a78bfa';defEffect='damage';
         dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }else if(mg.type==='heal'){
-        const healPct=0.25+Math.random()*0.15;
+        let healPct=mg.healPct||(0.25+Math.random()*0.15);
         const h=Math.floor(maxHp*healPct);
         attacker._bHp=Math.min(maxHp,attacker._bHp+h);
         eText=`💚+${h}`;eColor='#4ade80';
         msg=`💚 ${attacker.kanji}「${mg.name}」！HP+${h}（${Math.round(healPct*100)}%）回復！`;
         atkEffect='heal';atkEffectColor='#4ade80';atkEffectLabel='HP';defEffect=null;
+        // 回復薬カードの場合：使用回数を減らす
+        if(mg.isRecovery&&mg.fromCard){
+          const cardItem=itemCards.find(i=>i.id===mg.fromCard);
+          if(cardItem){
+            cardItem.usesLeft=(cardItem.usesLeft??cardItem.maxUses)-1;
+            if(cardItem.usesLeft<=0){
+              // 使い切ったらコレクションから削除・装備から外す
+              itemCards=itemCards.filter(i=>i.id!==mg.fromCard);
+              characters.forEach(c=>{
+                if(c.equippedSlots)c.equippedSlots=c.equippedSlots.map(id=>id===mg.fromCard?null:id);
+              });
+              // バトル中のmagicsからも削除
+              attacker.magics=attacker.magics.filter(m=>m.fromCard!==mg.fromCard);
+            }
+            saveState();
+          }
+        }
       }else if(mg.type==='debuff'){
         defender._status='💀弱体(-30%)';defender._debuffAtk=0.7;defender._debuffDef=0.7;defender._debuffTurns=2;
         dmg=Math.max(5,Math.floor(atkINT*0.6*atkMult));
