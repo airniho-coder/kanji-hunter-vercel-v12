@@ -214,7 +214,8 @@ body{display:flex;justify-content:center;}
 
 /* EXP POPUP */
 .exp-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(5,5,8,.96);border:1px solid rgba(255,200,80,.3);border-radius:14px;padding:20px 24px;text-align:center;z-index:300;display:none;min-width:220px;box-shadow:0 0 40px rgba(255,200,80,.2);}
-.exp-popup.show{display:block;animation:slideUp .3s ease;}
+.exp-popup.show{display:block;animation:popupFadeIn .25s ease;}
+@keyframes popupFadeIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.85)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 .lv-flash{font-size:24px;font-weight:900;color:#FFD700;text-shadow:0 0 20px #FF8C00;margin-bottom:7px;}
 
 /* SETUP */
@@ -2223,7 +2224,12 @@ function showExpPopup(winner,expGain,lvBefore,lvAfter){
     <div style="font-size:12px;opacity:.6;line-height:2">EXP +${expGain}${lv?`<br><span style="color:#FFD700;font-weight:700">Lv.${lvBefore} → Lv.${lvAfter}<br>装備スロット拡張！</span>`:''}</div>`;
   document.getElementById('exp-popup').classList.add('show');
 }
-function closeExpPopup(){document.getElementById('exp-popup').classList.remove('show');}
+function closeExpPopup(){
+  document.getElementById('exp-popup').classList.remove('show');
+  // 閉じたら戦闘開始ボタンを再有効化
+  const btn=document.getElementById('battle-start-btn');
+  if(btn)btn.disabled=false;
+}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function showLoading(v,t,s){document.getElementById('loading').classList.toggle('show',v);if(t)document.getElementById('loading-text').textContent=t;if(s)document.getElementById('loading-sub').textContent=s;}
 function showAlert(t,m){document.getElementById('alert-area').innerHTML=`<div class="alert alert-${t}">${m}</div>`;}
