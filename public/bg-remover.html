@@ -29,13 +29,9 @@
   .canvas-hint{font-size:10px;color:var(--muted);background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);border-radius:8px;padding:8px 12px;margin-bottom:10px;line-height:1.7;}
   #viewport{width:100%;aspect-ratio:3/4;background:#111;border-radius:12px;border:2px solid rgba(201,168,76,.3);overflow:hidden;position:relative;touch-action:none;}
   #viewport.active-mode{border-color:var(--gold);}
-  /* inner: 実際の変換がかかるコンテナ */
-  #inner{position:absolute;transform-origin:0 0;will-change:transform;}
-  #main-canvas{display:block;touch-action:none;user-select:none;}
-  /* 矩形選択オーバーレイ */
-  #sel-overlay{position:absolute;top:0;left:0;pointer-events:none;}
-  /* ハンドル */
-  .handle{position:absolute;width:20px;height:20px;background:var(--gold);border:2px solid #fff;border-radius:4px;touch-action:none;cursor:pointer;transform:translate(-50%,-50%);}
+  #inner{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform;}
+  #main-canvas{display:block;touch-action:none;user-select:none;image-rendering:pixelated;}
+  #sel-overlay{position:absolute;top:0;left:0;pointer-events:none;image-rendering:pixelated;}
 
   /* 選択アクション */
   #sel-actions{display:none;gap:6px;margin-bottom:12px;flex-direction:column;}
@@ -230,9 +226,9 @@ function loadFile(file){
       // 初期色
       const d=wc.getContext('2d').getImageData(0,0,1,1).data;
       setColor(rgbToHex(d[0],d[1],d[2]));
-      // ビューポートにフィット
-      fitToViewport();
+      // ビューポートにフィット（描画後に実行）
       document.getElementById('canvas-area').style.display='block';
+      requestAnimationFrame(()=>requestAnimationFrame(fitToViewport));
       document.getElementById('run-btn').disabled=false;
       setupEvents();
       setMode('pick');
@@ -244,9 +240,10 @@ function loadFile(file){
 
 function fitToViewport(){
   const vp=document.getElementById('viewport');
-  const vpW=vp.clientWidth, vpH=vp.clientHeight;
+  const vpW=vp.offsetWidth, vpH=vp.offsetHeight;
+  if(!vpW||!vpH)return;
   const mc=document.getElementById('main-canvas');
-  scale=Math.min(vpW/mc.width, vpH/mc.height);
+  scale=Math.min(vpW/mc.width, vpH/mc.height)*0.95;
   panX=(vpW-mc.width*scale)/2;
   panY=(vpH-mc.height*scale)/2;
   applyTransform();
