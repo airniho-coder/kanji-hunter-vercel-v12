@@ -1573,9 +1573,10 @@ JSON配列のみ返答（他のテキスト一切不要）:
     const data=await res.json();
     if(data.error)throw new Error('API: '+(data.error.message||JSON.stringify(data.error)));
     const rawText=data.content?.map(b=>b.text||'').join('')||'';
+    if(!rawText)throw new Error('APIレスポンスが空です');
     // JSON配列を抽出
     const aS=rawText.indexOf('['),aE=rawText.lastIndexOf(']');
-    if(aS<0||aE<=aS)throw new Error('JSON配列なし。レスポンス:'+rawText.slice(0,300));
+    if(aS<0||aE<=aS)throw new Error('JSON配列なし。先頭:'+rawText.slice(0,150));
     const parsed=JSON.parse(rawText.slice(aS,aE+1));
     if(!Array.isArray(parsed)||parsed.length===0)throw new Error('配列が空');
     // デバッグ：パース結果を表示
@@ -1608,7 +1609,6 @@ JSON配列のみ返答（他のテキスト一切不要）:
     return;
   }
   showLoading(false);
-  if(omakaseCards.length===0){showAlert('error','⚡ カードを生成できませんでした。別の画像を試してください。');return;}
   showOmakaseResult(omakaseCards);
 }
 
