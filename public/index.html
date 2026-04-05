@@ -1463,6 +1463,9 @@ function renderBattleSelect(){
   document.getElementById('battle-mode-area').style.display=ready?'block':'none';
   document.getElementById('battle-start-btn').style.display=ready?'block':'none';
   document.getElementById('battle-start-btn').textContent=battleResult?'別の相手に挑む ⚔️':'戦闘開始 ⚔️';
+  // ポップアップ表示中はボタン無効
+  const popupShowing=document.getElementById('exp-popup').classList.contains('show');
+  document.getElementById('battle-start-btn').disabled=popupShowing;
   document.getElementById('manual-actions-area').style.display='none';
   const ai=document.getElementById('affinity-info');
   if(ready&&battlePair[0]&&battlePair[1]){
@@ -1570,18 +1573,8 @@ function updateSlots(a,b,winnerId){
 }
 
 function handleBattleBtn(){
-  if(battleResult&&battlePair[0]){
-    // Re-randomize opponent
-    const others=characters.filter(c=>c.id!==battlePair[0].id);
-    if(others.length>0) battlePair[1]=others[Math.floor(Math.random()*others.length)];
-    battleResult=null;
-    renderBattleSelect();
-    return;
-  }
-  startBattle();
-}
-
-function handleBattleBtn(){
+  // ポップアップ表示中は何もしない
+  if(document.getElementById('exp-popup').classList.contains('show'))return;
   if(battleResult&&battlePair[0]){
     const others=characters.filter(c=>c.id!==battlePair[0].id);
     if(others.length>0)battlePair[1]=others[Math.floor(Math.random()*others.length)];
