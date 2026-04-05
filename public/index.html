@@ -1484,30 +1484,68 @@ JSONのみ返してください。`;
 async function analyzeOmakase(){
   if(!currentImage)return;
   clearAlert();clearNewCard();
+  showLoading(true,'おまかせ召喚中...','画像から5つの漢字を採集しています');
   const omakaseCards=[];
-  const typePool=['character','character','skill','magic','weapon','armor','recovery'];
-  // 1枚目：通常レア度、4枚目以降：低レア
-  for(let i=0;i<5;i++){
-    const isCommon=i>=1; // 1枚目だけ通常、残り4枚は低レア
-    const rarityHint=isCommon?'（低レア優先: C=50%, N=35%, R=13%, SR=1.5%, SSR=0.5%）':'（通常: C=35%, N=35%, R=20%, SR=8%, SSR=2%）';
-    const typeHint=typePool[Math.floor(Math.random()*typePool.length)];
-    showLoading(true,`おまかせ召喚中... ${i+1}/5`,'カード生成');
-    try{
-      const compressed=await compressImage(currentImage);
-      const base64=compressed.split(',')[1];
-      const jobHints=['魔法使い','剣士','僧侶','忍者','竜騎士','吟遊詩人','召喚士','賢者','暗黒騎士','聖騎士'];
-      const raceHints=['人族','エルフ族','ハーフエルフ族','ダークエルフ族','ホビット族','ドワーフ族','魔族','竜族','モンスター族'];
-      const jobHint=jobHints[Math.floor(Math.random()*jobHints.length)];
-      const raceHint=raceHints[Math.floor(Math.random()*raceHints.length)];
-      const forceTypeStr=`【必須: ${typeHint}を選択してください】`;
-      const prompt=buildAnalyzePrompt(base64,jobHint,raceHint,forceTypeStr,rarityHint);
-      const card=await fetchAndParseCard(prompt,base64);
-      if(card)omakaseCards.push(card);
-    }catch(e){console.error('omakase card error',i,e);}
-    await sleep(400);
+  try{
+    const compressed=await compressImage(currentImage);
+    const base64=compressed.split(',')[1];
+    const typePool=['character','character','skill','magic','weapon','armor','recovery'];
+    const types=Array.from({length:5},()=>typePool[Math.floor(Math.random()*typePool.length)]);
+    const jobHints=['魔法使い','剣士','僧侶','忍者','竜騎士','吟遊詩人','召喚士','賢者','暗黒騎士','聖騎士'];
+    const raceHints=['人族','エルフ族','ハーフエルフ族','ダークエルフ族','ホビット族','ドワーフ族','魔族','竜族','モンスター族'];
+    const job1=jobHints[Math.floor(Math.random()*jobHints.length)];
+    const race1=raceHints[Math.floor(Math.random()*raceHints.length)];
+    const prompt=`あなたは漢字ハンターゲームのAIエンジンです。画像の本から異なる5箇所のテキストを読み取り、各箇所から漢字1文字を選んで5枚のカードを生成してください。
+
+カード種類（順番通り）: 1=${types[0]} 2=${types[1]} 3=${types[2]} 4=${types[3]} 5=${types[4]}
+レア度: 1枚目=通常(C35%N35%R20%SR8%SSR2%), 2〜5枚目=低レア(C50%N35%R13%SR1.5%SSR0.5%)
+jobヒント:${job1} raceヒント:${race1}
+
+各カードの必須フィールド:
+- isRealBook: true（デジタル画面ならfalse）
+- cardType: 指定の種類
+- kanji: 漢字1文字
+- rarity: C/N/R/SR/SSR
+- context: 実際に読んだ文章(20〜50文字)
+- lore: 設定(25文字)
+
+characterカード追加: job, race, gender(男/女/不明), element(火/水/木/土/風/金/闇/光), baseVal(50-200), charName, monsterType, skills([{name,spCost,type:"atk"/"heal"/"buff",desc}]0〜2個), magics([{name,mpCost,type:"magic"/"heal"/"debuff",desc}]0〜2個), artMood
+非characterカード追加: name, bonuses({atk:XX}weapon/{def:XX}armor/{spd/lck/int/hp/mp/sp:XX}item/{}skill・magic), effectDesc
+skillカード: skillData:{name,spCost:20-40,type:"atk"/"heal"/"buff",desc}
+magicカード: magicData:{name,mpCost:20-50,type:"magic"/"heal"/"debuff",desc}
+recoveryカード: healType:"hp"/"mp"/"sp", healPct:0.25-0.5, maxUses:2-4
+
+JSON配列のみ返答（他のテキスト一切不要）:
+[{"isRealBook":true,"cardType":"${types[0]}","kanji":"例","rarity":"N","context":"文章","lore":"説明",...},...]`;
+
+    const res=await fetch('/api/analyze',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:3000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},{type:'text',text:prompt}]}]})
+    });
+    const data=await res.json();
+    if(data.error)throw new Error('API: '+(data.error.message||JSON.stringify(data.error)));
+    const rawText=data.content?.map(b=>b.text||'').join('')||'';
+    // JSON配列を抽出
+    const aS=rawText.indexOf('['),aE=rawText.lastIndexOf(']');
+    if(aS<0||aE<=aS)throw new Error('JSON配列なし。レスポンス:'+rawText.slice(0,300));
+    const parsed=JSON.parse(rawText.slice(aS,aE+1));
+    if(!Array.isArray(parsed)||parsed.length===0)throw new Error('配列が空');
+    for(const p of parsed){
+      if(!p||!p.kanji)continue;
+      // isRealBookがない場合はtrueとみなす（5枚まとめ召喚なので）
+      try{
+        const card=await buildCardFromParsed(p);
+        if(card)omakaseCards.push(card);
+      }catch(e2){console.error('card build error',p.kanji,e2);}
+    }
+  }catch(e){
+    showLoading(false);
+    showAlert('error','⚡ おまかせ失敗: '+e.message.slice(0,120));
+    return;
   }
   showLoading(false);
-  if(omakaseCards.length===0){showAlert('error','⚡ 召喚失敗！もう一度お試しください。');return;}
+  if(omakaseCards.length===0){showAlert('error','⚡ カードを生成できませんでした。別の画像を試してください。');return;}
   showOmakaseResult(omakaseCards);
 }
 
