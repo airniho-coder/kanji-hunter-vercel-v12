@@ -1312,7 +1312,36 @@ function clearImage(){
   document.getElementById('guide-box').style.display='block';
   document.getElementById('file-input').value='';
   clearAlert();
-  // clearNewCard()はここで呼ばない（登録後の画面遷移と競合するため）
+}
+
+// おまかせ登録後：撮影エリアだけリセット、カード一覧は残す
+function lockCaptureArea(){
+  currentImage=null;
+  document.getElementById('preview-img').style.display='none';
+  document.getElementById('preview-img').src='';
+  document.getElementById('btn-area').style.display='none';
+  document.getElementById('guide-box').style.display='none';
+  document.getElementById('file-input').value='';
+  // camera-placeholderを「本を撮影する」＋タップで初期化に変更
+  const ph=document.getElementById('camera-placeholder');
+  ph.style.display='block';
+  ph.innerHTML=`<div style="font-size:28px;margin-bottom:6px">📷</div>
+    <div style="font-size:12px;opacity:.6;letter-spacing:2px">本を撮影する</div>
+    <div style="font-size:9px;opacity:.4;margin-top:4px">タップすると未登録カードを消して最初から</div>`;
+  ph.onclick=()=>{
+    ph.onclick=null;
+    ph.innerHTML=`<div style="font-size:38px;margin-bottom:8px">📷</div>
+      <div style="font-size:12px;opacity:.5;letter-spacing:2px">本を撮影する</div>
+      <div style="font-size:9px;opacity:.3;margin-top:3px;letter-spacing:1px">実物の本・書籍のみ有効</div>`;
+    ph.style.cursor='';
+    window._omakaseCards=null;
+    document.getElementById('new-card-area').innerHTML='';
+    document.getElementById('guide-box').style.display='block';
+    document.getElementById('camera-box').onclick=()=>document.getElementById('file-input').click();
+  };
+  ph.style.cursor='pointer';
+  // camera-boxのクリックはplaceholderのonclickに任せる（撮影ではなくリセット）
+  document.getElementById('camera-box').onclick=null;
 }
 
 // ===== ANALYZE =====
@@ -1642,14 +1671,20 @@ function registerOmakaseCard(idx){
   if(card.cardType==='character')characters.push(card);
   else itemCards.push(card);
   saveState();updateHeaderCount();
-  // ボタンを即更新
+  // ① そのカードの行をフェードアウトして消す
   const btn=document.getElementById('omk-btn-'+idx);
-  if(btn){btn.textContent='✓';btn.disabled=true;btn.style.opacity='.5';btn.style.background='rgba(74,222,128,.05)';btn.onclick=null;}
+  const row=btn?.closest('[style*="background:rgba"]')||btn?.parentElement;
+  if(row){
+    row.style.transition='opacity .3s ease, max-height .4s ease';
+    row.style.opacity='0';
+    setTimeout(()=>{row.style.maxHeight='0';row.style.overflow='hidden';row.style.padding='0';row.style.margin='0';},300);
+  }
+  // ② 1枚でも登録したら撮影エリアを「本を撮影する」に戻す
+  lockCaptureArea();
 }
 
 function registerAllOmakase(){
   const cards=window._omakaseCards||[];
-  // 全ボタン即無効化
   document.querySelectorAll('#new-card-area button').forEach(b=>{b.disabled=true;b.style.opacity='.4';b.onclick=null;});
   cards.forEach(card=>{
     if(card._registered)return;
@@ -1659,8 +1694,13 @@ function registerAllOmakase(){
   });
   window._omakaseCards=null;
   saveState();updateHeaderCount();
-  collTab='char';
+  // new-card-areaをクリアして撮影エリアを完全リセット
+  document.getElementById('new-card-area').innerHTML='';
   clearImage();
+  document.getElementById('guide-box').style.display='block';
+  // camera-boxのonclickを戻す
+  document.getElementById('camera-box').onclick=()=>document.getElementById('file-input').click();
+  collTab='char';
   showTab('collection');
 }
 
@@ -1690,10 +1730,11 @@ function registerCard(){
   const cardId=card.id;
   const tabMap={character:'char',skill:'skill',magic:'magic',weapon:'weapon',armor:'armor',recovery:'recovery',item:'item',tool:'item'};
   const targetTab=tabMap[card.cardType]||'item';
-  collTab=targetTab;
-  clearImage(); // clearNewCardを呼ばない版
-  showTab('collection');
-  if(isChar)setTimeout(()=>openCharDetail(cardId),80);
+  // ③ 召喚画面をリセットして初期状態に戻す（コレクションへ移動しない）
+  document.getElementById('new-card-area').innerHTML='';
+  clearImage();
+  document.getElementById('guide-box').style.display='block';
+  document.getElementById('camera-box').onclick=()=>document.getElementById('file-input').click();
 }
 
 // ===== COLLECTION RENDER =====
