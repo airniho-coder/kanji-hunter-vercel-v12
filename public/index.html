@@ -1421,6 +1421,7 @@ function charDetailHTML(char,showBattleBtn=true){
     <div class="card-back-body">
       <div class="char-name-back" style="color:${rc.color}">${char.charName}</div>
       <div class="char-sub-back">${JOB_ICONS[char.job]||'⚔️'} ${char.job} / Lv.${lv}</div>
+      <div class="char-sub-back" style="margin-top:2px">${RACE_ICONS[char.race]||'👤'} ${char.race} ／ ${char.gender==='男'?'♂ 男':char.gender==='女'?'♀ 女':'？ 不明'} ／ ${ELEM_ICONS[char.element]||''}${char.element}</div>
       <div class="exp-bar-wrap">
         <div class="exp-label"><span>EXP</span><span>${toNext>0?'次まで'+toNext:'MAX'}</span></div>
         <div class="exp-track"><div class="exp-fill" style="width:${expPct(char.exp||0)}%"></div></div>
