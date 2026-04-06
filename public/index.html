@@ -1221,17 +1221,10 @@ function openEquipModal(charId,slotIdx,evt){
 function closeEquipModal(evt){
   if(evt&&evt.target!==document.getElementById('equip-modal'))return;
   document.getElementById('equip-modal').style.display='none';
-  const prevTarget=equipModalTarget;
+  const prevCharId=equipModalTarget?.charId;
   equipModalTarget=null;
   renderCollection();
-  // キャラ詳細が開いていたら再描画
-  if(prevTarget){
-    const charDetailEl=document.getElementById('char-detail-'+prevTarget.charId);
-    if(charDetailEl){
-      const char=characters.find(c=>c.id===prevTarget.charId);
-      if(char){charDetailEl.innerHTML=charDetailHTML(char,true);charDetailEl.style.display='block';}
-    }
-  }
+  if(prevCharId)setTimeout(()=>refreshDetailModal(prevCharId),30);
 }
 function rebuildCharSkills(char){
   const innateS=char.innateSkills||[];
@@ -1267,14 +1260,22 @@ function rebuildCharSkills(char){
 function equipItem(charId,slotIdx,itemId){
   const char=characters.find(c=>c.id===charId);if(!char)return;
   if(!char.equippedSlots)char.equippedSlots=[];
-  char.equippedSlots[slotIdx]=itemId;
-  rebuildCharSkills(char);
-  saveState();
-  document.getElementById('equip-modal').style.display='none';
-  equipModalTarget=null;
-  // コレクション再描画してから詳細モーダルを更新
-  renderCollection();
-  setTimeout(()=>refreshDetailModal(charId),30);
+  // アニメーション演出：選択カードを回転させてから装備
+  const clickedEl=event?.target?.closest('[onclick]');
+  if(clickedEl){
+    clickedEl.style.transition='transform .35s ease, opacity .35s ease';
+    clickedEl.style.transform='rotateY(90deg) scale(.8)';
+    clickedEl.style.opacity='0';
+  }
+  setTimeout(()=>{
+    char.equippedSlots[slotIdx]=itemId;
+    rebuildCharSkills(char);
+    saveState();
+    document.getElementById('equip-modal').style.display='none';
+    equipModalTarget=null;
+    renderCollection();
+    setTimeout(()=>refreshDetailModal(charId),30);
+  },350);
 }
 function unequipItem(charId,slotIdx){
   const char=characters.find(c=>c.id===charId);if(!char)return;
@@ -1623,7 +1624,7 @@ function showOmakaseResult(cards){
             <div style="font-size:12px;font-weight:700;color:${(RARITY[card.rarity]||RARITY.C).color}">${card.cardType==='character'?card.charName:card.name||card.kanji} [${card.rarity}]</div>
             <div style="font-size:10px;opacity:.5;margin-top:2px">${CARD_TYPE_LABELS[card.cardType]||card.cardType} ${card.cardType==='character'?card.job||'':card.effectDesc||''}</div>
           </div>
-          <button id="omk-btn-${i}" onclick="registerOmakaseCard(${i})" style="padding:6px 12px;border-radius:8px;background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.4);color:#4ade80;font-size:10px;cursor:pointer;font-family:'Noto Serif JP',serif">登録</button>
+          <button id="omk-btn-${i}" onclick="registerOmakaseCard(${i})" style="padding:6px 12px;border-radius:8px;background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.4);color:#4ade80;font-size:10px;cursor:pointer;font-family:'Noto Serif JP',serif;transition:all .15s">登録</button>
         </div>`).join('')}
     </div>
     <button class="btn btn-green" onclick="registerAllOmakase()" style="margin-bottom:6px">全て登録 →</button>
@@ -1640,17 +1641,9 @@ function registerOmakaseCard(idx){
   if(card.cardType==='character')characters.push(card);
   else itemCards.push(card);
   saveState();updateHeaderCount();
+  // ボタンを即更新
   const btn=document.getElementById('omk-btn-'+idx);
-  if(btn){btn.textContent='✓ 登録済';btn.disabled=true;btn.style.opacity='.4';btn.onclick=null;}
-  // 全カード登録済みなら画面切り替え
-  const allDone=(window._omakaseCards||[]).every(c=>c._registered);
-  if(allDone){
-    window._omakaseCards=null;
-    clearNewCard();clearImage();
-    const tabMap={character:'char',skill:'skill',magic:'magic',weapon:'weapon',armor:'armor',recovery:'recovery',item:'item'};
-    showTab('collection');
-    setTimeout(()=>setCollTab(tabMap[card.cardType]||'item'),50);
-  }
+  if(btn){btn.textContent='✓';btn.disabled=true;btn.style.opacity='.5';btn.style.background='rgba(74,222,128,.05)';btn.onclick=null;}
 }
 
 function registerAllOmakase(){
@@ -1658,16 +1651,16 @@ function registerAllOmakase(){
   // 全ボタン即無効化
   document.querySelectorAll('#new-card-area button').forEach(b=>{b.disabled=true;b.style.opacity='.4';b.onclick=null;});
   cards.forEach(card=>{
-    if(card._registered)return; // 個別登録済みはスキップ
+    if(card._registered)return;
     card._registered=true;
     if(card.cardType==='character')characters.push(card);
     else itemCards.push(card);
   });
   window._omakaseCards=null;
   saveState();updateHeaderCount();
-  clearNewCard();clearImage();
+  collTab='char';
   showTab('collection');
-  setTimeout(()=>setCollTab('char'),50);
+  clearImage();
 }
 
 // ===== NEW CARD DISPLAY =====
@@ -1692,17 +1685,14 @@ function registerCard(){
   else itemCards.push(card);
   saveState();updateHeaderCount();
   document.getElementById('new-card-area').innerHTML='';
-  clearImage();
   const isChar=type==='character';
   const cardId=card.id;
   const tabMap={character:'char',skill:'skill',magic:'magic',weapon:'weapon',armor:'armor',recovery:'recovery',item:'item',tool:'item'};
   const targetTab=tabMap[card.cardType]||'item';
-  // タブ切り替え→レンダー→モーダル の順で確実に実行
+  collTab=targetTab;
   showTab('collection');
-  setTimeout(()=>{
-    setCollTab(targetTab);
-    if(isChar)setTimeout(()=>openCharDetail(cardId),100);
-  },50);
+  clearImage();
+  if(isChar)setTimeout(()=>openCharDetail(cardId),100);
 }
 
 // ===== COLLECTION RENDER =====
