@@ -578,6 +578,38 @@ body{display:flex;justify-content:center;}
   </div>
 </div>
 
+<!-- データ保存注意ポップアップ -->
+<div id="storage-notice-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:500;align-items:center;justify-content:center;padding:20px">
+  <div style="max-width:400px;width:100%;background:#13131a;border:1px solid #2a2a3a;border-radius:20px;padding:28px 24px">
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:32px;margin-bottom:8px">💾</div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:2px;color:#c9a84c">データ保存について</div>
+    </div>
+    <div style="font-size:11px;line-height:2;opacity:.8;margin-bottom:20px;background:rgba(255,255,255,.04);padding:14px;border-radius:12px">
+      <div style="margin-bottom:8px">📱 <b>自動保存（IndexedDB）</b><br>カードやキャラクターはスマホのブラウザ内に自動保存されます。通常の使用では消えません。</div>
+      <div style="margin-bottom:8px">⚠️ <b>消える可能性があるケース</b><br>・ブラウザのキャッシュ・データを全削除した場合<br>・スマホを初期化した場合</div>
+      <div>💡 <b>手動バックアップ推奨</b><br>コレクション画面の「⬇ 保存」ボタンでJSONファイルをダウンロードできます。定期的にバックアップを取ってください。</div>
+    </div>
+    <button onclick="confirmStorageNotice()" style="width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,#c9a84c,#e8c97a);border:none;color:#0a0a0f;font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;cursor:pointer;letter-spacing:2px">理解しました →</button>
+  </div>
+</div>
+
+<!-- データ保存注意ポップアップ -->
+<div id="storage-notice-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:500;align-items:center;justify-content:center;padding:20px">
+  <div style="max-width:400px;width:100%;background:#13131a;border:1px solid #2a2a3a;border-radius:20px;padding:28px 24px">
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:32px;margin-bottom:8px">💾</div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:2px;color:#c9a84c">データ保存について</div>
+    </div>
+    <div style="font-size:11px;line-height:2;opacity:.8;margin-bottom:20px;background:rgba(255,255,255,.04);padding:14px;border-radius:12px">
+      <div style="margin-bottom:10px">📱 <b style="color:#c9a84c">自動保存（大容量）</b><br>カードやキャラクターはスマホのブラウザ内（IndexedDB）に自動保存されます。通常の使用では消えません。</div>
+      <div style="margin-bottom:10px">⚠️ <b style="color:#fbbf24">消える可能性があるケース</b><br>・ブラウザのキャッシュ・データを全削除した場合<br>・スマホを初期化した場合</div>
+      <div>💡 <b style="color:#4ade80">手動バックアップ推奨</b><br>コレクション画面の「⬇ 保存」ボタンでJSONファイルをスマホに保存できます。定期的にバックアップしてください。</div>
+    </div>
+    <button onclick="confirmStorageNotice()" style="width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,#c9a84c,#e8c97a);border:none;color:#0a0a0f;font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;cursor:pointer;letter-spacing:2px">理解しました →</button>
+  </div>
+</div>
+
 <div class="tabbar" id="tabbar" style="display:none">
   <button class="tab active" id="tab-capture" onclick="showTab('capture')"><span class="tab-icon">📷</span>召喚</button>
   <button class="tab" id="tab-collection" onclick="showTab('collection')"><span class="tab-icon">📜</span>コレクション</button>
@@ -1132,13 +1164,75 @@ JSONのみ返答: {"ok":true/false,"feedback":"ひとこと20文字以内"}`;
   }
 }
 
+
+// ===== IndexedDB ストレージ =====
+const IDB_NAME='kanjiHunterDB', IDB_VER=1, IDB_STORE='gameData';
+let db=null;
+
+async function initIDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(IDB_NAME,IDB_VER);
+    req.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains(IDB_STORE))d.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess=e=>{db=e.target.result;resolve(db);};
+    req.onerror=e=>{console.error('IDB error',e);resolve(null);};
+  });
+}
+
+async function idbSet(key,val){
+  if(!db)return localStorage.setItem(key,JSON.stringify(val));
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(IDB_STORE,'readwrite');
+    tx.objectStore(IDB_STORE).put(val,key);
+    tx.oncomplete=()=>resolve();
+    tx.onerror=e=>reject(e);
+  });
+}
+
+async function idbGet(key){
+  if(!db){
+    const v=localStorage.getItem(key);
+    return v?JSON.parse(v):null;
+  }
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(IDB_STORE,'readonly');
+    const req=tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess=e=>resolve(e.target.result??null);
+    req.onerror=e=>reject(e);
+  });
+}
+
+// 初回ポップアップ確認
+function confirmStorageNotice(){
+  localStorage.setItem('kh_storage_noticed','1');
+  document.getElementById('storage-notice-modal').style.display='none';
+}
+
 // ===== INIT =====
-window.onload=()=>{
+window.onload=async()=>{
+  await initIDB();
   apiKey=localStorage.getItem('kh_apikey')||'';
   stabilityKey=localStorage.getItem('kh_stabilitykey')||'';
-  try{characters=JSON.parse(localStorage.getItem('kh_chars')||'[]');}catch(e){characters=[];}
-  try{itemCards=JSON.parse(localStorage.getItem('kh_items')||'[]');}catch(e){itemCards=[];}
-  if(apiKey)showMainApp();
+  // IDBからロード（なければlocalStorageにフォールバック）
+  try{
+    const ch=await idbGet('kh_chars');
+    const it=await idbGet('kh_items');
+    characters=ch||JSON.parse(localStorage.getItem('kh_chars')||'[]');
+    itemCards=it||JSON.parse(localStorage.getItem('kh_items')||'[]');
+  }catch(e){characters=[];itemCards=[];}
+  resumeRecoveryTimers();
+  if(apiKey){
+    showMainApp();
+    // 初回のみストレージ注意を表示
+    if(!localStorage.getItem('kh_storage_noticed')){
+      setTimeout(()=>{
+        const m=document.getElementById('storage-notice-modal');
+        m.style.display='flex';
+      },600);
+    }
+  }
 };
 function exportData(){
   const data={version:1,exportedAt:new Date().toISOString(),characters,itemCards};
@@ -1173,8 +1267,20 @@ function importData(e){
 }
 
 function saveState(){
-  localStorage.setItem('kh_chars',JSON.stringify(characters));
-  localStorage.setItem('kh_items',JSON.stringify(itemCards));
+  // artImgは容量が大きいので除外して保存
+  const charsLite=characters.map(c=>{const{artImg,...r}=c;return r;});
+  const itemsLite=itemCards.map(i=>{const{artImg,...r}=i;return r;});
+  // IDBに保存（非同期、エラーはサイレント）
+  idbSet('kh_chars',charsLite).catch(e=>console.warn('IDB save error',e));
+  idbSet('kh_items',itemsLite).catch(e=>console.warn('IDB save error',e));
+  // LocalStorageにも保存（フォールバック用）
+  try{
+    localStorage.setItem('kh_chars',JSON.stringify(charsLite));
+    localStorage.setItem('kh_items',JSON.stringify(itemsLite));
+  }catch(e){
+    // LocalStorage容量超過は無視（IDBがメイン）
+    console.warn('localStorage full, using IDB only');
+  }
 }
 
 function exportData(){
