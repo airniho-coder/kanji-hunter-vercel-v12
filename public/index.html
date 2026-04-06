@@ -451,7 +451,14 @@ body{display:flex;justify-content:center;}
 <!-- COLLECTION -->
 <div class="page" id="page-collection">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px 5px;">
-    <div style="font-size:11px;letter-spacing:3px;opacity:.4;text-transform:uppercase" id="coll-title">コレクション</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div style="font-size:11px;letter-spacing:3px;opacity:.4;text-transform:uppercase">コレクション</div>
+      <div style="display:flex;gap:6px">
+        <button onclick="exportData()" style="font-size:9px;padding:4px 8px;border-radius:6px;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.3);color:#c9a84c;cursor:pointer;font-family:'Noto Serif JP',serif;letter-spacing:1px">⬇ 保存</button>
+        <button onclick="document.getElementById('import-input').click()" style="font-size:9px;padding:4px 8px;border-radius:6px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);color:#818cf8;cursor:pointer;font-family:'Noto Serif JP',serif;letter-spacing:1px">⬆ 復元</button>
+        <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(event)">
+      </div>
+    </div>
   </div>
   <div class="coll-tabs" style="flex-wrap:wrap;">
     <button class="coll-tab active" id="ctab-char" onclick="setCollTab('char')">👤 キャラ</button>
@@ -617,9 +624,79 @@ window.onload=()=>{
   try{itemCards=JSON.parse(localStorage.getItem('kh_items')||'[]');}catch(e){itemCards=[];}
   if(apiKey)showMainApp();
 };
+function exportData(){
+  const data={version:1,exportedAt:new Date().toISOString(),characters,itemCards};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  const d=new Date().toLocaleDateString('ja-JP').replace(/[/]/g,'-');
+  a.download='kanjiHunter_backup_'+d+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(e){
+  const file=e.target.files?.[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!data.characters||!data.itemCards)throw new Error('形式が正しくありません');
+      const addChars=data.characters.filter(nc=>!characters.some(c=>c.id===nc.id));
+      const addItems=data.itemCards.filter(ni=>!itemCards.some(i=>i.id===ni.id));
+      characters=[...characters,...addChars];
+      itemCards=[...itemCards,...addItems];
+      saveState();updateHeaderCount();renderCollection();
+      alert('復元完了！キャラ+'+addChars.length+'体、カード+'+addItems.length+'枚を追加しました。');
+    }catch(err){alert('復元失敗: '+err.message);}
+    e.target.value='';
+  };
+  reader.readAsText(file);
+}
+
 function saveState(){
   localStorage.setItem('kh_chars',JSON.stringify(characters));
   localStorage.setItem('kh_items',JSON.stringify(itemCards));
+}
+
+function exportData(){
+  const data={
+    version:1,
+    exportedAt:new Date().toISOString(),
+    characters,
+    itemCards
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`kanjiHunter_backup_${new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(e){
+  const file=e.target.files?.[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!data.characters||!data.itemCards)throw new Error('形式が正しくありません');
+      const addChars=data.characters.filter(nc=>!characters.some(c=>c.id===nc.id));
+      const addItems=data.itemCards.filter(ni=>!itemCards.some(i=>i.id===ni.id));
+      characters=[...characters,...addChars];
+      itemCards=[...itemCards,...addItems];
+      saveState();updateHeaderCount();renderCollection();
+      alert(`✅ 復元完了！\nキャラ+${addChars.length}体、カード+${addItems.length}枚を追加しました。`);
+    }catch(err){
+      alert('❌ 復元失敗: '+err.message);
+    }
+    e.target.value='';
+  };
+  reader.readAsText(file);
 }
 function saveApiKey(){
   const a=document.getElementById('api-key-input').value.trim();
@@ -1357,6 +1434,7 @@ function rollRarity(common=false){
 
 async function analyzeImage(omakase=false){
   if(!currentImage)return;
+  if(!apiKey){alert('APIキーが設定されていません。設定画面で入力してください。');return;}
   if(omakase){
     // おまかせ5枚：連続召喚
     await analyzeOmakase();
@@ -1561,6 +1639,7 @@ async function buildCardFromParsed(p){
 
 async function analyzeOmakase(){
   if(!currentImage)return;
+  if(!apiKey){alert('APIキーが設定されていません。設定画面で入力してください。');return;}
   clearAlert();clearNewCard();
   showLoading(true,'おまかせ召喚中...','画像から5つの漢字を採集しています');
   const omakaseCards=[];
