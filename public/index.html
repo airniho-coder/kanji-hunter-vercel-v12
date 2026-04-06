@@ -824,22 +824,27 @@ async function executeSynthesis(){
     // ===== 方式C: 漢字合成 =====
     try{
       showLoading(true,'漢字を合成中...','AIが新しい漢字を錬成しています');
+      // 合成元の文章コンテキストを取得
+      const ctx0=c0.context||c0.lore||c0.charName||c0.name||c0.kanji;
+      const ctx1=c1.context||c1.lore||c1.charName||c1.name||c1.kanji;
       const prompt=`漢字ハンターゲームの合成システムです。
-「${c0.kanji}」と「${c1.kanji}」の2つの漢字を合成して新しい漢字1文字を生成してください。
-
-ルール:
-- 2つの漢字の意味・形・読みを組み合わせた新しい漢字を選ぶ
-- 実在する漢字が望ましい。なければ意味的に近い漢字でOK
-- 生成した漢字でRまたはSRレア度のカードを生成する
-- cardTypeは合成元2枚の種類を参考に決める
-- 合成なのでレア度はR以上にする(R:60%, SR:35%, SSR:5%)
+「${c0.kanji}」と「${c1.kanji}」の2つの漢字を合成して新しい漢字1文字を生成し、カードを作ってください。
 
 合成元:
-- カード1: 「${c0.kanji}」(${CARD_TYPE_LABELS[c0.cardType]||''} ${c0.rarity}) ${c0.charName||c0.name||''}
-- カード2: 「${c1.kanji}」(${CARD_TYPE_LABELS[c1.cardType]||''} ${c1.rarity}) ${c1.charName||c1.name||''}
+- カード1: 「${c0.kanji}」(${CARD_TYPE_LABELS[c0.cardType]||''} ${c0.rarity}) 文脈:${ctx0}
+- カード2: 「${c1.kanji}」(${CARD_TYPE_LABELS[c1.cardType]||''} ${c1.rarity}) 文脈:${ctx1}
 
-JSONのみ返答:
-{"newKanji":"合成後の漢字1文字","reason":"なぜその漢字にしたか(20文字)","isRealBook":true,"cardType":"character/skill/magic/weapon/armor/item/recovery","kanji":"newKanjiと同じ","rarity":"R/SR/SSR","lore":"設定25文字","name":"カード名(非characterの場合)","charName":"キャラ名(characterの場合)","job":"職業(characterの場合)","race":"種族(characterの場合)","gender":"男/女/不明","element":"属性","baseVal":120,"skills":[],"magics":[],"monsterType":"","artMood":"","bonuses":{},"effectDesc":"","skillData":null,"magicData":null}`;
+ルール:
+- 2つの漢字の意味・形・読みを組み合わせた新しい漢字1文字を選ぶ（実在する漢字が望ましい）
+- 合成元の文脈から連想した新しい物語・設定を考える
+- レア度はR(50%)/SR(40%)/SSR(10%)
+- characterカードの場合、固有スキルまたは固有魔法を最大1つだけ生成すること（2つ以上は禁止）
+- スキル・魔法は必ずname,spCost/mpCost,type,descを全て埋めること
+
+JSONのみ返答（不要フィールドも省略せず全て記載）:
+{"newKanji":"漢字1文字","reason":"なぜその漢字か20文字","isRealBook":true,"cardType":"character","kanji":"newKanjiと同じ","rarity":"SR","lore":"設定","charName":"キャラ名","job":"剣士","race":"人族","gender":"男","element":"火","baseVal":130,"monsterType":"","artMood":"","context":"2つの文脈から連想した新しい物語30文字",
+"skills":[{"name":"スキル名","spCost":25,"type":"atk","desc":"説明"}],
+"magics":[]}`;
 
       const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
       const data=await res.json();
@@ -855,7 +860,7 @@ JSONのみ返答:
       removeCard(c0.id,c0.cardType);
       removeCard(c1.id,c1.cardType);
       // 新カード生成
-      const newCard=await buildCardFromParsed(p);
+      const newCard=await buildCardFromParsed(p, true); // isSynthesis=true
       if(newCard){
         if(newCard.cardType==='character')characters.push(newCard);
         else itemCards.push(newCard);
@@ -1856,7 +1861,7 @@ ${cardType==='recovery'?'- healType: "hp"/"mp"/"sp"':''}
 JSONのみ返してください。`;
 }
 
-async function buildCardFromParsed(p){
+async function buildCardFromParsed(p, isSynthesis=false){
   if(!p||!p.kanji)return null;
   if(p.cardType==='character'){
     const stats=buildStats(p.job||'剣士',p.baseVal||100);
@@ -1865,10 +1870,10 @@ async function buildCardFromParsed(p){
       kanji:p.kanji,rarity:p.rarity||'N',
       job:p.job||'剣士',race:p.race||'人族',gender:p.gender||'男',
       element:p.element||'火',baseVal:p.baseVal||100,...stats,
-      innateSkills:limitInnateSkills(p.skills||[],p.rarity||'N'),
-      innateMagics:limitInnateSkills(p.magics||[],p.rarity||'N'),
-      skills:limitInnateSkills(p.skills||[],p.rarity||'N'),
-      magics:limitInnateSkills(p.magics||[],p.rarity||'N'),
+      innateSkills:limitInnateSkills(p.skills||[],p.rarity||'N',isSynthesis),
+      innateMagics:limitInnateSkills(p.magics||[],p.rarity||'N',isSynthesis),
+      skills:limitInnateSkills(p.skills||[],p.rarity||'N',isSynthesis),
+      magics:limitInnateSkills(p.magics||[],p.rarity||'N',isSynthesis),
       monsterType:p.monsterType||'',context:p.context||'',lore:p.lore||'',
       artMood:p.artMood||'',charName:p.charName||p.kanji,
       exp:0,artImg:null,artType:null,equippedSlots:[]
