@@ -707,9 +707,11 @@ function renderSynSlots(){
       const rc=RARITY[card.rarity]||RARITY.C;
       el.innerHTML=`
         <div style="font-size:28px;font-weight:900;color:${rc.color}">${card.kanji}</div>
-        <div style="font-size:9px;color:${rc.color};letter-spacing:1px">[${card.rarity}]</div>
-        <div style="font-size:9px;opacity:.6;margin-top:2px">${card.name||card.charName||''}</div>
-        <div style="font-size:8px;opacity:.4;margin-top:2px">${CARD_TYPE_LABELS[card.cardType]||''}</div>`;
+        <div style="font-size:9px;color:${rc.color};letter-spacing:1px">[${card.rarity}] ${CARD_TYPE_LABELS[card.cardType]||''}</div>
+        <div style="font-size:9px;opacity:.7;margin-top:3px">${card.name||card.charName||''}</div>
+        ${card.reading?`<div style="font-size:8px;opacity:.5;margin-top:4px;line-height:1.6"><span style="opacity:.6">読み </span>${card.reading}</div>`:''}
+        ${card.meaning?`<div style="font-size:8px;opacity:.5;line-height:1.6"><span style="opacity:.6">意味 </span>${card.meaning}</div>`:''}
+        ${card.examples?`<div style="font-size:8px;opacity:.5;line-height:1.6"><span style="opacity:.6">例　 </span>${card.examples}</div>`:''}`;
       el.style.border=`2px solid ${rc.color}66`;
       el.style.background=`${rc.color}11`;
     }
@@ -817,6 +819,11 @@ async function executeSynthesis(){
       <div style="font-size:16px;font-weight:700;color:${rc.color};margin:8px 0;letter-spacing:2px">合成成功！</div>
       <div style="font-size:13px;opacity:.7">${c0.rarity} ＋ ${c1.rarity} → <span style="color:${rc.color};font-weight:700">${newRarity}</span></div>
       <div style="font-size:11px;opacity:.5;margin-top:4px">ステータス15%アップ！</div>
+      ${newCard.reading||newCard.meaning?`<div style="margin-top:12px;padding:10px;background:rgba(255,255,255,.04);border-radius:8px;text-align:left">
+        ${newCard.reading?`<div style="font-size:10px;margin-bottom:3px"><span style="opacity:.4;font-size:9px">読み　</span>${newCard.reading}</div>`:''}
+        ${newCard.meaning?`<div style="font-size:10px;margin-bottom:3px"><span style="opacity:.4;font-size:9px">意味　</span>${newCard.meaning}</div>`:''}
+        ${newCard.examples?`<div style="font-size:10px"><span style="opacity:.4;font-size:9px">例　　</span>${newCard.examples}</div>`:''}
+      </div>`:''}
     </div>`;
     synSlots=[null,null];renderSynSlots();
 
@@ -844,7 +851,7 @@ async function executeSynthesis(){
 JSONのみ返答（不要フィールドも省略せず全て記載）:
 {"newKanji":"漢字1文字","reason":"なぜその漢字か20文字","isRealBook":true,"cardType":"character","kanji":"newKanjiと同じ","rarity":"SR","lore":"設定","charName":"キャラ名","job":"剣士","race":"人族","gender":"男","element":"火","baseVal":130,"monsterType":"","artMood":"","context":"2つの文脈から連想した新しい物語30文字",
 "skills":[{"name":"スキル名","spCost":25,"type":"atk","desc":"説明"}],
-"magics":[]}`;
+"magics":[],"reading":"読み（音読み・訓読み）","meaning":"意味30文字","examples":"熟語や例文2〜3個"}`;
 
       const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
       const data=await res.json();
@@ -872,6 +879,11 @@ JSONのみ返答（不要フィールドも省略せず全て記載）:
           <div style="font-size:13px;color:${rc.color};margin:6px 0">${p.reason||''}</div>
           <div style="font-size:16px;font-weight:700;color:${rc.color};letter-spacing:2px">合成成功！[${newCard.rarity}]</div>
           <div style="font-size:11px;opacity:.5;margin-top:4px">${newCard.charName||newCard.name||''}</div>
+          ${newCard.reading||newCard.meaning?`<div style="margin-top:12px;padding:10px;background:rgba(255,255,255,.04);border-radius:8px;text-align:left">
+            ${newCard.reading?`<div style="font-size:10px;margin-bottom:3px"><span style="opacity:.4;font-size:9px">読み　</span>${newCard.reading}</div>`:''}
+            ${newCard.meaning?`<div style="font-size:10px;margin-bottom:3px"><span style="opacity:.4;font-size:9px">意味　</span>${newCard.meaning}</div>`:''}
+            ${newCard.examples?`<div style="font-size:10px"><span style="opacity:.4;font-size:9px">例　　</span>${newCard.examples}</div>`:''}
+          </div>`:''}
         </div>`;
         synSlots=[null,null];renderSynSlots();
       }
