@@ -1447,7 +1447,12 @@ function charDetailHTML(char,showBattleBtn=true){
       </div>
       <div style="font-size:8px;opacity:.3;padding:0 0 4px;letter-spacing:1px">🌟固有 / 🃏カード ✦タップで効果説明</div>
     </div>
-    ${char.context?`<div class="context-box">「${char.context}」</div>`:''}
+    <div class="context-box" style="margin-bottom:8px">
+      ${char.reading?`<div style="margin-bottom:4px"><span style="opacity:.5;font-size:9px;letter-spacing:1px">読み　</span><span style="font-size:11px;font-weight:700">${char.reading}</span></div>`:''}
+      ${char.meaning?`<div style="margin-bottom:4px"><span style="opacity:.5;font-size:9px;letter-spacing:1px">意味　</span><span style="font-size:10px">${char.meaning}</span></div>`:''}
+      ${char.examples?`<div><span style="opacity:.5;font-size:9px;letter-spacing:1px">例　　</span><span style="font-size:10px;opacity:.8">${char.examples}</span></div>`:''}
+      ${!char.reading&&!char.meaning&&char.context?`<div style="font-style:italic;opacity:.6">${char.context}</div>`:''}
+    </div>
     ${char.lore?`<div class="lore-text">${char.lore}</div>`:''}
     <div class="equip-section">
       <div class="equip-title">
@@ -1527,7 +1532,11 @@ function itemCardHTML(item,showEquipBtn=false,equippedCharId=null){
       </div>
       ${bonusLines?`<div class="item-effects">${bonusLines}</div>`:''}
       ${item.effectDesc?`<div style="font-size:10px;opacity:.6;margin-bottom:6px">${item.effectDesc}</div>`:''}
-      ${item.context?`<div class="item-context">${item.context}</div>`:''}
+      ${(item.reading||item.meaning||item.examples)?`<div class="item-context">
+        ${item.reading?`<span style="opacity:.6;font-size:9px">読み: ${item.reading}　</span>`:''}
+        ${item.meaning?`<span style="opacity:.6;font-size:9px">意味: ${item.meaning}　</span>`:''}
+        ${item.examples?`<div style="margin-top:3px;opacity:.6;font-size:9px">例: ${item.examples}</div>`:''}
+      </div>`:item.context?`<div class="item-context">${item.context}</div>`:''}
       ${equippedOn?`<div style="font-size:9px;opacity:.4;margin-top:6px;letter-spacing:1px">装備中: ${equippedOn.charName}</div>`:''}
     </div>
   </div>`;
@@ -1753,7 +1762,10 @@ async function analyzeImage(omakase=false){
 全カード共通:
 - rarity: C/N/R/SR/SSR（確率目安: C=35%, N=35%, R=20%, SR=8%, SSR=2%。星4(SR)以上は出にくく）（確率目安: C=35%, N=35%, R=20%, SR=8%, SSR=2%。星4(SR)以上は出にくくすること）
 - kanji: 選んだ漢字1文字
-- context: ⚠️画像から実際に読み取った文章のみ（20〜60文字）。絶対に存在しない文章を作らない
+- reading: その漢字の読み（音読み・訓読み、例：「火」→「か・ひ」）
+- meaning: その漢字の意味（30文字程度）
+- examples: その漢字を使った熟語・例文（2〜3個、カンマ区切り。例：「火山、火事、火の用心」）
+- context: 上記readingとmeaningとexamplesをまとめた文字列（互換性のため残す）
 - lore: カードの設定・説明（25文字程度）
 
 characterカードのみ追加:
@@ -1876,6 +1888,7 @@ async function buildCardFromParsed(p, isSynthesis=false){
       skills:limitInnateSkills(p.skills||[],p.rarity||'N',isSynthesis),
       magics:limitInnateSkills(p.magics||[],p.rarity||'N',isSynthesis),
       monsterType:p.monsterType||'',context:p.context||'',lore:p.lore||'',
+      reading:p.reading||'',meaning:p.meaning||'',examples:p.examples||'',
       artMood:p.artMood||'',charName:p.charName||p.kanji,
       exp:0,artImg:null,artType:null,equippedSlots:[]
     };
@@ -1904,6 +1917,7 @@ async function buildCardFromParsed(p, isSynthesis=false){
       cardType:p.cardType||'item',kanji:p.kanji,rarity:p.rarity||'N',
       name:p.name||p.kanji,bonuses:p.bonuses||{},
       effectDesc:p.effectDesc||'',context:p.context||'',lore:p.lore||'',
+      reading:p.reading||'',meaning:p.meaning||'',examples:p.examples||'',
       artImg:null,skillData:p.skillData||null,magicData:p.magicData||null
     };
   }
@@ -1935,7 +1949,10 @@ jobヒント:${job1} raceヒント:${race1}
 - cardType: 指定の種類
 - kanji: 漢字1文字
 - rarity: C/N/R/SR/SSR
-- context: 実際に読んだ文章(20〜50文字)
+- reading: 漢字の読み（音読み・訓読み）
+- meaning: 漢字の意味(30文字)
+- examples: 熟語・例文2〜3個(カンマ区切り)
+- context: readingとmeaningとexamplesをまとめた文字列
 - lore: 設定(25文字)
 
 characterカード追加: job, race, gender(男/女/不明), element(火/水/木/土/風/金/闇/光), baseVal(50-200), charName, monsterType, skills([{name,spCost,type:"atk"/"heal"/"buff",desc}]0〜2個), magics([{name,mpCost,type:"magic"/"heal"/"debuff",desc}]0〜2個), artMood
