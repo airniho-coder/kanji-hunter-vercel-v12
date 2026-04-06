@@ -1623,7 +1623,7 @@ function showOmakaseResult(cards){
             <div style="font-size:12px;font-weight:700;color:${(RARITY[card.rarity]||RARITY.C).color}">${card.cardType==='character'?card.charName:card.name||card.kanji} [${card.rarity}]</div>
             <div style="font-size:10px;opacity:.5;margin-top:2px">${CARD_TYPE_LABELS[card.cardType]||card.cardType} ${card.cardType==='character'?card.job||'':card.effectDesc||''}</div>
           </div>
-          <button onclick="registerOmakaseCard(${i})" style="padding:6px 12px;border-radius:8px;background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.4);color:#4ade80;font-size:10px;cursor:pointer;font-family:'Noto Serif JP',serif">登録</button>
+          <button id="omk-btn-${i}" onclick="registerOmakaseCard(${i})" style="padding:6px 12px;border-radius:8px;background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.4);color:#4ade80;font-size:10px;cursor:pointer;font-family:'Noto Serif JP',serif">登録</button>
         </div>`).join('')}
     </div>
     <button class="btn btn-green" onclick="registerAllOmakase()" style="margin-bottom:6px">全て登録 →</button>
@@ -1635,21 +1635,26 @@ function showOmakaseResult(cards){
 function registerOmakaseCard(idx){
   const cards=window._omakaseCards||[];
   const card=cards[idx];
-  if(!card)return;
+  if(!card||card._registered)return; // 二重登録防止
+  card._registered=true;
   if(card.cardType==='character')characters.push(card);
   else itemCards.push(card);
   saveState();updateHeaderCount();
-  // ボタンをグレーアウト
-  const btns=document.querySelectorAll('#new-card-area button[onclick^="registerOmakaseCard"]');
-  if(btns[idx]){btns[idx].textContent='✓';btns[idx].disabled=true;btns[idx].style.opacity='.4';}
+  const btn=document.getElementById('omk-btn-'+idx);
+  if(btn){btn.textContent='✓';btn.disabled=true;btn.style.opacity='.4';btn.onclick=null;}
 }
 
 function registerAllOmakase(){
   const cards=window._omakaseCards||[];
+  // 全ボタン即無効化
+  document.querySelectorAll('#new-card-area button').forEach(b=>{b.disabled=true;b.style.opacity='.4';b.onclick=null;});
   cards.forEach(card=>{
+    if(card._registered)return; // 個別登録済みはスキップ
+    card._registered=true;
     if(card.cardType==='character')characters.push(card);
     else itemCards.push(card);
   });
+  window._omakaseCards=null;
   saveState();updateHeaderCount();clearNewCard();clearImage();
   showTab('collection');
 }
