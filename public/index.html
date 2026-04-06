@@ -1635,13 +1635,22 @@ function showOmakaseResult(cards){
 function registerOmakaseCard(idx){
   const cards=window._omakaseCards||[];
   const card=cards[idx];
-  if(!card||card._registered)return; // 二重登録防止
+  if(!card||card._registered)return;
   card._registered=true;
   if(card.cardType==='character')characters.push(card);
   else itemCards.push(card);
   saveState();updateHeaderCount();
   const btn=document.getElementById('omk-btn-'+idx);
-  if(btn){btn.textContent='✓';btn.disabled=true;btn.style.opacity='.4';btn.onclick=null;}
+  if(btn){btn.textContent='✓ 登録済';btn.disabled=true;btn.style.opacity='.4';btn.onclick=null;}
+  // 全カード登録済みなら画面切り替え
+  const allDone=(window._omakaseCards||[]).every(c=>c._registered);
+  if(allDone){
+    window._omakaseCards=null;
+    clearNewCard();clearImage();
+    const tabMap={character:'char',skill:'skill',magic:'magic',weapon:'weapon',armor:'armor',recovery:'recovery',item:'item'};
+    showTab('collection');
+    setTimeout(()=>setCollTab(tabMap[card.cardType]||'item'),50);
+  }
 }
 
 function registerAllOmakase(){
@@ -1655,8 +1664,10 @@ function registerAllOmakase(){
     else itemCards.push(card);
   });
   window._omakaseCards=null;
-  saveState();updateHeaderCount();clearNewCard();clearImage();
+  saveState();updateHeaderCount();
+  clearNewCard();clearImage();
   showTab('collection');
+  setTimeout(()=>setCollTab('char'),50);
 }
 
 // ===== NEW CARD DISPLAY =====
