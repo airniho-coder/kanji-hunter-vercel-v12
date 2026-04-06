@@ -517,9 +517,57 @@ body{display:flex;justify-content:center;}
 </div>
 </div>
 
+<div class="page" id="page-synthesis">
+  <div style="padding:14px 14px 0">
+    <div style="font-size:11px;letter-spacing:3px;opacity:.4;text-transform:uppercase;margin-bottom:14px">合成</div>
+
+    <!-- 合成方式選択 -->
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button id="syn-mode-a" class="syn-mode-btn active" onclick="setSynMode('A')" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(201,168,76,.5);background:rgba(201,168,76,.15);color:#c9a84c;font-size:11px;cursor:pointer;font-family:'Noto Serif JP',serif;letter-spacing:1px">⬆ 同カード強化</button>
+      <button id="syn-mode-c" class="syn-mode-btn" onclick="setSynMode('C')" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.4);font-size:11px;cursor:pointer;font-family:'Noto Serif JP',serif;letter-spacing:1px">✨ 漢字合成</button>
+    </div>
+
+    <!-- 説明 -->
+    <div id="syn-desc" style="font-size:10px;opacity:.5;margin-bottom:14px;letter-spacing:1px;line-height:1.8;padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px">
+      同じ漢字のカードを2枚選んでレア度アップ。C+C→N、N+N→R…
+    </div>
+
+    <!-- 選択スロット -->
+    <div style="display:flex;gap:10px;margin-bottom:14px" id="syn-slots">
+      <div id="syn-slot-0" onclick="openSynPicker(0)" style="flex:1;min-height:90px;border:2px dashed rgba(255,255,255,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:4px">
+        <div style="font-size:24px;opacity:.3">＋</div>
+        <div style="font-size:9px;opacity:.3;letter-spacing:1px">カード1</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:20px;opacity:.4">＋</div>
+      <div id="syn-slot-1" onclick="openSynPicker(1)" style="flex:1;min-height:90px;border:2px dashed rgba(255,255,255,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:4px">
+        <div style="font-size:24px;opacity:.3">＋</div>
+        <div style="font-size:9px;opacity:.3;letter-spacing:1px">カード2</div>
+      </div>
+    </div>
+
+    <!-- 合成ボタン -->
+    <button id="syn-btn" onclick="executeSynthesis()" disabled style="width:100%;padding:14px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.3);font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:3px;cursor:not-allowed;margin-bottom:14px">合成する</button>
+
+    <!-- 結果 -->
+    <div id="syn-result"></div>
+  </div>
+</div>
+
+<!-- カード選択モーダル（合成用） -->
+<div id="syn-picker-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;overflow-y:auto;padding:16px">
+  <div style="max-width:480px;margin:0 auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;letter-spacing:2px" id="syn-picker-title">カードを選択</div>
+      <button onclick="closeSynPicker()" style="font-size:18px;background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer">✕</button>
+    </div>
+    <div id="syn-picker-list"></div>
+  </div>
+</div>
+
 <div class="tabbar" id="tabbar" style="display:none">
   <button class="tab active" id="tab-capture" onclick="showTab('capture')"><span class="tab-icon">📷</span>召喚</button>
   <button class="tab" id="tab-collection" onclick="showTab('collection')"><span class="tab-icon">📜</span>コレクション</button>
+  <button class="tab" id="tab-synthesis" onclick="showTab('synthesis')"><span class="tab-icon">⚗️</span>合成</button>
   <button class="tab" id="tab-battle" onclick="showTab('battle')"><span class="tab-icon">⚔️</span>バトル</button>
 </div>
 </div>
@@ -614,6 +662,219 @@ function toggleTooltip(el){
 function setCardType(type){
   selectedCardType=type;
   document.querySelectorAll('.card-type-btn').forEach(b=>b.classList.toggle('active',b.dataset.type===type));
+}
+
+
+// ===== 合成システム =====
+let synMode='A'; // 'A'=同カード強化, 'C'=漢字合成
+let synSlots=[null,null]; // 選択中カード
+let synPickerSlot=0;
+const SYN_RARITY_UP={C:'N',N:'R',R:'SR',SR:'SSR',SSR:'SSR'};
+
+function setSynMode(m){
+  synMode=m;
+  synSlots=[null,null];
+  const btnA=document.getElementById('syn-mode-a');
+  const btnC=document.getElementById('syn-mode-c');
+  btnA.style.background=m==='A'?'rgba(201,168,76,.15)':'transparent';
+  btnA.style.borderColor=m==='A'?'rgba(201,168,76,.5)':'rgba(255,255,255,.1)';
+  btnA.style.color=m==='A'?'#c9a84c':'rgba(255,255,255,.4)';
+  btnC.style.background=m==='C'?'rgba(167,139,250,.15)':'transparent';
+  btnC.style.borderColor=m==='C'?'rgba(167,139,250,.5)':'rgba(255,255,255,.1)';
+  btnC.style.color=m==='C'?'#a78bfa':'rgba(255,255,255,.4)';
+  document.getElementById('syn-desc').textContent=m==='A'
+    ?'同じ漢字のカードを2枚選んでレア度アップ。C+C→N、N+N→R、R+R→SR、SR+SR→SSR'
+    :'異なる漢字のカードを2枚選ぶとAIが新しい漢字を生成して新カードを作ります';
+  renderSynSlots();
+  document.getElementById('syn-result').innerHTML='';
+}
+
+function initSynthesis(){
+  synSlots=[null,null];
+  renderSynSlots();
+  document.getElementById('syn-result').innerHTML='';
+}
+
+function renderSynSlots(){
+  [0,1].forEach(i=>{
+    const el=document.getElementById('syn-slot-'+i);
+    const card=synSlots[i];
+    if(!card){
+      el.innerHTML=`<div style="font-size:24px;opacity:.3">＋</div><div style="font-size:9px;opacity:.3;letter-spacing:1px">カード${i+1}</div>`;
+      el.style.border='2px dashed rgba(255,255,255,.15)';
+      el.style.background='transparent';
+    }else{
+      const rc=RARITY[card.rarity]||RARITY.C;
+      el.innerHTML=`
+        <div style="font-size:28px;font-weight:900;color:${rc.color}">${card.kanji}</div>
+        <div style="font-size:9px;color:${rc.color};letter-spacing:1px">[${card.rarity}]</div>
+        <div style="font-size:9px;opacity:.6;margin-top:2px">${card.name||card.charName||''}</div>
+        <div style="font-size:8px;opacity:.4;margin-top:2px">${CARD_TYPE_LABELS[card.cardType]||''}</div>`;
+      el.style.border=`2px solid ${rc.color}66`;
+      el.style.background=`${rc.color}11`;
+    }
+  });
+  updateSynBtn();
+}
+
+function updateSynBtn(){
+  const btn=document.getElementById('syn-btn');
+  const [c0,c1]=synSlots;
+  let canSyn=false;
+  let msg='合成する';
+  if(c0&&c1){
+    if(synMode==='A'){
+      if(c0.kanji===c1.kanji&&c0.id!==c1.id){
+        const newR=SYN_RARITY_UP[c0.rarity]||'SSR';
+        msg=`合成する → ${c0.rarity}+${c1.rarity} ➜ ${newR}`;
+        canSyn=c0.rarity!=='SSR'||c1.rarity!=='SSR';
+        if(!canSyn)msg='SSRは強化できません';
+      }else if(c0.id===c1.id){msg='同じカードを2回選べません';}
+      else{msg='同じ漢字のカードを選んでください';}
+    }else{
+      if(c0.kanji!==c1.kanji&&c0.id!==c1.id){
+        msg=`「${c0.kanji}」＋「${c1.kanji}」を合成する`;
+        canSyn=true;
+      }else if(c0.id===c1.id){msg='同じカードを2回選べません';}
+      else{msg='異なる漢字のカードを選んでください';}
+    }
+  }else{msg='カードを2枚選んでください';}
+  btn.disabled=!canSyn;
+  btn.textContent=msg;
+  btn.style.background=canSyn?'linear-gradient(135deg,#c9a84c,#e8c97a)':'rgba(255,255,255,.08)';
+  btn.style.color=canSyn?'#0a0a0f':'rgba(255,255,255,.3)';
+  btn.style.borderColor=canSyn?'transparent':'rgba(255,255,255,.1)';
+  btn.style.cursor=canSyn?'pointer':'not-allowed';
+}
+
+function openSynPicker(slotIdx){
+  synPickerSlot=slotIdx;
+  const other=synSlots[1-slotIdx];
+  const modal=document.getElementById('syn-picker-modal');
+  const list=document.getElementById('syn-picker-list');
+  document.getElementById('syn-picker-title').textContent=`カード${slotIdx+1}を選択`;
+  // 全カード（キャラ＋アイテム）を表示
+  const allCards=[...characters,...itemCards];
+  if(allCards.length===0){list.innerHTML='<div style="text-align:center;opacity:.4;padding:20px">カードがありません</div>';modal.style.display='block';return;}
+  list.innerHTML=allCards.map(card=>{
+    const rc=RARITY[card.rarity]||RARITY.C;
+    const isOther=other&&card.id===other.id;
+    const label=card.cardType==='character'?card.charName:card.name||card.kanji;
+    return`<div onclick="${isOther?'':'selectSynCard('+card.id+')'}" style="margin-bottom:8px;padding:12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid ${isOther?'rgba(255,255,255,.05)':'rgba(255,255,255,.1)'};display:flex;align-items:center;gap:10px;cursor:${isOther?'not-allowed':'pointer'};opacity:${isOther?.4:1}">
+      <div style="font-size:32px;font-weight:900;color:${rc.color};width:40px;text-align:center">${card.kanji}</div>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:700;color:${rc.color}">${label} [${card.rarity}]</div>
+        <div style="font-size:10px;opacity:.5">${CARD_TYPE_LABELS[card.cardType]||''}</div>
+      </div>
+    </div>`;
+  }).join('');
+  modal.style.display='block';
+}
+
+function selectSynCard(cardId){
+  const card=[...characters,...itemCards].find(c=>c.id===cardId);
+  if(!card)return;
+  synSlots[synPickerSlot]=card;
+  closeSynPicker();
+  renderSynSlots();
+}
+
+function closeSynPicker(){
+  document.getElementById('syn-picker-modal').style.display='none';
+}
+
+async function executeSynthesis(){
+  const [c0,c1]=synSlots;
+  if(!c0||!c1)return;
+  const btn=document.getElementById('syn-btn');
+  btn.disabled=true;btn.textContent='合成中...';
+  const resultEl=document.getElementById('syn-result');
+
+  if(synMode==='A'){
+    // ===== 方式A: 同カード強化 =====
+    const newRarity=SYN_RARITY_UP[c0.rarity]||'SSR';
+    // 元カードを削除
+    const removeId=(arr,id)=>arr.filter(c=>c.id!==id);
+    if(c0.cardType==='character'){characters=removeId(characters,c0.id);characters=removeId(characters,c1.id);}
+    else{itemCards=removeId(itemCards,c0.id);itemCards=removeId(itemCards,c1.id);}
+    // 強化カードを生成
+    const newCard=JSON.parse(JSON.stringify(c0));
+    newCard.id=Date.now();
+    newCard.rarity=newRarity;
+    // ステータス15%アップ
+    if(newCard.cardType==='character'){
+      ['hp','mp','sp','atk','def','spd','int','lck','crit'].forEach(s=>{if(newCard[s])newCard[s]=Math.floor(newCard[s]*1.15);});
+    }else{
+      if(newCard.bonuses)Object.keys(newCard.bonuses).forEach(k=>newCard.bonuses[k]=Math.floor(newCard.bonuses[k]*1.15));
+    }
+    if(newCard.cardType==='character'){characters.push(newCard);}
+    else{itemCards.push(newCard);}
+    saveState();updateHeaderCount();
+    // 演出
+    const rc=RARITY[newRarity]||RARITY.C;
+    resultEl.innerHTML=`<div style="text-align:center;padding:20px;animation:fadeIn .5s ease">
+      <div style="font-size:48px;font-weight:900;color:${rc.color};text-shadow:0 0 30px ${rc.color}">${newCard.kanji}</div>
+      <div style="font-size:16px;font-weight:700;color:${rc.color};margin:8px 0;letter-spacing:2px">合成成功！</div>
+      <div style="font-size:13px;opacity:.7">${c0.rarity} ＋ ${c1.rarity} → <span style="color:${rc.color};font-weight:700">${newRarity}</span></div>
+      <div style="font-size:11px;opacity:.5;margin-top:4px">ステータス15%アップ！</div>
+    </div>`;
+    synSlots=[null,null];renderSynSlots();
+
+  }else{
+    // ===== 方式C: 漢字合成 =====
+    try{
+      showLoading(true,'漢字を合成中...','AIが新しい漢字を錬成しています');
+      const prompt=`漢字ハンターゲームの合成システムです。
+「${c0.kanji}」と「${c1.kanji}」の2つの漢字を合成して新しい漢字1文字を生成してください。
+
+ルール:
+- 2つの漢字の意味・形・読みを組み合わせた新しい漢字を選ぶ
+- 実在する漢字が望ましい。なければ意味的に近い漢字でOK
+- 生成した漢字でRまたはSRレア度のカードを生成する
+- cardTypeは合成元2枚の種類を参考に決める
+- 合成なのでレア度はR以上にする(R:60%, SR:35%, SSR:5%)
+
+合成元:
+- カード1: 「${c0.kanji}」(${CARD_TYPE_LABELS[c0.cardType]||''} ${c0.rarity}) ${c0.charName||c0.name||''}
+- カード2: 「${c1.kanji}」(${CARD_TYPE_LABELS[c1.cardType]||''} ${c1.rarity}) ${c1.charName||c1.name||''}
+
+JSONのみ返答:
+{"newKanji":"合成後の漢字1文字","reason":"なぜその漢字にしたか(20文字)","isRealBook":true,"cardType":"character/skill/magic/weapon/armor/item/recovery","kanji":"newKanjiと同じ","rarity":"R/SR/SSR","lore":"設定25文字","name":"カード名(非characterの場合)","charName":"キャラ名(characterの場合)","job":"職業(characterの場合)","race":"種族(characterの場合)","gender":"男/女/不明","element":"属性","baseVal":120,"skills":[],"magics":[],"monsterType":"","artMood":"","bonuses":{},"effectDesc":"","skillData":null,"magicData":null}`;
+
+      const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
+      const data=await res.json();
+      if(data.error)throw new Error(data.error.message);
+      const text=data.content?.map(b=>b.text||'').join('')||'';
+      const jS=text.indexOf('{'),jE=text.lastIndexOf('}');
+      const p=JSON.parse(text.slice(jS,jE+1));
+      // 合成元を削除
+      const removeCard=(id,type)=>{
+        if(type==='character')characters=characters.filter(c=>c.id!==id);
+        else itemCards=itemCards.filter(c=>c.id!==id);
+      };
+      removeCard(c0.id,c0.cardType);
+      removeCard(c1.id,c1.cardType);
+      // 新カード生成
+      const newCard=await buildCardFromParsed(p);
+      if(newCard){
+        if(newCard.cardType==='character')characters.push(newCard);
+        else itemCards.push(newCard);
+        saveState();updateHeaderCount();
+        const rc=RARITY[newCard.rarity]||RARITY.C;
+        resultEl.innerHTML=`<div style="text-align:center;padding:20px;animation:fadeIn .5s ease">
+          <div style="font-size:14px;opacity:.5;letter-spacing:2px;margin-bottom:8px">「${c0.kanji}」＋「${c1.kanji}」</div>
+          <div style="font-size:48px;font-weight:900;color:${rc.color};text-shadow:0 0 30px ${rc.color}">${newCard.kanji}</div>
+          <div style="font-size:13px;color:${rc.color};margin:6px 0">${p.reason||''}</div>
+          <div style="font-size:16px;font-weight:700;color:${rc.color};letter-spacing:2px">合成成功！[${newCard.rarity}]</div>
+          <div style="font-size:11px;opacity:.5;margin-top:4px">${newCard.charName||newCard.name||''}</div>
+        </div>`;
+        synSlots=[null,null];renderSynSlots();
+      }
+    }catch(e){
+      resultEl.innerHTML=`<div style="color:#ef4444;font-size:12px;padding:12px">合成失敗: ${e.message.slice(0,80)}</div>`;
+    }finally{showLoading(false);}
+  }
+  btn.disabled=false;updateSynBtn();
 }
 
 // ===== INIT =====
@@ -714,10 +975,15 @@ function showMainApp(){
   resumeRecoveryTimers();
 }
 function showTab(name){
-  ['capture','collection','battle'].forEach(t=>{document.getElementById('page-'+t).classList.remove('active');document.getElementById('tab-'+t).classList.remove('active');});
-  document.getElementById('page-'+name).classList.add('active');document.getElementById('tab-'+name).classList.add('active');
+  ['capture','collection','synthesis','battle'].forEach(t=>{
+    const p=document.getElementById('page-'+t);const tb=document.getElementById('tab-'+t);
+    if(p)p.classList.remove('active');if(tb)tb.classList.remove('active');
+  });
+  document.getElementById('page-'+name).classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
   if(name==='collection')renderCollection();
   if(name==='battle')renderBattleSelect();
+  if(name==='synthesis')initSynthesis();
 }
 function setCollTab(t){
   collTab=t;
