@@ -1125,7 +1125,12 @@ async function submitWrite(){
     const isFirst=writeState.round===1;
     const prompt=`この画像は漢字「${char.kanji}」を手書きしたものです。
 ${isFirst?'お手本をなぞって書いた練習です。':'自分で書いた練習です。'}
-だいたい合っていればOKというゆるめの基準で採点してください。
+【採点ルール】マウスや指で書いているため、字が汚くて当然です。以下の超ゆるい基準で採点してください：
+- 全体的な構造がその漢字に見えればOK
+- 線が曲がっていても、はねやはらいがなくてもOK
+- 画数が多少違ってもOK
+- 迷ったらtrue（正解）にしてください
+- 明らかに全く違う文字の場合のみfalseにしてください
 
 JSONのみ返答: {"ok":true/false,"feedback":"ひとこと20文字以内"}`;
     const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:150,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/png',data:imgData}},{type:'text',text:prompt}]}]})});
