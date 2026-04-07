@@ -612,7 +612,6 @@ body{display:flex;justify-content:center;}
 
 <div class="tabbar" id="tabbar" style="display:none">
   <button id="sound-toggle-btn" onclick="toggleSound()" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:18px;padding:8px 10px;cursor:pointer;align-self:center">🔊</button>
-  <button id="sound-toggle-btn" onclick="toggleSound()" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:18px;padding:8px 10px;cursor:pointer;align-self:center">🔊</button>
   <button class="tab active" id="tab-capture" onclick="showTab('capture')"><span class="tab-icon">📷</span>召喚</button>
   <button class="tab" id="tab-collection" onclick="showTab('collection')"><span class="tab-icon">📜</span>コレクション</button>
   <button class="tab" id="tab-synthesis" onclick="showTab('synthesis')"><span class="tab-icon">⚗️</span>合成</button>
@@ -902,7 +901,18 @@ JSONのみ返答（不要フィールドも省略せず全て記載）:
 "skills":[{"name":"スキル名","spCost":25,"type":"atk","desc":"説明"}],"magics":[],"reading":"読み","meaning":"意味30文字","examples":"熟語2〜3個",
 "name":"カード名(non-character)","bonuses":{"atk":30},"effectDesc":"効果説明","skillData":{"name":"スキル名","spCost":25,"type":"atk","desc":"説明"},"magicData":null}`;
 
-      const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
+      // ⑤ カードタイプを合成元から決定
+      const nonCharTypes=['skill','magic','weapon','armor','item','recovery'];
+      let forcedCardType;
+      if(c0.cardType==='character'&&c1.cardType==='character'){
+        forcedCardType='character';
+      }else{
+        // キャラ以外の組み合わせはランダムでキャラ以外
+        const pool=nonCharTypes.filter(t=>t===c0.cardType||t===c1.cardType);
+        const candidates=pool.length>0?pool:nonCharTypes;
+        forcedCardType=candidates[Math.floor(Math.random()*candidates.length)];
+      }
+      const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:[{type:'text',text:prompt.replace('合成元2枚の種類を参考に決める(character/skill/magic/weapon/armor/item/recovery)',forcedCardType)}]}]})});
       const data=await res.json();
       if(data.error)throw new Error(data.error.message);
       const text=data.content?.map(b=>b.text||'').join('')||'';
@@ -1241,69 +1251,119 @@ function playSE(type){
     const o=ctx.createOscillator();
     o.connect(g);
     const now=ctx.currentTime;
+    // 重厚な効果音：複数オシレーター+ノイズで厚みを出す
+    const makeNoise=(dur,vol=0.15)=>{
+      const buf=ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate);
+      const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+      const src2=ctx.createBufferSource();src2.buffer=buf;
+      const ng=ctx.createGain();ng.gain.setValueAtTime(vol,now);ng.gain.exponentialRampToValueAtTime(0.001,now+dur);
+      const nf=ctx.createBiquadFilter();nf.type='bandpass';nf.frequency.value=300;nf.Q.value=0.5;
+      src2.connect(nf);nf.connect(ng);ng.connect(ctx.destination);src2.start(now);
+    };
+    const addOsc=(freq,type,vol,dur,delay=0)=>{
+      const oo=ctx.createOscillator();const gg=ctx.createGain();oo.connect(gg);gg.connect(ctx.destination);
+      oo.type=type;oo.frequency.value=freq;
+      gg.gain.setValueAtTime(vol,now+delay);gg.gain.exponentialRampToValueAtTime(0.001,now+delay+dur);
+      oo.start(now+delay);oo.stop(now+delay+dur);
+    };
     const presets={
-      attack: ()=>{o.type='sawtooth';o.frequency.setValueAtTime(220,now);o.frequency.exponentialRampToValueAtTime(110,now+0.12);g.gain.setValueAtTime(0.3,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.15);o.start(now);o.stop(now+0.15);},
-      crit:   ()=>{o.type='square';o.frequency.setValueAtTime(440,now);o.frequency.exponentialRampToValueAtTime(880,now+0.05);o.frequency.exponentialRampToValueAtTime(220,now+0.2);g.gain.setValueAtTime(0.4,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.25);o.start(now);o.stop(now+0.25);},
-      skill:  ()=>{o.type='triangle';o.frequency.setValueAtTime(330,now);o.frequency.exponentialRampToValueAtTime(660,now+0.1);o.frequency.exponentialRampToValueAtTime(440,now+0.25);g.gain.setValueAtTime(0.35,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.3);o.start(now);o.stop(now+0.3);},
-      magic:  ()=>{o.type='sine';o.frequency.setValueAtTime(528,now);o.frequency.exponentialRampToValueAtTime(1056,now+0.15);o.frequency.exponentialRampToValueAtTime(792,now+0.4);g.gain.setValueAtTime(0.3,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.45);o.start(now);o.stop(now+0.45);},
-      heal:   ()=>{o.type='sine';o.frequency.setValueAtTime(528,now);o.frequency.exponentialRampToValueAtTime(660,now+0.1);o.frequency.exponentialRampToValueAtTime(792,now+0.25);g.gain.setValueAtTime(0.25,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.4);o.start(now);o.stop(now+0.4);},
-      buff:   ()=>{o.type='triangle';o.frequency.setValueAtTime(440,now);o.frequency.exponentialRampToValueAtTime(528,now+0.08);o.frequency.exponentialRampToValueAtTime(660,now+0.18);g.gain.setValueAtTime(0.25,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.3);o.start(now);o.stop(now+0.3);},
-      debuff: ()=>{o.type='sawtooth';o.frequency.setValueAtTime(200,now);o.frequency.exponentialRampToValueAtTime(80,now+0.3);g.gain.setValueAtTime(0.3,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.35);o.start(now);o.stop(now+0.35);},
-      stun:   ()=>{o.type='square';o.frequency.setValueAtTime(880,now);o.frequency.exponentialRampToValueAtTime(440,now+0.05);o.frequency.exponentialRampToValueAtTime(880,now+0.1);o.frequency.exponentialRampToValueAtTime(440,now+0.15);g.gain.setValueAtTime(0.3,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.2);o.start(now);o.stop(now+0.2);},
-      defend: ()=>{o.type='triangle';o.frequency.setValueAtTime(165,now);o.frequency.exponentialRampToValueAtTime(220,now+0.15);g.gain.setValueAtTime(0.3,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.2);o.start(now);o.stop(now+0.2);},
-      win:    ()=>{const notes=[523,659,784,1047];notes.forEach((f,i)=>{const oo=ctx.createOscillator();const gg=ctx.createGain();oo.connect(gg);gg.connect(ctx.destination);oo.type='triangle';oo.frequency.value=f;gg.gain.setValueAtTime(0.25,now+i*0.12);gg.gain.exponentialRampToValueAtTime(0.001,now+i*0.12+0.3);oo.start(now+i*0.12);oo.stop(now+i*0.12+0.3);});return;},
-      lose:   ()=>{const notes=[392,330,262];notes.forEach((f,i)=>{const oo=ctx.createOscillator();const gg=ctx.createGain();oo.connect(gg);gg.connect(ctx.destination);oo.type='sawtooth';oo.frequency.value=f;gg.gain.setValueAtTime(0.2,now+i*0.18);gg.gain.exponentialRampToValueAtTime(0.001,now+i*0.18+0.35);oo.start(now+i*0.18);oo.stop(now+i*0.18+0.35);});return;},
+      attack: ()=>{
+        // 重い斬撃音：低音ノイズ+サウ波形
+        makeNoise(0.25,0.25);
+        addOsc(80,'sawtooth',0.4,0.18);addOsc(120,'square',0.25,0.15);
+        o.type='sawtooth';o.frequency.setValueAtTime(180,now);o.frequency.exponentialRampToValueAtTime(60,now+0.2);
+        g.gain.setValueAtTime(0.45,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.22);o.start(now);o.stop(now+0.22);
+      },
+      crit: ()=>{
+        // 会心：金属音+爆発
+        makeNoise(0.1,0.3);
+        addOsc(440,'square',0.5,0.08);addOsc(880,'square',0.3,0.06);addOsc(60,'sawtooth',0.4,0.25);
+        o.type='square';o.frequency.setValueAtTime(660,now);o.frequency.exponentialRampToValueAtTime(110,now+0.3);
+        g.gain.setValueAtTime(0.5,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.35);o.start(now);o.stop(now+0.35);
+      },
+      skill: ()=>{
+        // スキル：気合いの入った重い一撃
+        makeNoise(0.15,0.2);
+        addOsc(110,'sawtooth',0.4,0.3);addOsc(220,'square',0.3,0.2);
+        o.type='sawtooth';o.frequency.setValueAtTime(330,now);o.frequency.exponentialRampToValueAtTime(110,now+0.08);o.frequency.exponentialRampToValueAtTime(220,now+0.35);
+        g.gain.setValueAtTime(0.5,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.4);o.start(now);o.stop(now+0.4);
+      },
+      magic: ()=>{
+        // 魔法：神秘的な厚い響き
+        addOsc(264,'sine',0.3,0.5);addOsc(396,'sine',0.25,0.5);addOsc(528,'sine',0.2,0.5);
+        o.type='sine';o.frequency.setValueAtTime(132,now);o.frequency.exponentialRampToValueAtTime(528,now+0.2);o.frequency.exponentialRampToValueAtTime(264,now+0.5);
+        g.gain.setValueAtTime(0.4,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.6);o.start(now);o.stop(now+0.6);
+      },
+      heal: ()=>{
+        // 回復：温かく広がる音
+        addOsc(396,'sine',0.2,0.5);addOsc(528,'sine',0.2,0.5);addOsc(660,'sine',0.15,0.4);
+        o.type='sine';o.frequency.setValueAtTime(264,now);o.frequency.linearRampToValueAtTime(528,now+0.2);o.frequency.linearRampToValueAtTime(792,now+0.45);
+        g.gain.setValueAtTime(0.3,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.5);o.start(now);o.stop(now+0.5);
+      },
+      buff: ()=>{
+        addOsc(440,'triangle',0.25,0.3);addOsc(660,'triangle',0.2,0.25);
+        o.type='triangle';o.frequency.setValueAtTime(330,now);o.frequency.linearRampToValueAtTime(660,now+0.25);
+        g.gain.setValueAtTime(0.35,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.35);o.start(now);o.stop(now+0.35);
+      },
+      debuff: ()=>{
+        makeNoise(0.3,0.15);addOsc(100,'sawtooth',0.3,0.35);
+        o.type='sawtooth';o.frequency.setValueAtTime(300,now);o.frequency.exponentialRampToValueAtTime(60,now+0.4);
+        g.gain.setValueAtTime(0.4,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.45);o.start(now);o.stop(now+0.45);
+      },
+      stun: ()=>{
+        makeNoise(0.08,0.35);addOsc(880,'square',0.3,0.1);addOsc(440,'square',0.25,0.1,0.08);
+        o.type='square';o.frequency.setValueAtTime(1200,now);o.frequency.exponentialRampToValueAtTime(200,now+0.18);
+        g.gain.setValueAtTime(0.45,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.22);o.start(now);o.stop(now+0.22);
+      },
+      defend: ()=>{
+        makeNoise(0.1,0.15);addOsc(110,'triangle',0.3,0.25);
+        o.type='triangle';o.frequency.setValueAtTime(220,now);o.frequency.linearRampToValueAtTime(165,now+0.2);
+        g.gain.setValueAtTime(0.4,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.28);o.start(now);o.stop(now+0.28);
+      },
+      win: ()=>{
+        const notes=[[523,0],[659,0.14],[784,0.28],[1047,0.42],[784,0.56],[1047,0.7]];
+        notes.forEach(([f,t])=>{addOsc(f,'triangle',0.3,0.28,t);addOsc(f/2,'sine',0.15,0.3,t);});return;
+      },
+      lose: ()=>{
+        const notes=[[392,0],[330,0.2],[262,0.42],[196,0.65]];
+        notes.forEach(([f,t])=>{addOsc(f,'sawtooth',0.25,0.35,t);addOsc(f/2,'sine',0.1,0.4,t);});return;
+      },
     };
     if(presets[type])presets[type]();
   }catch(e){}
 }
 
-// BGM：ループする音楽をプログラムで生成
-let bgmInterval=null;
+// BGM：外部音源ファイルを使用
+// public/sounds/bgm_battle_select.mp3 と public/sounds/bgm_battle.mp3 を用意してください
+let bgmAudio=null;
 let bgmType=null;
+const BGM_FILES={
+  preBattle:'/sounds/bgm_battle_select.mp3',
+  inBattle:'/sounds/bgm_battle.mp3',
+};
 
 function playBGM(type){
-  if(!soundEnabled||bgmType===type)return;
+  if(!soundEnabled)return;
+  if(bgmType===type&&bgmAudio&&!bgmAudio.paused)return; // 同じ曲が再生中なら何もしない
   stopBGM();
   bgmType=type;
+  const src=BGM_FILES[type];
+  if(!src)return;
   try{
-    const ctx=getAudioCtx();
-    if(ctx.state==='suspended')ctx.resume();
-    // バトル前BGM：落ち着いた雰囲気
-    // バトル中BGM：テンポの速い戦闘音楽
-    const patterns={
-      preBattle:  [[262,0],[330,0.3],[392,0.6],[330,0.9],[294,1.2],[262,1.5],[294,1.8],[330,2.1]],
-      inBattle:   [[392,0],[494,0.15],[523,0.3],[494,0.45],[440,0.6],[392,0.75],[440,0.9],[494,1.05]],
-    };
-    const pat=patterns[type]||patterns.preBattle;
-    const loopLen=type==='inBattle'?1.2:2.4;
-    let startTime=ctx.currentTime;
-    const scheduleBGM=()=>{
-      if(bgmType!==type)return;
-      pat.forEach(([freq,offset])=>{
-        const o=ctx.createOscillator();
-        const g=ctx.createGain();
-        const f=ctx.createBiquadFilter();
-        f.type='lowpass';f.frequency.value=800;
-        o.connect(f);f.connect(g);g.connect(ctx.destination);
-        o.type='triangle';
-        o.frequency.value=freq;
-        const t=startTime+offset;
-        g.gain.setValueAtTime(0,t);
-        g.gain.linearRampToValueAtTime(0.08,t+0.05);
-        g.gain.exponentialRampToValueAtTime(0.001,t+0.25);
-        o.start(t);o.stop(t+0.28);
-      });
-      startTime+=loopLen;
-      bgmInterval=setTimeout(scheduleBGM,loopLen*1000-100);
-    };
-    scheduleBGM();
-  }catch(e){}
+    bgmAudio=new Audio(src);
+    bgmAudio.loop=true;
+    bgmAudio.volume=0.5;
+    bgmAudio.play().catch(e=>console.log('BGM play blocked:',e));
+  }catch(e){console.log('BGM error:',e);}
 }
 
 function stopBGM(){
   bgmType=null;
-  if(bgmInterval){clearTimeout(bgmInterval);bgmInterval=null;}
+  if(bgmAudio){
+    bgmAudio.pause();
+    bgmAudio.currentTime=0;
+    bgmAudio=null;
+  }
 }
 
 function toggleSound(){
@@ -1572,7 +1632,9 @@ async function generateItemImage(item){
   if(!stabilityKey)return null;
   const typeDesc={skill:'glowing fantasy battle skill rune magic circle',magic:'magical spell scroll tome with runes',weapon:'complete fantasy weapon full view white background',armor:'complete fantasy armor set full view white background',tool:'fantasy adventure tool gadget complete view',item:'fantasy potion or magical object complete view',recovery:'glowing healing potion complete view white background'};
   const qual={SSR:'legendary ultimate',SR:'epic powerful'}[item.rarity]||'';
-  const prompt=`Dragon Quest JRPG anime style, ${qual} ${typeDesc[item.cardType]||'fantasy item'}, ${item.name}, entire object completely visible, white simple background, colorful vibrant, cel-shaded anime, masterpiece`;
+  const itemStyles=['detailed fantasy illustration','vibrant anime style','dark fantasy art','retro RPG style','painterly fantasy'];
+  const iStyle=itemStyles[Math.floor(Math.random()*itemStyles.length)];
+  const prompt=`${iStyle}, ${qual} ${typeDesc[item.cardType]||'fantasy item'}, ${item.name}, entire object completely visible, white simple background, colorful, masterpiece`;
   try{const res=await fetch('/api/image',{method:'POST',headers:{'Content-Type':'application/json','x-stability-key':stabilityKey},body:JSON.stringify({prompt})});const data=await res.json();return data.image||null;}catch(e){return null;}
 }
 
@@ -1590,6 +1652,19 @@ async function generateCharImage(char){
     'full body crouching ready to fight whole character visible',
   ];
   const scene=scenes[Math.floor(Math.random()*scenes.length)];
+  const artStyles=[
+    'detailed fantasy illustration, intricate linework, rich colors',
+    'watercolor fantasy art, soft washes, delicate details',
+    'dark fantasy oil painting style, dramatic lighting, moody atmosphere',
+    'vibrant anime illustration, clean bold lines, dynamic shading',
+    'painterly RPG concept art, impressionistic brushwork, vivid palette',
+    'ink and wash style, expressive brushstrokes, eastern art influence',
+    'classic fairy tale illustration, ornate decorative style',
+    'gritty western fantasy art, realistic proportions, muted earth tones',
+    'luminous digital painting, glowing magical effects, high contrast',
+    'vintage woodblock print inspired, bold outlines, flat color fields',
+  ];
+  const artStyle=artStyles[Math.floor(Math.random()*artStyles.length)];
   const isMonster=char.race==='モンスター族'&&char.monsterType;
   const gender=char.gender==='女'?'beautiful female':char.gender==='不明'?'':'handsome male';
   const race=isMonster?`${char.monsterType} monster`:(raceDesc[char.race]||'human');
@@ -1597,9 +1672,10 @@ async function generateCharImage(char){
   const job=isMonster?'':(jobDesc[char.job]||'warrior');
   const qual={SSR:'legendary ultimate',SR:'epic powerful',R:'skilled',N:'',C:''}[char.rarity]||'';
   const mood=char.artMood||'';
+  // ランダムで様々な絵柄テイスト
   const prompt=isMonster
-    ?`Akira Toriyama Dragon Quest JRPG anime style, ${qual} ${race} monster, ${mood}, full body monster completely visible from head to toe, ${bg}, colorful fantasy RPG illustration, cel-shaded clean anime lines, masterpiece`
-    :`Akira Toriyama Dragon Quest JRPG anime style, ${gender} ${race} ${job}, ${mood}, ${scene}, face and full body completely visible head to toe, ${bg}, colorful vibrant fantasy RPG character illustration, cel-shaded clean anime lines, ${qual}, masterpiece quality`;
+    ?`${artStyle}, ${qual} ${race} monster, ${mood}, full body monster completely visible from head to toe, ${bg}, masterpiece`
+    :`${artStyle}, ${gender} ${race} ${job}, ${mood}, ${scene}, face and full body completely visible head to toe, ${bg}, ${qual}, masterpiece quality`;
   try{
     const res=await fetch('/api/image',{method:'POST',headers:{'Content-Type':'application/json','x-stability-key':stabilityKey},body:JSON.stringify({prompt})});
     const data=await res.json();
@@ -2286,7 +2362,7 @@ JSONのみ返してください（cardType="character"の例）:
       magics:limitInnateSkills(p.magics||[],p.rarity||'N'),
       monsterType:p.monsterType||'',context:p.context,lore:p.lore,artMood:p.artMood,charName:p.charName,exp:0,artImg:null,artType:null,equippedSlots:[]};
       if(shouldUseAPI(char.rarity)){
-        showLoading(true,'キャラクター画像を生成中...','DQ風イラストを描いています');
+        showLoading(true,'キャラクター画像を生成中...','イラストを描いています');
         char.artImg=await generateCharImage(char);
       }else{
         // C/NはGemini製画像を使用（artImgはnullのままにしてcompositeで描画）
@@ -2820,7 +2896,6 @@ async function startBattle(){
   document.getElementById('battle-log-area').style.display='block';
   document.getElementById('battle-log').innerHTML='';
   playBGM('inBattle');
-  playBGM('inBattle');playBGM('inBattle');
   document.getElementById('battle-start-btn').style.display='none';
   document.getElementById('battle-mode-area').style.display='none';
   document.getElementById('affinity-info').style.display='none';
