@@ -1098,8 +1098,8 @@ function renderWriteRound(char){
   canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!writeDrawing)return;const r=canvas.getBoundingClientRect();const t=e.touches[0];const sx=canvas.width/r.width,sy=canvas.height/r.height;writeCtx.lineTo((t.clientX-r.left)*sx,(t.clientY-r.top)*sy);writeCtx.stroke();},{passive:false});
   canvas.addEventListener('touchend',()=>{writeDrawing=false;});
   // マウス
-  canvas.addEventListener('mousedown',e=>{writeDrawing=true;const r=canvas.getBoundingClientRect();writeCtx.beginPath();writeCtx.moveTo(e.clientX-r.left,e.clientY-r.top);});
-  canvas.addEventListener('mousemove',e=>{if(!writeDrawing)return;const r=canvas.getBoundingClientRect();writeCtx.lineTo(e.clientX-r.left,e.clientY-r.top);writeCtx.stroke();});
+  canvas.addEventListener('mousedown',e=>{writeDrawing=true;const r=canvas.getBoundingClientRect();const sx=canvas.width/r.width,sy=canvas.height/r.height;writeCtx.beginPath();writeCtx.moveTo((e.clientX-r.left)*sx,(e.clientY-r.top)*sy);});
+  canvas.addEventListener('mousemove',e=>{if(!writeDrawing)return;const r=canvas.getBoundingClientRect();const sx=canvas.width/r.width,sy=canvas.height/r.height;writeCtx.lineTo((e.clientX-r.left)*sx,(e.clientY-r.top)*sy);writeCtx.stroke();});
   canvas.addEventListener('mouseup',()=>{writeDrawing=false;});
 }
 
