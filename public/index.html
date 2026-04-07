@@ -3288,7 +3288,7 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         eText='💤';eColor='#818cf8';
         msg=`💤 ${attacker.kanji}「${sk.name}」！${defender.kanji}を眠らせた！(2ターンスキップ)`;
         atkEffect='skill';atkEffectColor='#818cf8';defEffect=null;
-      }else if(sk.type==='drain'){
+     　}else if(sk.type==='drain'){
         // 相手のHPを吸収
         dmg=Math.max(5,Math.floor(atkATK*1.1*atkMult*defMult-defDEF*0.1));
         defender._bHp=Math.max(0,defender._bHp-dmg);
@@ -3299,8 +3299,19 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         msg=`🩸 ${attacker.kanji}「${sk.name}」！${dmg}ダメージ & HP+${drain}吸収！`;
         atkEffect='skill';atkEffectColor='#ef4444';defEffect='damage';
         dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+      }else{
+        // 予期せぬタイプの場合のフォールバック（drain扱い）
+        dmg=Math.max(5,Math.floor(atkATK*1.1*atkMult*defMult-defDEF*0.1));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        const drain=Math.floor(dmg*0.5);
+        attacker._bHp=Math.min(getEffectiveStat(attacker,'hp'),attacker._bHp+drain);
+        eText=`🩸${dmg}`;eColor='#ef4444';
+        msg=`🩸 ${attacker.kanji}「${sk.name}」(特殊)！${dmg}ダメージ & HP+${drain}吸収！`;
+        atkEffect='skill';atkEffectColor='#ef4444';defEffect='damage';
+        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }
     }
+
 
   }else if(action.type==='magic'&&action.s){
     const mg=action.s;
