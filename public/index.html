@@ -611,6 +611,8 @@ body{display:flex;justify-content:center;}
 </div>
 
 <div class="tabbar" id="tabbar" style="display:none">
+  <button id="sound-toggle-btn" onclick="toggleSound()" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:18px;padding:8px 10px;cursor:pointer;align-self:center">🔊</button>
+  <button id="sound-toggle-btn" onclick="toggleSound()" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:18px;padding:8px 10px;cursor:pointer;align-self:center">🔊</button>
   <button class="tab active" id="tab-capture" onclick="showTab('capture')"><span class="tab-icon">📷</span>召喚</button>
   <button class="tab" id="tab-collection" onclick="showTab('collection')"><span class="tab-icon">📜</span>コレクション</button>
   <button class="tab" id="tab-synthesis" onclick="showTab('synthesis')"><span class="tab-icon">⚗️</span>合成</button>
@@ -895,9 +897,10 @@ async function executeSynthesis(){
 - スキル・魔法は必ずname,spCost/mpCost,type,descを全て埋めること
 
 JSONのみ返答（不要フィールドも省略せず全て記載）:
-{"newKanji":"漢字1文字","reason":"なぜその漢字か20文字","isRealBook":true,"cardType":"character","kanji":"newKanjiと同じ","rarity":"SR","lore":"設定","charName":"キャラ名","job":"剣士","race":"人族","gender":"男","element":"火","baseVal":130,"monsterType":"","artMood":"","context":"2つの文脈から連想した新しい物語30文字",
-"skills":[{"name":"スキル名","spCost":25,"type":"atk","desc":"説明"}],
-"magics":[],"reading":"読み（音読み・訓読み）","meaning":"意味30文字","examples":"熟語や例文2〜3個"}`;
+{"newKanji":"漢字1文字","reason":"なぜその漢字か20文字","isRealBook":true,"cardType":"合成元2枚の種類を参考に決める(character/skill/magic/weapon/armor/item/recovery)","kanji":"newKanjiと同じ","rarity":"SR","lore":"設定",
+"charName":"キャラ名(characterのみ)","job":"剣士(characterのみ)","race":"人族(characterのみ)","gender":"男(characterのみ)","element":"火(characterのみ)","baseVal":130,"monsterType":"","artMood":"","context":"2つの文脈から連想した新しい物語30文字",
+"skills":[{"name":"スキル名","spCost":25,"type":"atk","desc":"説明"}],"magics":[],"reading":"読み","meaning":"意味30文字","examples":"熟語2〜3個",
+"name":"カード名(non-character)","bonuses":{"atk":30},"effectDesc":"効果説明","skillData":{"name":"スキル名","spCost":25,"type":"atk","desc":"説明"},"magicData":null}`;
 
       const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
       const data=await res.json();
@@ -1217,9 +1220,104 @@ function confirmStorageNotice(){
   document.getElementById('storage-notice-modal').style.display='none';
 }
 
+
+// ===== サウンドシステム (Web Audio API) =====
+let audioCtx=null;
+let bgmNode=null, bgmGain=null;
+let soundEnabled=true;
+
+function getAudioCtx(){
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// 効果音：短い音を生成
+function playSE(type){
+  if(!soundEnabled)return;
+  try{
+    const ctx=getAudioCtx();
+    const g=ctx.createGain();
+    g.connect(ctx.destination);
+    const o=ctx.createOscillator();
+    o.connect(g);
+    const now=ctx.currentTime;
+    const presets={
+      attack: ()=>{o.type='sawtooth';o.frequency.setValueAtTime(220,now);o.frequency.exponentialRampToValueAtTime(110,now+0.12);g.gain.setValueAtTime(0.3,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.15);o.start(now);o.stop(now+0.15);},
+      crit:   ()=>{o.type='square';o.frequency.setValueAtTime(440,now);o.frequency.exponentialRampToValueAtTime(880,now+0.05);o.frequency.exponentialRampToValueAtTime(220,now+0.2);g.gain.setValueAtTime(0.4,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.25);o.start(now);o.stop(now+0.25);},
+      skill:  ()=>{o.type='triangle';o.frequency.setValueAtTime(330,now);o.frequency.exponentialRampToValueAtTime(660,now+0.1);o.frequency.exponentialRampToValueAtTime(440,now+0.25);g.gain.setValueAtTime(0.35,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.3);o.start(now);o.stop(now+0.3);},
+      magic:  ()=>{o.type='sine';o.frequency.setValueAtTime(528,now);o.frequency.exponentialRampToValueAtTime(1056,now+0.15);o.frequency.exponentialRampToValueAtTime(792,now+0.4);g.gain.setValueAtTime(0.3,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.45);o.start(now);o.stop(now+0.45);},
+      heal:   ()=>{o.type='sine';o.frequency.setValueAtTime(528,now);o.frequency.exponentialRampToValueAtTime(660,now+0.1);o.frequency.exponentialRampToValueAtTime(792,now+0.25);g.gain.setValueAtTime(0.25,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.4);o.start(now);o.stop(now+0.4);},
+      buff:   ()=>{o.type='triangle';o.frequency.setValueAtTime(440,now);o.frequency.exponentialRampToValueAtTime(528,now+0.08);o.frequency.exponentialRampToValueAtTime(660,now+0.18);g.gain.setValueAtTime(0.25,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.3);o.start(now);o.stop(now+0.3);},
+      debuff: ()=>{o.type='sawtooth';o.frequency.setValueAtTime(200,now);o.frequency.exponentialRampToValueAtTime(80,now+0.3);g.gain.setValueAtTime(0.3,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.35);o.start(now);o.stop(now+0.35);},
+      stun:   ()=>{o.type='square';o.frequency.setValueAtTime(880,now);o.frequency.exponentialRampToValueAtTime(440,now+0.05);o.frequency.exponentialRampToValueAtTime(880,now+0.1);o.frequency.exponentialRampToValueAtTime(440,now+0.15);g.gain.setValueAtTime(0.3,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.2);o.start(now);o.stop(now+0.2);},
+      defend: ()=>{o.type='triangle';o.frequency.setValueAtTime(165,now);o.frequency.exponentialRampToValueAtTime(220,now+0.15);g.gain.setValueAtTime(0.3,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.2);o.start(now);o.stop(now+0.2);},
+      win:    ()=>{const notes=[523,659,784,1047];notes.forEach((f,i)=>{const oo=ctx.createOscillator();const gg=ctx.createGain();oo.connect(gg);gg.connect(ctx.destination);oo.type='triangle';oo.frequency.value=f;gg.gain.setValueAtTime(0.25,now+i*0.12);gg.gain.exponentialRampToValueAtTime(0.001,now+i*0.12+0.3);oo.start(now+i*0.12);oo.stop(now+i*0.12+0.3);});return;},
+      lose:   ()=>{const notes=[392,330,262];notes.forEach((f,i)=>{const oo=ctx.createOscillator();const gg=ctx.createGain();oo.connect(gg);gg.connect(ctx.destination);oo.type='sawtooth';oo.frequency.value=f;gg.gain.setValueAtTime(0.2,now+i*0.18);gg.gain.exponentialRampToValueAtTime(0.001,now+i*0.18+0.35);oo.start(now+i*0.18);oo.stop(now+i*0.18+0.35);});return;},
+    };
+    if(presets[type])presets[type]();
+  }catch(e){}
+}
+
+// BGM：ループする音楽をプログラムで生成
+let bgmInterval=null;
+let bgmType=null;
+
+function playBGM(type){
+  if(!soundEnabled||bgmType===type)return;
+  stopBGM();
+  bgmType=type;
+  try{
+    const ctx=getAudioCtx();
+    if(ctx.state==='suspended')ctx.resume();
+    // バトル前BGM：落ち着いた雰囲気
+    // バトル中BGM：テンポの速い戦闘音楽
+    const patterns={
+      preBattle:  [[262,0],[330,0.3],[392,0.6],[330,0.9],[294,1.2],[262,1.5],[294,1.8],[330,2.1]],
+      inBattle:   [[392,0],[494,0.15],[523,0.3],[494,0.45],[440,0.6],[392,0.75],[440,0.9],[494,1.05]],
+    };
+    const pat=patterns[type]||patterns.preBattle;
+    const loopLen=type==='inBattle'?1.2:2.4;
+    let startTime=ctx.currentTime;
+    const scheduleBGM=()=>{
+      if(bgmType!==type)return;
+      pat.forEach(([freq,offset])=>{
+        const o=ctx.createOscillator();
+        const g=ctx.createGain();
+        const f=ctx.createBiquadFilter();
+        f.type='lowpass';f.frequency.value=800;
+        o.connect(f);f.connect(g);g.connect(ctx.destination);
+        o.type='triangle';
+        o.frequency.value=freq;
+        const t=startTime+offset;
+        g.gain.setValueAtTime(0,t);
+        g.gain.linearRampToValueAtTime(0.08,t+0.05);
+        g.gain.exponentialRampToValueAtTime(0.001,t+0.25);
+        o.start(t);o.stop(t+0.28);
+      });
+      startTime+=loopLen;
+      bgmInterval=setTimeout(scheduleBGM,loopLen*1000-100);
+    };
+    scheduleBGM();
+  }catch(e){}
+}
+
+function stopBGM(){
+  bgmType=null;
+  if(bgmInterval){clearTimeout(bgmInterval);bgmInterval=null;}
+}
+
+function toggleSound(){
+  soundEnabled=!soundEnabled;
+  if(!soundEnabled)stopBGM();
+  const btn=document.getElementById('sound-toggle-btn');
+  if(btn)btn.textContent=soundEnabled?'🔊':'🔇';
+  localStorage.setItem('kh_sound',soundEnabled?'1':'0');
+}
+
 // ===== INIT =====
 window.onload=async()=>{
   await initIDB();
+  soundEnabled=localStorage.getItem('kh_sound')!=='0';
   apiKey=localStorage.getItem('kh_apikey')||'';
   stabilityKey=localStorage.getItem('kh_stabilitykey')||'';
   // IDBからロード（なければlocalStorageにフォールバック）
@@ -1230,6 +1328,7 @@ window.onload=async()=>{
     itemCards=it||JSON.parse(localStorage.getItem('kh_items')||'[]');
   }catch(e){characters=[];itemCards=[];}
   resumeRecoveryTimers();
+  soundEnabled=localStorage.getItem('kh_sound')!=='0';
   if(apiKey){
     showMainApp();
     // 初回のみストレージ注意を表示
@@ -1350,7 +1449,7 @@ function showTab(name){
   document.getElementById('page-'+name).classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='collection')renderCollection();
-  if(name==='battle')renderBattleSelect();
+  if(name==='battle'){renderBattleSelect();playBGM('preBattle');}
   if(name==='synthesis')initSynthesis();
 }
 function setCollTab(t){
@@ -2114,8 +2213,8 @@ async function analyzeImage(omakase=false){
 【ステップ4: カード種類の決定】
 以下のカード種類からひとつ選ぶ（${forceType?'【必須: '+forceType+'を選択してください】':'ヒント:'+cardTypeHint}）:
 - character: キャラクターカード（人物・存在を表す漢字）
-- skill: スキルカード（動作・技を表す漢字）→ バトル中SPで使えるスキルを付与。type:"atk"(攻撃),"heal"(HP回復),"buff"(一時ATK強化)のいずれか
-- magic: 魔法カード（神秘・自然・力を表す漢字）→ バトル中MPで使える魔法を付与。type:"magic"(攻撃),"heal"(HP回復),"debuff"(相手弱体化)のいずれか
+- skill: スキルカード（動作・技を表す漢字）→ バトル中SPで使えるスキルを付与。type:"atk"(攻撃)/"heal"(HP回復)/"buff"(ATK強化)/"stun"(1ターンスキップ)/"sleep"(2ターン眠り)/"drain"(HP吸収)のいずれか
+- magic: 魔法カード（神秘・自然・力を表す漢字）→ バトル中MPで使える魔法を付与。type:"magic"(攻撃)/"heal"(HP回復)/"debuff"(ATK&DEF弱体化)/"stun"(気絶)/"sleep"(眠り)/"drain"(HP吸収)のいずれか
 - weapon: 武器カード（攻撃・刃を表す漢字）→ 原則ATK強化のみ。SSRのみ他ステータスも可
 - armor: 防具カード（守り・盾を表す漢字）→ 原則DEF強化のみ。SSRのみ他ステータスも可
 - item: アイテムカード（装飾品・工具・嗜好品を表す漢字）→ ATK/DEF以外のステータス1種のみ強化(SPD/LCK/INT/HP/MP/SP)
@@ -2174,7 +2273,13 @@ JSONのみ返してください（cardType="character"の例）:
 
     if(p.cardType==='character'){
       const stats=buildStats(p.job,p.baseVal||100);
-      const char={id:Date.now(),cardType:'character',kanji:p.kanji,rarity:p.rarity||'N',job:p.job||'剣士',race:p.race||'人族',gender:p.gender||'男',element:p.element||'火',baseVal:p.baseVal||100,...stats,
+      const VALID_RACES_LIST=['人族','エルフ族','ハーフエルフ族','ダークエルフ族','ホビット族','ドワーフ族','魔族','竜族','モンスター族'];
+      const VALID_JOBS=['魔法使い','剣士','僧侶','忍者','竜騎士','吟遊詩人','召喚士','賢者','暗黒騎士','聖騎士'];
+      const VALID_ELEMS=['火','水','木','土','風','金','闇','光'];
+      const safeRace=VALID_RACES_LIST.includes(p.race)?p.race:'人族';
+      const safeJob=VALID_JOBS.includes(p.job)?p.job:'剣士';
+      const safeElem=VALID_ELEMS.includes(p.element)?p.element:'火';
+      const char={id:Date.now(),cardType:'character',kanji:p.kanji,rarity:p.rarity||'N',job:safeJob,race:safeRace,gender:p.gender||'男',element:safeElem,baseVal:p.baseVal||100,...stats,
       innateSkills:limitInnateSkills(p.skills||[],p.rarity||'N'),
       innateMagics:limitInnateSkills(p.magics||[],p.rarity||'N'),
       skills:limitInnateSkills(p.skills||[],p.rarity||'N'),
@@ -2244,8 +2349,11 @@ async function buildCardFromParsed(p, isSynthesis=false){
     const char={
       id:Date.now()+Math.random()*1000,cardType:'character',
       kanji:p.kanji,rarity:p.rarity||'N',
-      job:p.job||'剣士',race:p.race||'人族',gender:p.gender||'男',
-      element:p.element||'火',baseVal:p.baseVal||100,...stats,
+      job:(['魔法使い','剣士','僧侶','忍者','竜騎士','吟遊詩人','召喚士','賢者','暗黒騎士','聖騎士'].includes(p.job)?p.job:'剣士'),
+      race:(['人族','エルフ族','ハーフエルフ族','ダークエルフ族','ホビット族','ドワーフ族','魔族','竜族','モンスター族'].includes(p.race)?p.race:'人族'),
+      gender:p.gender||'男',
+      element:(['火','水','木','土','風','金','闇','光'].includes(p.element)?p.element:'火'),
+      baseVal:p.baseVal||100,...stats,
       innateSkills:limitInnateSkills(p.skills||[],p.rarity||'N',isSynthesis),
       innateMagics:limitInnateSkills(p.magics||[],p.rarity||'N',isSynthesis),
       skills:limitInnateSkills(p.skills||[],p.rarity||'N',isSynthesis),
@@ -2567,6 +2675,7 @@ function selectForBattle(id,evt){
 }
 
 function renderBattleSelect(){
+  if(!battlePair[0]||!battlePair[1])playBGM('preBattle');
   const isWA=battleResult&&battlePair[0]&&battleResult===battlePair[0].id;
   const isWB=battleResult&&battlePair[1]&&battleResult===battlePair[1].id;
   renderBattleSlot(document.getElementById('slot-a'),battlePair[0],isWA,battleResult&&!isWA&&battlePair[0],false);
@@ -2710,6 +2819,8 @@ async function startBattle(){
   b._bHp=getEffectiveStat(b,'hp');b._bMp=getEffectiveStat(b,'mp');b._bSp=getEffectiveStat(b,'sp');b._defUp=false;b._status='';b._leveledUp=false;b._debuffAtk=1;b._debuffDef=1;b._buffAtk=1;
   document.getElementById('battle-log-area').style.display='block';
   document.getElementById('battle-log').innerHTML='';
+  playBGM('inBattle');
+  playBGM('inBattle');playBGM('inBattle');
   document.getElementById('battle-start-btn').style.display='none';
   document.getElementById('battle-mode-area').style.display='none';
   document.getElementById('affinity-info').style.display='none';
@@ -2774,6 +2885,7 @@ async function startBattle(){
     await sleep(200);
   }
   // Player char (a) takes damage → start recovery timer
+  stopBGM();
   startRecovery(battlePair[0]);
   // Opponent (b) → restore to pre-battle state (no damage carried over)
   const bCol=characters.find(c=>c.id===b.id);
@@ -2883,6 +2995,7 @@ function showBattleResultScreen(winner,loser){
           </div>`:'<div style="font-size:11px;opacity:.4;margin:8px 0">経験値は獲得できません</div>'}
         <button class="result-close-btn" style="background:${rc.color};color:#000" onclick="closeBattleResultScreen()">戻る →</button>
       </div>`;
+    playSE(isPlayerWin?'win':'lose');
     document.getElementById('battle-result-screen').style.background=bgColor;
     document.getElementById('battle-result-screen').classList.add('active');
     window._battleResultResolve=resolve;
@@ -2977,6 +3090,8 @@ async function getAction(char){
   return autoAct(char,getLevel(char.exp||0));
 }
 function autoAct(char,lv){
+  // stun/sleep中は何もしない
+  if(char._stunTurns>0||char._sleepTurns>0)return{type:'stunned'};
   const hpPct=char._bHp/getEffectiveStat(char,'hp');
   if(hpPct<0.2&&Math.random()<0.4)return{type:'defend'};
   const skills=(char.skills||[]).filter(s=>char._bSp>=(s.spCost||0));
@@ -3023,6 +3138,7 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
     defender._bHp=Math.max(0,defender._bHp-dmg);
     eText=isCrit?`💥${dmg}!`:`${dmg}`;eColor=isCrit?'#FFD700':'#fb923c';
     msg=`⚔️ ${attacker.kanji}の攻撃！${dmg}${isCrit?' 会心！':''}ダメージ${atkMult>1?' ⬆属性有利':''}`;
+    playSE(isCrit?'crit':'attack');
     atkEffect=isCrit?'crit':'attack';
     atkEffectColor=isCrit?'#FFD700':'#fb923c';
     defEffect='damage';
@@ -3060,6 +3176,7 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         defender._bHp=Math.max(0,defender._bHp-dmg);
         eText=`⚔️${dmg}!`;eColor='#FFD700';
         msg=`💥 ${attacker.kanji}「${sk.name}」！${dmg}の大ダメージ！`;
+        playSE('skill');
         atkEffect='skill';atkEffectColor='#FFD700';defEffect='damage';dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }else if(sk.type==='def'){
         const h=Math.floor(maxHp*0.15);
@@ -3079,6 +3196,34 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         msg=`✨ ${attacker.kanji}「${sk.name}」！ATK×1.5強化 & SP+${sr}`;
         atkEffect='buff';atkEffectColor='#fbbf24';atkEffectLabel='ATK';
         defEffect=null;
+      }else if(sk.type==='stun'){
+        // 相手のターンを1回飛ばす
+        defender._stunTurns=(defender._stunTurns||0)+1;
+        defender._status='⚡気絶';
+        dmg=Math.max(3,Math.floor(atkATK*0.8*atkMult*defMult-defDEF*0.1));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        eText=`⚡${dmg}`;eColor='#fbbf24';
+        msg=`⚡ ${attacker.kanji}「${sk.name}」！${defender.kanji}を気絶させた！(次ターンスキップ) +${dmg}ダメージ`;
+        atkEffect='skill';atkEffectColor='#fbbf24';defEffect='damage';
+        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+      }else if(sk.type==='sleep'){
+        // 相手を2〜3ターン眠らせる
+        defender._sleepTurns=(defender._sleepTurns||0)+2;
+        defender._status='💤眠り';
+        eText='💤';eColor='#818cf8';
+        msg=`💤 ${attacker.kanji}「${sk.name}」！${defender.kanji}を眠らせた！(2ターンスキップ)`;
+        atkEffect='skill';atkEffectColor='#818cf8';defEffect=null;
+      }else if(sk.type==='drain'){
+        // 相手のHPを吸収
+        dmg=Math.max(5,Math.floor(atkATK*1.1*atkMult*defMult-defDEF*0.1));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        const drain=Math.floor(dmg*0.5);
+        attacker._bHp=Math.min(getEffectiveStat(attacker,'hp'),attacker._bHp+drain);
+        attacker._bSp=Math.max(0,attacker._bSp-sk.spCost);
+        eText=`🩸${dmg}`;eColor='#ef4444';
+        msg=`🩸 ${attacker.kanji}「${sk.name}」！${dmg}ダメージ & HP+${drain}吸収！`;
+        atkEffect='skill';atkEffectColor='#ef4444';defEffect='damage';
+        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }
     }
 
@@ -3096,12 +3241,14 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         defender._bHp=Math.max(0,defender._bHp-dmg);
         eText=`✨${dmg}!`;eColor='#a78bfa';
         msg=`✨ ${attacker.kanji}「${mg.name}」！${dmg}の魔法ダメージ！`;
+        playSE('magic');
         atkEffect='magic';atkEffectColor='#a78bfa';defEffect='damage';
         dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }else if(mg.type==='heal'){
         let healPct=mg.healPct||(0.25+Math.random()*0.15);
         const h=Math.floor(maxHp*healPct);
         attacker._bHp=Math.min(maxHp,attacker._bHp+h);
+        playSE('heal');
         eText=`💚+${h}`;eColor='#4ade80';
         msg=`💚 ${attacker.kanji}「${mg.name}」！HP+${h}（${Math.round(healPct*100)}%）回復！`;
         atkEffect='heal';atkEffectColor='#4ade80';atkEffectLabel='HP';defEffect=null;
@@ -3129,9 +3276,38 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         eText=`🌑${dmg}`;eColor='#a78bfa';
         msg=`🌑 ${attacker.kanji}「${mg.name}」！${defender.kanji}を弱体化(ATK&DEF-30%×2ターン) +${dmg}ダメージ`;
         atkEffect='magic';atkEffectColor='#a78bfa';defEffect='damage';dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+      }else if(mg.type==='stun'){
+        defender._stunTurns=(defender._stunTurns||0)+1;
+        defender._status='⚡気絶';
+        dmg=Math.max(3,Math.floor(atkINT*0.7*atkMult));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        eText=`⚡${dmg}`;eColor='#fbbf24';
+        msg=`⚡ ${attacker.kanji}「${mg.name}」！${defender.kanji}を気絶！(次ターンスキップ) +${dmg}ダメージ`;
+        atkEffect='magic';atkEffectColor='#fbbf24';defEffect='damage';
+        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+      }else if(mg.type==='sleep'){
+        defender._sleepTurns=(defender._sleepTurns||0)+2;
+        defender._status='💤眠り';
+        eText='💤';eColor='#818cf8';
+        msg=`💤 ${attacker.kanji}「${mg.name}」！${defender.kanji}を眠りに誘う！(2ターンスキップ)`;
+        atkEffect='magic';atkEffectColor='#818cf8';defEffect=null;
+      }else if(mg.type==='drain'){
+        dmg=Math.max(5,Math.floor(atkINT*1.3*atkMult*defMult-defDEF*0.1));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        const drain=Math.floor(dmg*0.6);
+        attacker._bHp=Math.min(getEffectiveStat(attacker,'hp'),attacker._bHp+drain);
+        attacker._bMp=Math.max(0,attacker._bMp-mg.mpCost);
+        eText=`🩸${dmg}`;eColor='#ef4444';
+        msg=`🩸 ${attacker.kanji}「${mg.name}」！${dmg}ダメージ & HP+${drain}吸収！`;
+        atkEffect='magic';atkEffectColor='#ef4444';defEffect='damage';
+        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }
     }
 
+  }else if(action.type==='stunned'){
+    msg=`${attacker._sleepTurns>0?'💤':'⚡'} ${attacker.kanji}は${attacker._sleepTurns>0?'眠っている':'気絶中'}！行動できない！`;
+    eText=attacker._sleepTurns>0?'💤':'⚡';eColor='#818cf8';
+    atkEffect=null;defEffect=null;
   }else if(action.type==='defend'){
     const h=Math.floor(maxHp*0.05);
     attacker._defUp=true;attacker._status='🛡️';
