@@ -1433,13 +1433,13 @@ function importData(e){
 }
 
 function saveState(){
-  // artImgは容量が大きいので除外して保存
+  // IDBには画像(artImg)を含めた完全なデータを保存（非同期、エラーはサイレント）
+  idbSet('kh_chars',characters).catch(e=>console.warn('IDB save error',e));
+  idbSet('kh_items',itemCards).catch(e=>console.warn('IDB save error',e));
+  
+  // LocalStorageは容量制限が厳しいため、画像(artImg)を除外して保存（フォールバック用）
   const charsLite=characters.map(c=>{const{artImg,...r}=c;return r;});
   const itemsLite=itemCards.map(i=>{const{artImg,...r}=i;return r;});
-  // IDBに保存（非同期、エラーはサイレント）
-  idbSet('kh_chars',charsLite).catch(e=>console.warn('IDB save error',e));
-  idbSet('kh_items',itemsLite).catch(e=>console.warn('IDB save error',e));
-  // LocalStorageにも保存（フォールバック用）
   try{
     localStorage.setItem('kh_chars',JSON.stringify(charsLite));
     localStorage.setItem('kh_items',JSON.stringify(itemsLite));
@@ -1447,7 +1447,7 @@ function saveState(){
     // LocalStorage容量超過は無視（IDBがメイン）
     console.warn('localStorage full, using IDB only');
   }
-}
+　}
 
 function exportData(){
   const data={
