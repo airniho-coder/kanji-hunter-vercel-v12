@@ -3377,7 +3377,7 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         eText='💤';eColor='#818cf8';
         msg=`💤 ${attacker.kanji}「${mg.name}」！${defender.kanji}を眠りに誘う！(2ターンスキップ)`;
         atkEffect='magic';atkEffectColor='#818cf8';defEffect=null;
-      }else if(mg.type==='drain'){
+　　　}else if(mg.type==='drain'){
         dmg=Math.max(5,Math.floor(atkINT*1.3*atkMult*defMult-defDEF*0.1));
         defender._bHp=Math.max(0,defender._bHp-dmg);
         const drain=Math.floor(dmg*0.6);
@@ -3386,6 +3386,16 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         eText=`🩸${dmg}`;eColor='#ef4444';
         msg=`🩸 ${attacker.kanji}「${mg.name}」！${dmg}ダメージ & HP+${drain}吸収！`;
         atkEffect='magic';atkEffectColor='#ef4444';defEffect='damage';
+        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+      }else{
+        // 予期せぬタイプの場合のフォールバック（stun扱い）
+        defender._stunTurns=(defender._stunTurns||0)+1;
+        defender._status='⚡気絶';
+        dmg=Math.max(3,Math.floor(atkINT*0.7*atkMult));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        eText=`⚡${dmg}`;eColor='#fbbf24';
+        msg=`⚡ ${attacker.kanji}「${mg.name}」(特殊)！${defender.kanji}を気絶！(次ターンスキップ) +${dmg}ダメージ`;
+        atkEffect='magic';atkEffectColor='#fbbf24';defEffect='damage';
         dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }
     }
