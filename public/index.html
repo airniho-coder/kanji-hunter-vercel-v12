@@ -1071,7 +1071,7 @@ async function startLearningWrite(charId){
   const char=characters.find(c=>c.id===id)||battlePair[0];
   if(!char){openLearningModal('<div style="color:#ef4444;padding:20px">キャラが見つかりません</div>');return;}
   learningCharId=char.id;
-  writeState={charId:char.id,kanji:char.kanji,round:1,correct:0,total:5};
+  writeState={charId:char.id,kanji:char.kanji,round:1,correct:0,total:2};
   // まずモーダルを開いてからrenderWriteRoundを呼ぶ
   openLearningModal('<div style="text-align:center;padding:40px 0;color:#c9a84c"><div style="font-size:24px">✏️</div><div style="font-size:12px;margin-top:8px;opacity:.6">準備中...</div></div>');
   setTimeout(()=>renderWriteRound(char),50);
@@ -1086,7 +1086,7 @@ function renderWriteRound(char){
       <div style="font-size:11px;opacity:.5;letter-spacing:2px">書き取り練習 ${s.round}/${s.total}</div>
       <div style="font-size:36px;font-weight:900;color:${rc.color};margin:4px 0">${char.kanji}</div>
       ${char.reading?`<div style="font-size:11px;opacity:.6">${char.reading}</div>`:''}
-      ${isFirst?`<div style="font-size:10px;color:#fbbf24;margin-top:4px">お手本をなぞって練習しましょう</div>`:`<div style="font-size:10px;opacity:.5;margin-top:4px">見ないで書いてみよう（EXP +20）</div>`}
+      ${isFirst?`<div style="font-size:10px;color:#fbbf24;margin-top:4px">お手本をなぞって練習しましょう</div>`:`<div style="font-size:10px;opacity:.5;margin-top:4px">見ないで書いてみよう（EXP +50）</div>`}
     </div>
     <div style="position:relative;border-radius:12px;overflow:hidden;border:2px solid rgba(255,255,255,.15);background:#0a0a0f;margin-bottom:12px">
       ${isFirst?`<div id="write-ghost" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:180px;font-weight:900;color:rgba(255,255,255,.08);pointer-events:none;font-family:'Noto Serif JP',serif;user-select:none">${char.kanji}</div>`:''}
@@ -1154,8 +1154,8 @@ JSONのみ返答: {"ok":true/false,"feedback":"ひとこと20文字以内"}`;
     const isOk=result.ok!==false;
     if(isOk){
       writeState.correct++;
-      const lvMsg=addExp(writeState.charId,20);
-      let msg=`<div style="color:#4ade80;font-weight:700;margin-bottom:4px">✅ ${result.feedback||'正解！'} EXP +20</div>`;
+      const lvMsg=addExp(writeState.charId,50);
+      let msg=`<div style="color:#4ade80;font-weight:700;margin-bottom:4px">✅ ${result.feedback||'正解！'} EXP +50</div>`;
       if(lvMsg)msg+=`<div style="color:#fbbf24;font-size:12px;margin-bottom:4px">⬆ ${lvMsg}</div>`;
       document.getElementById('write-result').innerHTML=msg;
     }else{
@@ -1168,10 +1168,10 @@ JSONのみ返答: {"ok":true/false,"feedback":"ひとこと20文字以内"}`;
         // 終了
         document.getElementById('learning-content').innerHTML=`
           <div style="text-align:center;padding:30px 0">
-            <div style="font-size:40px;margin-bottom:12px">${writeState.correct>=4?'🏆':writeState.correct>=2?'⭐':'📝'}</div>
+            <div style="font-size:40px;margin-bottom:12px">${writeState.correct>=2?'🏆':writeState.correct>=1?'⭐':'📝'}</div>
             <div style="font-size:18px;font-weight:700;color:#c9a84c;margin-bottom:8px">練習完了！</div>
             <div style="font-size:14px;opacity:.7;margin-bottom:4px">${writeState.total}回中 ${writeState.correct}回正解</div>
-            <div style="font-size:13px;color:#4ade80;margin-bottom:20px">EXP +${writeState.correct*20} 獲得！</div>
+            <div style="font-size:13px;color:#4ade80;margin-bottom:20px">EXP +${writeState.correct*50} 獲得！</div>
             <button onclick="closeLearningModal()" style="padding:12px 32px;border-radius:10px;background:linear-gradient(135deg,#c9a84c,#e8c97a);border:none;color:#000;font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;cursor:pointer">閉じる</button>
           </div>`;
       }else{
@@ -1338,8 +1338,8 @@ function playSE(type){
 let bgmAudio=null;
 let bgmType=null;
 const BGM_FILES={
-  preBattle:'/audio/bgm_pre.mp3',
-  inBattle:'/audio/bgm_battle.mp3',
+  preBattle:'/sounds/bgm_battle_select.mp3',
+  inBattle:'/sounds/bgm_battle.mp3',
 };
 
 function playBGM(type){
@@ -1433,13 +1433,13 @@ function importData(e){
 }
 
 function saveState(){
-  // IDBには画像(artImg)を含めた完全なデータを保存（非同期、エラーはサイレント）
-  idbSet('kh_chars',characters).catch(e=>console.warn('IDB save error',e));
-  idbSet('kh_items',itemCards).catch(e=>console.warn('IDB save error',e));
-  
-  // LocalStorageは容量制限が厳しいため、画像(artImg)を除外して保存（フォールバック用）
+  // artImgは容量が大きいので除外して保存
   const charsLite=characters.map(c=>{const{artImg,...r}=c;return r;});
   const itemsLite=itemCards.map(i=>{const{artImg,...r}=i;return r;});
+  // IDBに保存（非同期、エラーはサイレント）
+  idbSet('kh_chars',charsLite).catch(e=>console.warn('IDB save error',e));
+  idbSet('kh_items',itemsLite).catch(e=>console.warn('IDB save error',e));
+  // LocalStorageにも保存（フォールバック用）
   try{
     localStorage.setItem('kh_chars',JSON.stringify(charsLite));
     localStorage.setItem('kh_items',JSON.stringify(itemsLite));
@@ -1447,7 +1447,7 @@ function saveState(){
     // LocalStorage容量超過は無視（IDBがメイン）
     console.warn('localStorage full, using IDB only');
   }
-　}
+}
 
 function exportData(){
   const data={
@@ -1511,6 +1511,10 @@ function showTab(name){
   if(name==='collection')renderCollection();
   if(name==='battle'){renderBattleSelect();playBGM('preBattle');}
   if(name==='synthesis')initSynthesis();
+  // ⑤ 各タブのBGM
+  const tabBGM={capture:'capture',collection:'collection',synthesis:'synthesis'};
+  if(tabBGM[name])playBGM(tabBGM[name]);
+  if(name==='battle')playBGM('preBattle');
 }
 function setCollTab(t){
   collTab=t;
@@ -3288,7 +3292,7 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         eText='💤';eColor='#818cf8';
         msg=`💤 ${attacker.kanji}「${sk.name}」！${defender.kanji}を眠らせた！(2ターンスキップ)`;
         atkEffect='skill';atkEffectColor='#818cf8';defEffect=null;
-     　}else if(sk.type==='drain'){
+      }else if(sk.type==='drain'){
         // 相手のHPを吸収
         dmg=Math.max(5,Math.floor(atkATK*1.1*atkMult*defMult-defDEF*0.1));
         defender._bHp=Math.max(0,defender._bHp-dmg);
@@ -3299,19 +3303,8 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         msg=`🩸 ${attacker.kanji}「${sk.name}」！${dmg}ダメージ & HP+${drain}吸収！`;
         atkEffect='skill';atkEffectColor='#ef4444';defEffect='damage';
         dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
-      }else{
-        // 予期せぬタイプの場合のフォールバック（drain扱い）
-        dmg=Math.max(5,Math.floor(atkATK*1.1*atkMult*defMult-defDEF*0.1));
-        defender._bHp=Math.max(0,defender._bHp-dmg);
-        const drain=Math.floor(dmg*0.5);
-        attacker._bHp=Math.min(getEffectiveStat(attacker,'hp'),attacker._bHp+drain);
-        eText=`🩸${dmg}`;eColor='#ef4444';
-        msg=`🩸 ${attacker.kanji}「${sk.name}」(特殊)！${dmg}ダメージ & HP+${drain}吸収！`;
-        atkEffect='skill';atkEffectColor='#ef4444';defEffect='damage';
-        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }
     }
-
 
   }else if(action.type==='magic'&&action.s){
     const mg=action.s;
@@ -3377,7 +3370,7 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         eText='💤';eColor='#818cf8';
         msg=`💤 ${attacker.kanji}「${mg.name}」！${defender.kanji}を眠りに誘う！(2ターンスキップ)`;
         atkEffect='magic';atkEffectColor='#818cf8';defEffect=null;
-　　　}else if(mg.type==='drain'){
+      }else if(mg.type==='drain'){
         dmg=Math.max(5,Math.floor(atkINT*1.3*atkMult*defMult-defDEF*0.1));
         defender._bHp=Math.max(0,defender._bHp-dmg);
         const drain=Math.floor(dmg*0.6);
@@ -3386,16 +3379,6 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         eText=`🩸${dmg}`;eColor='#ef4444';
         msg=`🩸 ${attacker.kanji}「${mg.name}」！${dmg}ダメージ & HP+${drain}吸収！`;
         atkEffect='magic';atkEffectColor='#ef4444';defEffect='damage';
-        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
-      }else{
-        // 予期せぬタイプの場合のフォールバック（stun扱い）
-        defender._stunTurns=(defender._stunTurns||0)+1;
-        defender._status='⚡気絶';
-        dmg=Math.max(3,Math.floor(atkINT*0.7*atkMult));
-        defender._bHp=Math.max(0,defender._bHp-dmg);
-        eText=`⚡${dmg}`;eColor='#fbbf24';
-        msg=`⚡ ${attacker.kanji}「${mg.name}」(特殊)！${defender.kanji}を気絶！(次ターンスキップ) +${dmg}ダメージ`;
-        atkEffect='magic';atkEffectColor='#fbbf24';defEffect='damage';
         dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }
     }
@@ -3415,12 +3398,18 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
 
   // ===== EFFECTS SEQUENCE (manual only) =====
   if(isManual){
-    // Step1: Attacker card effect
-    if(atkEffect)cardEffect(atkSide,atkEffect,atkEffectColor,atkEffectLabel);
+    // Step1: Attacker card effect + 効果音
+    if(atkEffect){
+      cardEffect(atkSide,atkEffect,atkEffectColor,atkEffectLabel);
+      // エフェクトと同時に効果音
+      const seMap={attack:'attack',crit:'crit',skill:'skill',magic:'magic',heal:'heal',buff:'buff',defend:'defend',drain:'skill',stun:'stun',sleep:'debuff'};
+      playSE(seMap[atkEffect]||'attack');
+    }
     // Step2: Wait for attacker effect to show
     await sleep(600);
-    // Step3: Defender effect (damage shake)
+    // Step3: Defender effect (damage shake) + ② 斬撃音
     if(defEffect==='damage'){
+      playSE('slash'); // バシュッ！
       shakeBfsSlot(defSide,dmgSize);
       shakeEl('slot-'+defSide);
     }
@@ -3433,9 +3422,11 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
     // Step6: Wait then show log
     await sleep(400);
   }else{
-    // Auto mode: 小さなエフェクト演出（spawnEffectの数値と揺れ）
+    // Auto mode: 効果音＋揺れ
+    if(atkEffect){const seMap={attack:'attack',crit:'crit',skill:'skill',magic:'magic',heal:'heal',buff:'buff',defend:'defend',drain:'skill',stun:'stun'};playSE(seMap[atkEffect]||'attack');}
     if(defEffect==='damage'){
-      await sleep(150); // 数値エフェクトが出るまで少し待つ
+      await sleep(150);
+      playSE('slash');
       shakeEl('slot-'+defSide);
     }
   }
@@ -3488,7 +3479,12 @@ function refreshBfsActions(playerChar){
 }
 function showBattleFullscreen(show,playerChar){
   const fs=document.getElementById('battle-fullscreen');
-  if(!show){fs.classList.remove('active');return;}
+  if(!show){
+    fs.classList.remove('active');
+    // バト選に戻ったらpreBattle BGMを再生
+    playBGM('preBattle');
+    return;
+  }
   fs.classList.add('active');
   // Initial render
   const[a,b]=battlePair;
