@@ -961,9 +961,10 @@ let writeState=null;
 let writeCtx=null;
 let writeDrawing=false;
 
-function openLearningModal(html){
+function openLearningModal(html, bgmType){
   document.getElementById('learning-content').innerHTML=html;
   document.getElementById('learning-modal').style.display='block';
+  if(bgmType)playBGM(bgmType);
   // バトル結果画面を閉じる
   document.getElementById('battle-result-screen').classList.remove('active');
   if(window._battleResultResolve){window._battleResultResolve();window._battleResultResolve=null;}
@@ -971,6 +972,8 @@ function openLearningModal(html){
 function closeLearningModal(){
   document.getElementById('learning-modal').style.display='none';
   learningCharId=null;quizState=null;writeState=null;
+  // バトル画面が表示中ならpreBattle BGMに戻す
+  playBGM('preBattle');
 }
 
 function addExp(charId, amount){
@@ -996,7 +999,7 @@ async function startLearningQuiz(charId){
   openLearningModal(`<div style="text-align:center;padding:40px 0;color:#c9a84c">
     <div style="font-size:24px;margin-bottom:8px">📝 クイズ</div>
     <div style="font-size:13px;opacity:.6">「${char.kanji}」についての問題を作っています...</div>
-  </div>`);
+  </div>`,'quiz');
   try{
     const prompt=`漢字「${char.kanji}」についての5択クイズを1問作ってください。
 漢字情報: 読み=${char.reading||''}、意味=${char.meaning||''}、例=${char.examples||''}
@@ -1073,7 +1076,7 @@ async function startLearningWrite(charId){
   learningCharId=char.id;
   writeState={charId:char.id,kanji:char.kanji,round:1,correct:0,total:2};
   // まずモーダルを開いてからrenderWriteRoundを呼ぶ
-  openLearningModal('<div style="text-align:center;padding:40px 0;color:#c9a84c"><div style="font-size:24px">✏️</div><div style="font-size:12px;margin-top:8px;opacity:.6">準備中...</div></div>');
+  openLearningModal('<div style="text-align:center;padding:40px 0;color:#c9a84c"><div style="font-size:24px">✏️</div><div style="font-size:12px;margin-top:8px;opacity:.6">準備中...</div></div>','write');
   setTimeout(()=>renderWriteRound(char),50);
 }
 
