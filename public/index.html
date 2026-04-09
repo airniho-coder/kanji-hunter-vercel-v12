@@ -1363,7 +1363,10 @@ function showBGMDebug(msg){
 function playBGM(type){
   if(!soundEnabled)return;
   if(bgmType===type&&bgmAudio&&!bgmAudio.paused)return;
-  stopBGM();
+  // 多重再生防止：全てのBGMを確実に止める
+  if(bgmAudio){try{bgmAudio.pause();bgmAudio.src='';}catch(e){}bgmAudio=null;}
+  if(bgmInterval){clearTimeout(bgmInterval);bgmInterval=null;}
+  bgmType=null;
   bgmType=type;
   const src=BGM_FILES[type];
   showBGMDebug('再生試行: '+type+' → '+src);
@@ -1376,18 +1379,27 @@ function playBGM(type){
       showBGMDebug('ファイルなし → 生成BGM: '+type);
       _playGeneratedBGM(type);
     });
-    bgmAudio.play().then(()=>showBGMDebug('再生中: '+src)).catch(e=>{
-      showBGMDebug('ブロック: '+e.message);
-      _playGeneratedBGM(type);
-    });
+    // AudioContextをresumeしてからplay（Autoplayブロック対策）
+    const tryPlay=()=>{
+      bgmAudio.play().then(()=>showBGMDebug('再生中: '+src)).catch(e=>{
+        showBGMDebug('ブロック: '+e.message+' → 生成BGM');
+        _playGeneratedBGM(type);
+      });
+    };
+    if(audioCtx&&audioCtx.state==='suspended'){
+      audioCtx.resume().then(tryPlay);
+    }else{
+      tryPlay();
+    }
   }catch(e){_playGeneratedBGM(type);}
 }
 
 function stopBGM(){
+  const prev=bgmType;
   bgmType=null;
-  if(bgmAudio){bgmAudio.pause();bgmAudio.currentTime=0;bgmAudio=null;}
+  if(bgmAudio){try{bgmAudio.pause();bgmAudio.src='';}catch(e){}bgmAudio=null;}
   if(bgmInterval){clearTimeout(bgmInterval);bgmInterval=null;}
-  if(window._bgmAudio){window._bgmAudio.pause();window._bgmAudio=null;}
+  if(window._bgmAudio){try{window._bgmAudio.pause();window._bgmAudio.src='';}catch(e){}window._bgmAudio=null;}
 }
 
 let bgmInterval=null;
@@ -1574,12 +1586,11 @@ function showTab(name){
   document.getElementById('page-'+name).classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='collection')renderCollection();
-  if(name==='battle'){renderBattleSelect();playBGM('preBattle');}
+  if(name==='battle')renderBattleSelect();
   if(name==='synthesis')initSynthesis();
   // ⑤ 各タブのBGM
-  const tabBGM={capture:'capture',collection:'collection',synthesis:'synthesis'};
+  const tabBGM={capture:'capture',collection:'collection',synthesis:'synthesis',battle:'preBattle'};
   if(tabBGM[name])playBGM(tabBGM[name]);
-  if(name==='battle')playBGM('preBattle');
 }
 function setCollTab(t){
   collTab=t;
@@ -2820,7 +2831,8 @@ function selectForBattle(id,evt){
 }
 
 function renderBattleSelect(){
-  if(!battlePair[0]||!battlePair[1])playBGM('preBattle');
+  // バトル選択画面ではpreBattle BGMを再生（多重にならないようチェック済み）
+  if(bgmType!=='preBattle')playBGM('preBattle');
   const isWA=battleResult&&battlePair[0]&&battleResult===battlePair[0].id;
   const isWB=battleResult&&battlePair[1]&&battleResult===battlePair[1].id;
   renderBattleSlot(document.getElementById('slot-a'),battlePair[0],isWA,battleResult&&!isWA&&battlePair[0],false);
