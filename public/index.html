@@ -1341,32 +1341,84 @@ function playSE(type){
 let bgmAudio=null;
 let bgmType=null;
 const BGM_FILES={
-  preBattle:'/sounds/bgm_battle_select.mp3',
-  inBattle:'/sounds/bgm_battle.mp3',
+  preBattle:'/audio/bgm_pre.mp3',
+  inBattle:'/audio/bgm_battle.mp3',
+  capture:'/audio/bgm_capture.mp3',
+  collection:'/audio/bgm_collection.mp3',
+  synthesis:'/audio/bgm_synthesis.mp3',
+  quiz:'/audio/bgm_quiz.mp3',
+  write:'/audio/bgm_write.mp3',
 };
 
 function playBGM(type){
   if(!soundEnabled)return;
-  if(bgmType===type&&bgmAudio&&!bgmAudio.paused)return; // 同じ曲が再生中なら何もしない
+  if(bgmType===type&&bgmAudio&&!bgmAudio.paused)return;
   stopBGM();
   bgmType=type;
   const src=BGM_FILES[type];
-  if(!src)return;
+  if(!src){
+    // ファイルなしの場合はプログラム生成BGMにフォールバック
+    _playGeneratedBGM(type);
+    return;
+  }
   try{
     bgmAudio=new Audio(src);
     bgmAudio.loop=true;
     bgmAudio.volume=0.5;
-    bgmAudio.play().catch(e=>console.log('BGM play blocked:',e));
-  }catch(e){console.log('BGM error:',e);}
+    bgmAudio.play().catch(e=>{
+      // 再生失敗（ファイルなしなど）→ プログラム生成BGMにフォールバック
+      console.log('BGM file not found, using generated BGM');
+      _playGeneratedBGM(type);
+    });
+  }catch(e){_playGeneratedBGM(type);}
 }
 
 function stopBGM(){
   bgmType=null;
-  if(bgmAudio){
-    bgmAudio.pause();
-    bgmAudio.currentTime=0;
-    bgmAudio=null;
-  }
+  if(bgmAudio){bgmAudio.pause();bgmAudio.currentTime=0;bgmAudio=null;}
+  if(bgmInterval){clearTimeout(bgmInterval);bgmInterval=null;}
+  if(window._bgmAudio){window._bgmAudio.pause();window._bgmAudio=null;}
+}
+
+let bgmInterval=null;
+function _playGeneratedBGM(type){
+  // ファイルがない場合のプログラム生成BGM
+  try{
+    const ctx=getAudioCtx();
+    if(ctx.state==='suspended')ctx.resume();
+    // タイプ別音楽パターン
+    const patterns={
+      preBattle:  {notes:[262,330,392,330,294,262,294,330],speed:0.3,vol:0.07},
+      inBattle:   {notes:[392,494,523,494,440,392,440,494],speed:0.15,vol:0.08},
+      capture:    {notes:[523,659,784,659,523,392,523,659],speed:0.35,vol:0.06},
+      collection: {notes:[330,392,440,392,330,294,330,392],speed:0.4,vol:0.06},
+      synthesis:  {notes:[440,554,659,554,440,370,440,554],speed:0.25,vol:0.07},
+      quiz:       {notes:[392,440,494,440,392,330,392,440],speed:0.35,vol:0.06},
+      write:      {notes:[264,330,396,330,264,220,264,330],speed:0.5,vol:0.05},
+    };
+    const pat=patterns[type]||patterns.collection;
+    const loopLen=pat.notes.length*pat.speed;
+    let startTime=ctx.currentTime;
+    const scheduleBGM=()=>{
+      if(bgmType!==type)return;
+      pat.notes.forEach((freq,i)=>{
+        const o=ctx.createOscillator();
+        const g=ctx.createGain();
+        const f=ctx.createBiquadFilter();
+        f.type='lowpass';f.frequency.value=1200;
+        o.connect(f);f.connect(g);g.connect(ctx.destination);
+        o.type='triangle';o.frequency.value=freq;
+        const t=startTime+i*pat.speed;
+        g.gain.setValueAtTime(0,t);
+        g.gain.linearRampToValueAtTime(pat.vol,t+0.04);
+        g.gain.exponentialRampToValueAtTime(0.001,t+pat.speed*0.9);
+        o.start(t);o.stop(t+pat.speed);
+      });
+      startTime+=loopLen;
+      bgmInterval=setTimeout(scheduleBGM,(loopLen*1000)-50);
+    };
+    scheduleBGM();
+  }catch(e){console.log('Generated BGM error',e);}
 }
 
 function toggleSound(){
