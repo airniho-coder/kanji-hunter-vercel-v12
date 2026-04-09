@@ -580,6 +580,14 @@ body{display:flex;justify-content:center;}
 </div>
 
 <!-- データ保存注意ポップアップ -->
+<div class="modal-overlay" id="equip-modal" style="display:none" onclick="closeEquipModal(event)">
+  <div class="modal-sheet" id="equip-sheet">
+    <button class="modal-close" onclick="closeEquipModal()">✕</button>
+    <div class="modal-title" id="equip-modal-title">装備を選択</div>
+    <div id="equip-modal-list"></div>
+  </div>
+</div>
+
 <div class="tabbar" id="tabbar" style="display:none">
   <button id="sound-toggle-btn" onclick="toggleSound()" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:18px;padding:8px 10px;cursor:pointer;align-self:center">🔊</button>
   <button class="tab active" id="tab-capture" onclick="showTab('capture')"><span class="tab-icon">📷</span>召喚</button>
