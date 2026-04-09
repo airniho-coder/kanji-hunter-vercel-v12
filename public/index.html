@@ -1353,7 +1353,8 @@ function playBGM(type){
   if(bgmInterval){clearTimeout(bgmInterval);bgmInterval=null;}
   bgmType=null;
   bgmType=type;
-  const src=BGM_FILES[type];
+  // 「?v=2」を付けることで、ブラウザに「これは新しいファイルだ！」と強制認識させます
+  const src=BGM_FILES[type] + '?v=2';
   showBGMDebug('再生試行: '+type+' → '+src);
   if(!src){_playGeneratedBGM(type);showBGMDebug('プログラム生成BGM: '+type);return;}
   try{
