@@ -1076,7 +1076,8 @@ async function startLearningWrite(charId){
   learningCharId=char.id;
   writeState={charId:char.id,kanji:char.kanji,round:1,correct:0,total:2};
   // まずモーダルを開いてからrenderWriteRoundを呼ぶ
-  openLearningModal('<div style="text-align:center;padding:40px 0;color:#c9a84c"><div style="font-size:24px">✏️</div><div style="font-size:12px;margin-top:8px;opacity:.6">準備中...</div></div>','write');
+  playBGM('write'); // 書き取りBGMを先に呼ぶ
+  openLearningModal('<div style="text-align:center;padding:40px 0;color:#c9a84c"><div style="font-size:24px">✏️</div><div style="font-size:12px;margin-top:8px;opacity:.6">準備中...</div></div>');
   setTimeout(()=>renderWriteRound(char),50);
 }
 
@@ -1350,24 +1351,33 @@ const BGM_FILES={
   write:'/audio/bgm_write.mp3',
 };
 
+function showBGMDebug(msg){
+  let el=document.getElementById('bgm-debug');
+  if(!el){el=document.createElement('div');el.id='bgm-debug';
+    el.style.cssText='position:fixed;top:60px;left:8px;right:8px;background:rgba(0,0,0,.85);color:#4ade80;font-size:10px;padding:6px 10px;border-radius:8px;z-index:9999;pointer-events:none;letter-spacing:.5px;';
+    document.body.appendChild(el);}
+  el.textContent='🎵 '+msg;
+  clearTimeout(el._t);el._t=setTimeout(()=>{if(el.parentNode)el.parentNode.removeChild(el);},4000);
+}
+
 function playBGM(type){
   if(!soundEnabled)return;
   if(bgmType===type&&bgmAudio&&!bgmAudio.paused)return;
   stopBGM();
   bgmType=type;
   const src=BGM_FILES[type];
-  if(!src){
-    // ファイルなしの場合はプログラム生成BGMにフォールバック
-    _playGeneratedBGM(type);
-    return;
-  }
+  showBGMDebug('再生試行: '+type+' → '+src);
+  if(!src){_playGeneratedBGM(type);showBGMDebug('プログラム生成BGM: '+type);return;}
   try{
     bgmAudio=new Audio(src);
     bgmAudio.loop=true;
     bgmAudio.volume=0.5;
-    bgmAudio.play().catch(e=>{
-      // 再生失敗（ファイルなしなど）→ プログラム生成BGMにフォールバック
-      console.log('BGM file not found, using generated BGM');
+    bgmAudio.addEventListener('error',()=>{
+      showBGMDebug('ファイルなし → 生成BGM: '+type);
+      _playGeneratedBGM(type);
+    });
+    bgmAudio.play().then(()=>showBGMDebug('再生中: '+src)).catch(e=>{
+      showBGMDebug('ブロック: '+e.message);
       _playGeneratedBGM(type);
     });
   }catch(e){_playGeneratedBGM(type);}
