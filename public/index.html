@@ -908,7 +908,7 @@ JSONのみ返答（不要フィールドも省略せず全て記載）:
 "skills":[{"name":"スキル名","spCost":25,"type":"atk","desc":"説明"}],
 "magics":[],"reading":"読み（音読み・訓読み）","meaning":"意味30文字","examples":"熟語や例文2〜3個"}`;
 
-      const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
+      const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-1.5-flash',max_tokens:800,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
       const data=await res.json();
       if(data.error)throw new Error(data.error.message);
       const text=data.content?.map(b=>b.text||'').join('')||'';
@@ -1002,7 +1002,7 @@ async function startLearningQuiz(charId){
 JSONのみ返答:
 {"type":"reading/meaning/kanji/jukugo","question":"問題文","correct":"正解","choices":["選択肢1","選択肢2","選択肢3","選択肢4","選択肢5"],"explanation":"解説20文字"}
 ※choicesは必ず5つ、correctはchoicesの中の1つと全く同じ文字列にすること`;
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-1.5-flash',max_tokens:500,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
     const data=await res.json();
     const text=data.content?.map(b=>b.text||'').join('')||'';
     const jS=text.indexOf('{'),jE=text.lastIndexOf('}');
@@ -1142,7 +1142,7 @@ ${isFirst?'お手本をなぞって書いた練習です。':'自分で書いた
 - 明らかに全く違う文字の場合のみfalseにしてください
 
 JSONのみ返答: {"ok":true/false,"feedback":"ひとこと20文字以内"}`;
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:150,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/png',data:imgData}},{type:'text',text:prompt}]}]})});
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-1.5-flash',max_tokens:150,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/png',data:imgData}},{type:'text',text:prompt}]}]})});
     const data2=await res.json();
     const text=data2.content?.map(b=>b.text||'').join('')||'';
     const jS=text.indexOf('{'),jE=text.lastIndexOf('}');
@@ -1229,6 +1229,7 @@ function confirmStorageNotice(){
 // ===== INIT =====
 window.onload=async()=>{
   await initIDB();
+  soundEnabled=localStorage.getItem('kh_sound')!=='0';
   apiKey=localStorage.getItem('kh_apikey')||'';
   stabilityKey=localStorage.getItem('kh_stabilitykey')||'';
   // IDBからロード（なければlocalStorageにフォールバック）
@@ -1280,6 +1281,148 @@ function importData(e){
     e.target.value='';
   };
   reader.readAsText(file);
+}
+
+
+// ===== サウンドシステム =====
+let audioCtx=null;
+let bgmAudio=null;
+let bgmType=null;
+let bgmInterval=null;
+let soundEnabled=true;
+
+const BGM_FILES={
+  preBattle:'/audio/bgm_pre.mp3',
+  inBattle:'/audio/bgm_battle.mp3',
+  capture:'/audio/bgm_capture.mp3',
+  collection:'/audio/bgm_collection.mp3',
+  synthesis:'/audio/bgm_synthesis.mp3',
+  quiz:'/audio/bgm_quiz.mp3',
+  write:'/audio/bgm_write.mp3',
+};
+
+function getAudioCtx(){
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function showBGMDebug(msg){
+  let el=document.getElementById('bgm-debug');
+  if(!el){el=document.createElement('div');el.id='bgm-debug';
+    el.style.cssText='position:fixed;top:60px;left:8px;right:8px;background:rgba(0,0,0,.85);color:#4ade80;font-size:10px;padding:6px 10px;border-radius:8px;z-index:9999;pointer-events:none;letter-spacing:.5px;';
+    document.body.appendChild(el);}
+  el.textContent='🎵 '+msg;
+  clearTimeout(el._t);el._t=setTimeout(()=>{if(el.parentNode)el.parentNode.removeChild(el);},4000);
+}
+
+function playBGM(type){
+  if(!soundEnabled)return;
+  if(bgmType===type&&bgmAudio&&!bgmAudio.paused)return;
+  if(bgmAudio){try{bgmAudio.pause();bgmAudio.src='';}catch(e){}bgmAudio=null;}
+  if(bgmInterval){clearTimeout(bgmInterval);bgmInterval=null;}
+  bgmType=type;
+  const src=BGM_FILES[type]?BGM_FILES[type]+'?v=2':null;
+  showBGMDebug('再生試行: '+type+' → '+src);
+  if(!src){_playGeneratedBGM(type);return;}
+  try{
+    bgmAudio=new Audio(src);
+    bgmAudio.loop=true;
+    bgmAudio.volume=0.5;
+    bgmAudio.addEventListener('error',()=>{showBGMDebug('ファイルなし → 生成BGM: '+type);_playGeneratedBGM(type);});
+    const tryPlay=()=>{
+      bgmAudio.play().then(()=>showBGMDebug('再生中: '+src)).catch(e=>{
+        showBGMDebug('ブロック: '+e.message+' → 生成BGM');
+        _playGeneratedBGM(type);
+      });
+    };
+    if(audioCtx&&audioCtx.state==='suspended'){audioCtx.resume().then(tryPlay);}
+    else{tryPlay();}
+  }catch(e){_playGeneratedBGM(type);}
+}
+
+function stopBGM(){
+  bgmType=null;
+  if(bgmAudio){try{bgmAudio.pause();bgmAudio.src='';}catch(e){}bgmAudio=null;}
+  if(bgmInterval){clearTimeout(bgmInterval);bgmInterval=null;}
+}
+
+function _playGeneratedBGM(type){
+  try{
+    const ctx=getAudioCtx();
+    if(ctx.state==='suspended')ctx.resume();
+    const patterns={
+      preBattle:  {notes:[262,330,392,330,294,262,294,330],speed:0.3,vol:0.07},
+      inBattle:   {notes:[392,494,523,494,440,392,440,494],speed:0.15,vol:0.08},
+      capture:    {notes:[523,659,784,659,523,392,523,659],speed:0.35,vol:0.06},
+      collection: {notes:[330,392,440,392,330,294,330,392],speed:0.4,vol:0.06},
+      synthesis:  {notes:[440,554,659,554,440,370,440,554],speed:0.25,vol:0.07},
+      quiz:       {notes:[392,440,494,440,392,330,392,440],speed:0.35,vol:0.06},
+      write:      {notes:[264,330,396,330,264,220,264,330],speed:0.5,vol:0.05},
+    };
+    const pat=patterns[type]||patterns.collection;
+    const loopLen=pat.notes.length*pat.speed;
+    let startTime=ctx.currentTime;
+    const scheduleBGM=()=>{
+      if(bgmType!==type)return;
+      pat.notes.forEach((freq,i)=>{
+        const o=ctx.createOscillator();const g=ctx.createGain();
+        const f=ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=1200;
+        o.connect(f);f.connect(g);g.connect(ctx.destination);
+        o.type='triangle';o.frequency.value=freq;
+        const t=startTime+i*pat.speed;
+        g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(pat.vol,t+0.04);
+        g.gain.exponentialRampToValueAtTime(0.001,t+pat.speed*0.9);
+        o.start(t);o.stop(t+pat.speed);
+      });
+      startTime+=loopLen;
+      bgmInterval=setTimeout(scheduleBGM,(loopLen*1000)-50);
+    };
+    scheduleBGM();
+  }catch(e){console.log('Generated BGM error',e);}
+}
+
+function toggleSound(){
+  soundEnabled=!soundEnabled;
+  if(!soundEnabled)stopBGM();
+  const btn=document.getElementById('sound-toggle-btn');
+  if(btn)btn.textContent=soundEnabled?'🔊':'🔇';
+  localStorage.setItem('kh_sound',soundEnabled?'1':'0');
+}
+
+function playSE(type){
+  if(!soundEnabled)return;
+  try{
+    const ctx=getAudioCtx();
+    const g=ctx.createGain();g.connect(ctx.destination);
+    const o=ctx.createOscillator();o.connect(g);
+    const now=ctx.currentTime;
+    const mkNoise=(vol,dur)=>{
+      const bufSize=ctx.sampleRate*0.08;
+      const nb=ctx.createBuffer(1,bufSize,ctx.sampleRate);
+      const nd=nb.getChannelData(0);for(let i=0;i<bufSize;i++)nd[i]=(Math.random()*2-1);
+      const ns=ctx.createBufferSource();ns.buffer=nb;
+      const ng=ctx.createGain();const nf=ctx.createBiquadFilter();
+      nf.type='bandpass';nf.frequency.value=800;nf.Q.value=0.5;
+      ns.connect(nf);nf.connect(ng);ng.connect(ctx.destination);
+      ng.gain.setValueAtTime(vol,now);ng.gain.exponentialRampToValueAtTime(0.001,now+dur);
+      ns.start(now);ns.stop(now+dur);
+    };
+    const presets={
+      attack:()=>{o.type='sine';o.frequency.setValueAtTime(80,now);o.frequency.exponentialRampToValueAtTime(40,now+0.18);g.gain.setValueAtTime(0.6,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.22);o.start(now);o.stop(now+0.22);mkNoise(0.5,0.1);},
+      crit:()=>{o.type='square';o.frequency.setValueAtTime(160,now);o.frequency.exponentialRampToValueAtTime(60,now+0.08);g.gain.setValueAtTime(0.7,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.3);o.start(now);o.stop(now+0.3);mkNoise(0.8,0.06);},
+      skill:()=>{o.type='sawtooth';o.frequency.setValueAtTime(110,now);o.frequency.exponentialRampToValueAtTime(55,now+0.2);g.gain.setValueAtTime(0.5,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.25);o.start(now);o.stop(now+0.25);mkNoise(0.6,0.08);},
+      magic:()=>{[528,660,792].forEach((f,i)=>{const oo=ctx.createOscillator();const gg=ctx.createGain();oo.connect(gg);gg.connect(ctx.destination);oo.type='sine';oo.frequency.value=f;gg.gain.setValueAtTime(0,now+i*0.05);gg.gain.linearRampToValueAtTime(0.2,now+i*0.05+0.1);gg.gain.exponentialRampToValueAtTime(0.001,now+i*0.05+0.5);oo.start(now+i*0.05);oo.stop(now+i*0.05+0.5);});return;},
+      heal:()=>{[396,528,660,792].forEach((f,i)=>{const oo=ctx.createOscillator();const gg=ctx.createGain();oo.connect(gg);gg.connect(ctx.destination);oo.type='sine';oo.frequency.value=f;gg.gain.setValueAtTime(0.15,now+i*0.07);gg.gain.exponentialRampToValueAtTime(0.001,now+i*0.07+0.3);oo.start(now+i*0.07);oo.stop(now+i*0.07+0.3);});return;},
+      buff:()=>{o.type='triangle';o.frequency.setValueAtTime(330,now);o.frequency.linearRampToValueAtTime(660,now+0.15);g.gain.setValueAtTime(0.3,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.4);o.start(now);o.stop(now+0.4);},
+      debuff:()=>{o.type='sawtooth';o.frequency.setValueAtTime(220,now);o.frequency.exponentialRampToValueAtTime(55,now+0.4);g.gain.setValueAtTime(0.4,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.45);o.start(now);o.stop(now+0.45);mkNoise(0.3,0.15);},
+      stun:()=>{mkNoise(0.7,0.05);o.type='square';o.frequency.setValueAtTime(440,now+0.02);o.frequency.exponentialRampToValueAtTime(220,now+0.12);g.gain.setValueAtTime(0.4,now+0.02);g.gain.exponentialRampToValueAtTime(0.001,now+0.18);o.start(now+0.02);o.stop(now+0.18);},
+      defend:()=>{o.type='triangle';o.frequency.setValueAtTime(110,now);o.frequency.linearRampToValueAtTime(165,now+0.2);g.gain.setValueAtTime(0.4,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.25);o.start(now);o.stop(now+0.25);mkNoise(0.3,0.05);},
+      slash:()=>{const sb=ctx.createBuffer(1,ctx.sampleRate*0.15,ctx.sampleRate);const sd=sb.getChannelData(0);for(let i=0;i<sd.length;i++)sd[i]=(Math.random()*2-1)*(1-i/sd.length);const ss=ctx.createBufferSource();ss.buffer=sb;const sf=ctx.createBiquadFilter();sf.type='bandpass';sf.frequency.value=3500;sf.Q.value=0.8;const sg=ctx.createGain();ss.connect(sf);sf.connect(sg);sg.connect(ctx.destination);sg.gain.setValueAtTime(0.9,now);sg.gain.exponentialRampToValueAtTime(0.001,now+0.12);ss.start(now);ss.stop(now+0.15);o.type='sine';o.frequency.setValueAtTime(120,now);o.frequency.exponentialRampToValueAtTime(50,now+0.1);g.gain.setValueAtTime(0.5,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.12);o.start(now);o.stop(now+0.15);},
+      win:()=>{const notes=[523,659,784,1047];notes.forEach((f,i)=>{const oo=ctx.createOscillator();const gg=ctx.createGain();oo.connect(gg);gg.connect(ctx.destination);oo.type='triangle';oo.frequency.value=f;gg.gain.setValueAtTime(0.3,now+i*0.13);gg.gain.exponentialRampToValueAtTime(0.001,now+i*0.13+0.4);oo.start(now+i*0.13);oo.stop(now+i*0.13+0.4);});mkNoise(0.2,0.05);return;},
+      lose:()=>{const notes=[294,247,196,165];notes.forEach((f,i)=>{const oo=ctx.createOscillator();const gg=ctx.createGain();oo.connect(gg);gg.connect(ctx.destination);oo.type='sawtooth';oo.frequency.value=f;gg.gain.setValueAtTime(0.25,now+i*0.2);gg.gain.exponentialRampToValueAtTime(0.001,now+i*0.2+0.45);oo.start(now+i*0.2);oo.stop(now+i*0.2+0.45);});return;},
+    };
+    if(presets[type])presets[type]();
+  }catch(e){}
 }
 
 function saveState(){
@@ -1374,6 +1517,9 @@ function showTab(name){
   if(name==='collection')renderCollection();
   if(name==='battle')renderBattleSelect();
   if(name==='synthesis')initSynthesis();
+  const tabBGM={capture:'capture',collection:'collection',synthesis:'synthesis'};
+  if(tabBGM[name])playBGM(tabBGM[name]);
+  if(name==='battle')playBGM('preBattle');
 }
 function setCollTab(t){
   collTab=t;
@@ -3092,6 +3238,39 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         msg=`✨ ${attacker.kanji}「${sk.name}」！ATK×1.5強化 & SP+${sr}`;
         atkEffect='buff';atkEffectColor='#fbbf24';atkEffectLabel='ATK';
         defEffect=null;
+      }else if(sk.type==='stun'){
+        defender._stunTurns=(defender._stunTurns||0)+1;defender._status='⚡気絶';
+        dmg=Math.max(3,Math.floor(atkATK*0.8*atkMult*defMult-defDEF*0.1));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        eText=`⚡${dmg}`;eColor='#fbbf24';
+        msg=`⚡ ${attacker.kanji}「${sk.name}」！${defender.kanji}を気絶！(次ターンスキップ) +${dmg}ダメージ`;
+        atkEffect='skill';atkEffectColor='#fbbf24';defEffect='damage';
+        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+      }else if(sk.type==='sleep'){
+        defender._sleepTurns=(defender._sleepTurns||0)+2;defender._status='💤眠り';
+        eText='💤';eColor='#818cf8';
+        msg=`💤 ${attacker.kanji}「${sk.name}」！${defender.kanji}を眠らせた！(2ターンスキップ)`;
+        atkEffect='skill';atkEffectColor='#818cf8';defEffect=null;
+      }else if(sk.type==='drain'){
+        dmg=Math.max(5,Math.floor(atkATK*1.1*atkMult*defMult-defDEF*0.1));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        const drain=Math.floor(dmg*0.5);
+        attacker._bHp=Math.min(getEffectiveStat(attacker,'hp'),attacker._bHp+drain);
+        attacker._bSp=Math.max(0,attacker._bSp-sk.spCost);
+        eText=`🩸${dmg}`;eColor='#ef4444';
+        msg=`🩸 ${attacker.kanji}「${sk.name}」！${dmg}ダメージ & HP+${drain}吸収！`;
+        atkEffect='skill';atkEffectColor='#ef4444';defEffect='damage';
+        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+      }else{
+        // 予期せぬタイプ→drain扱い
+        dmg=Math.max(5,Math.floor(atkATK*1.1*atkMult*defMult-defDEF*0.1));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        const drain=Math.floor(dmg*0.5);
+        attacker._bHp=Math.min(getEffectiveStat(attacker,'hp'),attacker._bHp+drain);
+        eText=`🩸${dmg}`;eColor='#ef4444';
+        msg=`🩸 ${attacker.kanji}「${sk.name}」(特殊)！${dmg}ダメージ & HP+${drain}吸収！`;
+        atkEffect='skill';atkEffectColor='#ef4444';defEffect='damage';
+        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }
     }
 
@@ -3142,6 +3321,38 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         eText=`🌑${dmg}`;eColor='#a78bfa';
         msg=`🌑 ${attacker.kanji}「${mg.name}」！${defender.kanji}を弱体化(ATK&DEF-30%×2ターン) +${dmg}ダメージ`;
         atkEffect='magic';atkEffectColor='#a78bfa';defEffect='damage';dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+      }else if(mg.type==='stun'){
+        defender._stunTurns=(defender._stunTurns||0)+1;defender._status='⚡気絶';
+        dmg=Math.max(3,Math.floor(atkINT*0.7*atkMult));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        eText=`⚡${dmg}`;eColor='#fbbf24';
+        msg=`⚡ ${attacker.kanji}「${mg.name}」！${defender.kanji}を気絶！(次ターンスキップ) +${dmg}ダメージ`;
+        atkEffect='magic';atkEffectColor='#fbbf24';defEffect='damage';
+        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+      }else if(mg.type==='sleep'){
+        defender._sleepTurns=(defender._sleepTurns||0)+2;defender._status='💤眠り';
+        eText='💤';eColor='#818cf8';
+        msg=`💤 ${attacker.kanji}「${mg.name}」！${defender.kanji}を眠りに誘う！(2ターンスキップ)`;
+        atkEffect='magic';atkEffectColor='#818cf8';defEffect=null;
+      }else if(mg.type==='drain'){
+        dmg=Math.max(5,Math.floor(atkINT*1.3*atkMult*defMult-defDEF*0.1));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        const drain=Math.floor(dmg*0.6);
+        attacker._bHp=Math.min(getEffectiveStat(attacker,'hp'),attacker._bHp+drain);
+        attacker._bMp=Math.max(0,attacker._bMp-mg.mpCost);
+        eText=`🩸${dmg}`;eColor='#ef4444';
+        msg=`🩸 ${attacker.kanji}「${mg.name}」！${dmg}ダメージ & HP+${drain}吸収！`;
+        atkEffect='magic';atkEffectColor='#ef4444';defEffect='damage';
+        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
+      }else{
+        // 予期せぬタイプ→stun扱い
+        defender._stunTurns=(defender._stunTurns||0)+1;defender._status='⚡気絶';
+        dmg=Math.max(3,Math.floor(atkINT*0.7*atkMult));
+        defender._bHp=Math.max(0,defender._bHp-dmg);
+        eText=`⚡${dmg}`;eColor='#fbbf24';
+        msg=`⚡ ${attacker.kanji}「${mg.name}」(特殊)！${defender.kanji}を気絶！(次ターンスキップ) +${dmg}ダメージ`;
+        atkEffect='magic';atkEffectColor='#fbbf24';defEffect='damage';
+        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }
     }
 
