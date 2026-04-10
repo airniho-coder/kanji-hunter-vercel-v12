@@ -310,11 +310,12 @@ body{display:flex;justify-content:center;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-4px)}}
 @keyframes efloat{0%{opacity:0;transform:translateY(0) scale(.6)}15%{opacity:1;transform:translateY(-10px) scale(1.3)}70%{opacity:1;transform:translateY(-32px) scale(1)}100%{opacity:0;transform:translateY(-52px) scale(.9)}}
+@keyframes battleIntro{0%{opacity:0;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}100%{opacity:0;transform:translateY(-70px) scale(1.2)}}
 @keyframes battleIntro{0%{opacity:0;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
 @keyframes shake{0%,100%{transform:rotate(0deg)}20%{transform:rotate(-3deg)}40%{transform:rotate(3deg)}60%{transform:rotate(-2.5deg)}80%{transform:rotate(2.5deg)}}
 @keyframes critFlash{0%{opacity:0;transform:scale(.5)}40%{opacity:1;transform:scale(1.4)}70%{opacity:.8;transform:scale(1.1)}100%{opacity:0;transform:scale(1.6)}}
 @keyframes shakeSmall{0%,100%{transform:rotate(0deg)}25%{transform:rotate(-1.5deg)}75%{transform:rotate(1.5deg)}}
-@keyframes shakeLarge{0%,100%{transform:rotate(0deg)}10%{transform:rotate(-5deg)}25%{transform:rotate(5deg)}40%{transform:rotate(-4deg)}55%{transform:rotate(4deg)}70%{transform:rotate(-2deg)}85%{transform:rotate(2deg)}}
+@keyframes shakeLarge{0%,100%{transform:rotate(0deg)}10%{transform:rotate(-5deg)}25%{transform:rotate(5deg)}40%{transform:rotate(-4deg)}55%{transform:rotate(4deg)}70%{transform:rotate(-2deg)}85%{transform:rotate(2deg)}}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 @keyframes flashEl{0%,100%{opacity:1}50%{opacity:.08}}
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:rgba(255,200,80,.3);border-radius:3px;}
@@ -381,6 +382,20 @@ body{display:flex;justify-content:center;}
 </div>
 
 <!-- 学習モーダル -->
+<div id="learning-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:400;overflow-y:auto;padding:20px 16px">
+  <div style="max-width:480px;margin:0 auto">
+    <div id="learning-content"></div>
+  </div>
+</div>
+<!-- EQUIP MODAL -->
+<div class="modal-overlay" id="equip-modal" style="display:none" onclick="closeEquipModal(event)">
+  <div class="modal-sheet" style="position:relative">
+    <button class="modal-close" onclick="closeEquipModal()">✕</button>
+    <div class="modal-title" id="equip-modal-title">装備を選択</div>
+    <div id="equip-modal-list"></div>
+  </div>
+</div>
+
 <div class="header">
   <div class="logo">漢字ハンター</div>
   <div style="font-size:10px;opacity:.4;letter-spacing:2px" id="header-count">0体</div>
@@ -392,13 +407,13 @@ body{display:flex;justify-content:center;}
   <div class="setup-page">
     <div class="setup-title">⚙️ 初期設定</div>
     <div style="font-size:12px;opacity:.5;line-height:2;margin-bottom:10px">APIキーを設定してゲームを始めましょう</div>
-    <div class="setup-label">Anthropic APIキー（漢字解析用）</div>
-    <input type="password" class="api-input" id="api-key-input" placeholder="sk-ant-api03-...">
+    <div class="setup-label">Google Gemini APIキー（漢字解析用）</div>
+    <input type="password" class="api-input" id="api-key-input" placeholder="AIzaSy...">
     <div class="setup-label">Stability AI APIキー（キャラクター画像生成用）</div>
     <input type="password" class="api-input" id="stability-key-input" placeholder="sk-...">
     <button class="btn btn-gold" onclick="saveApiKey()">保存してゲームを始める →</button>
     <div style="font-size:10px;opacity:.35;line-height:1.8;margin-top:9px;">
-      📌 Anthropic: console.anthropic.com<br>🎨 Stability: platform.stability.ai<br>※Stabilityなしでもドット絵で遊べます
+      📌 Gemini: aistudio.google.com<br>🎨 Stability: platform.stability.ai<br>※Stabilityなしでもドット絵で遊べます
     </div>
   </div>
 </div>
@@ -580,16 +595,22 @@ body{display:flex;justify-content:center;}
 </div>
 
 <!-- データ保存注意ポップアップ -->
-<div class="modal-overlay" id="equip-modal" style="display:none" onclick="closeEquipModal(event)">
-  <div class="modal-sheet" id="equip-sheet">
-    <button class="modal-close" onclick="closeEquipModal()">✕</button>
-    <div class="modal-title" id="equip-modal-title">装備を選択</div>
-    <div id="equip-modal-list"></div>
+<div id="storage-notice-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:500;align-items:center;justify-content:center;padding:20px">
+  <div style="max-width:400px;width:100%;background:#13131a;border:1px solid #2a2a3a;border-radius:20px;padding:28px 24px">
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:32px;margin-bottom:8px">💾</div>
+      <div style="font-size:15px;font-weight:700;letter-spacing:2px;color:#c9a84c">データ保存について</div>
+    </div>
+    <div style="font-size:11px;line-height:2;opacity:.8;margin-bottom:20px;background:rgba(255,255,255,.04);padding:14px;border-radius:12px">
+      <div style="margin-bottom:10px">📱 <b style="color:#c9a84c">自動保存（大容量）</b><br>カードやキャラクターはスマホのブラウザ内（IndexedDB）に自動保存されます。通常の使用では消えません。</div>
+      <div style="margin-bottom:10px">⚠️ <b style="color:#fbbf24">消える可能性があるケース</b><br>・ブラウザのキャッシュ・データを全削除した場合<br>・スマホを初期化した場合</div>
+      <div>💡 <b style="color:#4ade80">手動バックアップ推奨</b><br>コレクション画面の「⬇ 保存」ボタンでJSONファイルをスマホに保存できます。定期的にバックアップしてください。</div>
+    </div>
+    <button onclick="confirmStorageNotice()" style="width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,#c9a84c,#e8c97a);border:none;color:#0a0a0f;font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;cursor:pointer;letter-spacing:2px">理解しました →</button>
   </div>
 </div>
 
 <div class="tabbar" id="tabbar" style="display:none">
-  <button id="sound-toggle-btn" onclick="toggleSound()" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:18px;padding:8px 10px;cursor:pointer;align-self:center">🔊</button>
   <button class="tab active" id="tab-capture" onclick="showTab('capture')"><span class="tab-icon">📷</span>召喚</button>
   <button class="tab" id="tab-collection" onclick="showTab('collection')"><span class="tab-icon">📜</span>コレクション</button>
   <button class="tab" id="tab-synthesis" onclick="showTab('synthesis')"><span class="tab-icon">⚗️</span>合成</button>
@@ -820,13 +841,10 @@ async function executeSynthesis(){
   if(synMode==='A'){
     // ===== 方式A: 同カード強化 =====
     const newRarity=SYN_RARITY_UP[c0.rarity]||'SSR';
-    // 元カードを削除（装備中なら外す）
+    // 元カードを削除
     const removeId=(arr,id)=>arr.filter(c=>c.id!==id);
     if(c0.cardType==='character'){characters=removeId(characters,c0.id);characters=removeId(characters,c1.id);}
-    else{
-      itemCards=removeId(itemCards,c0.id);itemCards=removeId(itemCards,c1.id);
-      characters.forEach(c => { if(c.equippedSlots) c.equippedSlots = c.equippedSlots.map(eid => (eid === c0.id || eid === c1.id) ? null : eid); });
-    }
+    else{itemCards=removeId(itemCards,c0.id);itemCards=removeId(itemCards,c1.id);}
     // 強化カードを生成
     const newCard=JSON.parse(JSON.stringify(c0));
     newCard.id=Date.now();
@@ -877,35 +895,20 @@ async function executeSynthesis(){
 - スキル・魔法は必ずname,spCost/mpCost,type,descを全て埋めること
 
 JSONのみ返答（不要フィールドも省略せず全て記載）:
-{"newKanji":"漢字1文字","reason":"なぜその漢字か20文字","isRealBook":true,"cardType":"合成元2枚の種類を参考に決める(character/skill/magic/weapon/armor/item/recovery)","kanji":"newKanjiと同じ","rarity":"SR","lore":"設定",
-"charName":"キャラ名(characterのみ)","job":"剣士(characterのみ)","race":"人族(characterのみ)","gender":"男(characterのみ)","element":"火(characterのみ)","baseVal":130,"monsterType":"","artMood":"","context":"2つの文脈から連想した新しい物語30文字",
-"skills":[{"name":"スキル名","spCost":25,"type":"atk","desc":"説明"}],"magics":[],"reading":"読み","meaning":"意味30文字","examples":"熟語2〜3個",
-"name":"カード名(non-character)","bonuses":{"atk":30},"effectDesc":"効果説明","skillData":{"name":"スキル名","spCost":25,"type":"atk","desc":"説明"},"magicData":null}`;
+{"newKanji":"漢字1文字","reason":"なぜその漢字か20文字","isRealBook":true,"cardType":"character","kanji":"newKanjiと同じ","rarity":"SR","lore":"設定","charName":"キャラ名","job":"剣士","race":"人族","gender":"男","element":"火","baseVal":130,"monsterType":"","artMood":"","context":"2つの文脈から連想した新しい物語30文字",
+"skills":[{"name":"スキル名","spCost":25,"type":"atk","desc":"説明"}],
+"magics":[],"reading":"読み（音読み・訓読み）","meaning":"意味30文字","examples":"熟語や例文2〜3個"}`;
 
-      // ⑤ カードタイプを合成元から決定
-      const nonCharTypes=['skill','magic','weapon','armor','item','recovery'];
-      let forcedCardType;
-      if(c0.cardType==='character'&&c1.cardType==='character'){
-        forcedCardType='character';
-      }else{
-        // キャラ以外の組み合わせはランダムでキャラ以外
-        const pool=nonCharTypes.filter(t=>t===c0.cardType||t===c1.cardType);
-        const candidates=pool.length>0?pool:nonCharTypes;
-        forcedCardType=candidates[Math.floor(Math.random()*candidates.length)];
-      }
-      const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:[{type:'text',text:prompt.replace('合成元2枚の種類を参考に決める(character/skill/magic/weapon/armor/item/recovery)',forcedCardType)}]}]})});
+      const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
       const data=await res.json();
       if(data.error)throw new Error(data.error.message);
       const text=data.content?.map(b=>b.text||'').join('')||'';
       const jS=text.indexOf('{'),jE=text.lastIndexOf('}');
       const p=JSON.parse(text.slice(jS,jE+1));
-      // 合成元を削除（装備中なら外す）
+      // 合成元を削除
       const removeCard=(id,type)=>{
         if(type==='character')characters=characters.filter(c=>c.id!==id);
-        else {
-          itemCards=itemCards.filter(c=>c.id!==id);
-          characters.forEach(c => { if(c.equippedSlots) c.equippedSlots = c.equippedSlots.map(eid => eid === id ? null : eid); });
-        }
+        else itemCards=itemCards.filter(c=>c.id!==id);
       };
       removeCard(c0.id,c0.cardType);
       removeCard(c1.id,c1.cardType);
@@ -945,10 +948,9 @@ let writeState=null;
 let writeCtx=null;
 let writeDrawing=false;
 
-function openLearningModal(html, bgmType){
+function openLearningModal(html){
   document.getElementById('learning-content').innerHTML=html;
   document.getElementById('learning-modal').style.display='block';
-  if(bgmType)playBGM(bgmType);
   // バトル結果画面を閉じる
   document.getElementById('battle-result-screen').classList.remove('active');
   if(window._battleResultResolve){window._battleResultResolve();window._battleResultResolve=null;}
@@ -956,9 +958,6 @@ function openLearningModal(html, bgmType){
 function closeLearningModal(){
   document.getElementById('learning-modal').style.display='none';
   learningCharId=null;quizState=null;writeState=null;
-  // バトル画面が表示中ならpreBattle BGMに戻す（他のタブでは戻さない）
-  const battleActive=document.getElementById('page-battle')?.classList.contains('active');
-  if(battleActive)playBGM('preBattle');
 }
 
 function addExp(charId, amount){
@@ -984,7 +983,7 @@ async function startLearningQuiz(charId){
   openLearningModal(`<div style="text-align:center;padding:40px 0;color:#c9a84c">
     <div style="font-size:24px;margin-bottom:8px">📝 クイズ</div>
     <div style="font-size:13px;opacity:.6">「${char.kanji}」についての問題を作っています...</div>
-  </div>`,'quiz');
+  </div>`);
   try{
     const prompt=`漢字「${char.kanji}」についての5択クイズを1問作ってください。
 漢字情報: 読み=${char.reading||''}、意味=${char.meaning||''}、例=${char.examples||''}
@@ -1059,9 +1058,8 @@ async function startLearningWrite(charId){
   const char=characters.find(c=>c.id===id)||battlePair[0];
   if(!char){openLearningModal('<div style="color:#ef4444;padding:20px">キャラが見つかりません</div>');return;}
   learningCharId=char.id;
-  writeState={charId:char.id,kanji:char.kanji,round:1,correct:0,total:2};
+  writeState={charId:char.id,kanji:char.kanji,round:1,correct:0,total:5};
   // まずモーダルを開いてからrenderWriteRoundを呼ぶ
-  playBGM('write'); // 書き取りBGMを先に呼ぶ
   openLearningModal('<div style="text-align:center;padding:40px 0;color:#c9a84c"><div style="font-size:24px">✏️</div><div style="font-size:12px;margin-top:8px;opacity:.6">準備中...</div></div>');
   setTimeout(()=>renderWriteRound(char),50);
 }
@@ -1075,7 +1073,7 @@ function renderWriteRound(char){
       <div style="font-size:11px;opacity:.5;letter-spacing:2px">書き取り練習 ${s.round}/${s.total}</div>
       <div style="font-size:36px;font-weight:900;color:${rc.color};margin:4px 0">${char.kanji}</div>
       ${char.reading?`<div style="font-size:11px;opacity:.6">${char.reading}</div>`:''}
-      ${isFirst?`<div style="font-size:10px;color:#fbbf24;margin-top:4px">お手本をなぞって練習しましょう</div>`:`<div style="font-size:10px;opacity:.5;margin-top:4px">見ないで書いてみよう（EXP +50）</div>`}
+      ${isFirst?`<div style="font-size:10px;color:#fbbf24;margin-top:4px">お手本をなぞって練習しましょう</div>`:`<div style="font-size:10px;opacity:.5;margin-top:4px">見ないで書いてみよう（EXP +20）</div>`}
     </div>
     <div style="position:relative;border-radius:12px;overflow:hidden;border:2px solid rgba(255,255,255,.15);background:#0a0a0f;margin-bottom:12px">
       ${isFirst?`<div id="write-ghost" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:180px;font-weight:900;color:rgba(255,255,255,.08);pointer-events:none;font-family:'Noto Serif JP',serif;user-select:none">${char.kanji}</div>`:''}
@@ -1143,8 +1141,8 @@ JSONのみ返答: {"ok":true/false,"feedback":"ひとこと20文字以内"}`;
     const isOk=result.ok!==false;
     if(isOk){
       writeState.correct++;
-      const lvMsg=addExp(writeState.charId,50);
-      let msg=`<div style="color:#4ade80;font-weight:700;margin-bottom:4px">✅ ${result.feedback||'正解！'} EXP +50</div>`;
+      const lvMsg=addExp(writeState.charId,20);
+      let msg=`<div style="color:#4ade80;font-weight:700;margin-bottom:4px">✅ ${result.feedback||'正解！'} EXP +20</div>`;
       if(lvMsg)msg+=`<div style="color:#fbbf24;font-size:12px;margin-bottom:4px">⬆ ${lvMsg}</div>`;
       document.getElementById('write-result').innerHTML=msg;
     }else{
@@ -1157,10 +1155,10 @@ JSONのみ返答: {"ok":true/false,"feedback":"ひとこと20文字以内"}`;
         // 終了
         document.getElementById('learning-content').innerHTML=`
           <div style="text-align:center;padding:30px 0">
-            <div style="font-size:40px;margin-bottom:12px">${writeState.correct>=2?'🏆':writeState.correct>=1?'⭐':'📝'}</div>
+            <div style="font-size:40px;margin-bottom:12px">${writeState.correct>=4?'🏆':writeState.correct>=2?'⭐':'📝'}</div>
             <div style="font-size:18px;font-weight:700;color:#c9a84c;margin-bottom:8px">練習完了！</div>
             <div style="font-size:14px;opacity:.7;margin-bottom:4px">${writeState.total}回中 ${writeState.correct}回正解</div>
-            <div style="font-size:13px;color:#4ade80;margin-bottom:20px">EXP +${writeState.correct*50} 獲得！</div>
+            <div style="font-size:13px;color:#4ade80;margin-bottom:20px">EXP +${writeState.correct*20} 獲得！</div>
             <button onclick="closeLearningModal()" style="padding:12px 32px;border-radius:10px;background:linear-gradient(135deg,#c9a84c,#e8c97a);border:none;color:#000;font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;cursor:pointer">閉じる</button>
           </div>`;
       }else{
@@ -1219,228 +1217,9 @@ function confirmStorageNotice(){
   document.getElementById('storage-notice-modal').style.display='none';
 }
 
-
-// ===== サウンドシステム (Web Audio API) =====
-let audioCtx=null;
-let bgmNode=null, bgmGain=null;
-let soundEnabled=true;
-
-function getAudioCtx(){
-  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-  return audioCtx;
-}
-
-// 効果音：短い音を生成
-function playSE(type){
-  if(!soundEnabled)return;
-  try{
-    const ctx=getAudioCtx();
-    const g=ctx.createGain();
-    g.connect(ctx.destination);
-    const o=ctx.createOscillator();
-    o.connect(g);
-    const now=ctx.currentTime;
-    // 重厚な効果音：複数オシレーター+ノイズで厚みを出す
-    const makeNoise=(dur,vol=0.15)=>{
-      const buf=ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate);
-      const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
-      const src2=ctx.createBufferSource();src2.buffer=buf;
-      const ng=ctx.createGain();ng.gain.setValueAtTime(vol,now);ng.gain.exponentialRampToValueAtTime(0.001,now+dur);
-      const nf=ctx.createBiquadFilter();nf.type='bandpass';nf.frequency.value=300;nf.Q.value=0.5;
-      src2.connect(nf);nf.connect(ng);ng.connect(ctx.destination);src2.start(now);
-    };
-    const addOsc=(freq,type,vol,dur,delay=0)=>{
-      const oo=ctx.createOscillator();const gg=ctx.createGain();oo.connect(gg);gg.connect(ctx.destination);
-      oo.type=type;oo.frequency.value=freq;
-      gg.gain.setValueAtTime(vol,now+delay);gg.gain.exponentialRampToValueAtTime(0.001,now+delay+dur);
-      oo.start(now+delay);oo.stop(now+delay+dur);
-    };
-    const presets={
-      attack: ()=>{
-        // 重い斬撃音：低音ノイズ+サウ波形
-        makeNoise(0.25,0.25);
-        addOsc(80,'sawtooth',0.4,0.18);addOsc(120,'square',0.25,0.15);
-        o.type='sawtooth';o.frequency.setValueAtTime(180,now);o.frequency.exponentialRampToValueAtTime(60,now+0.2);
-        g.gain.setValueAtTime(0.45,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.22);o.start(now);o.stop(now+0.22);
-      },
-      crit: ()=>{
-        // 会心：金属音+爆発
-        makeNoise(0.1,0.3);
-        addOsc(440,'square',0.5,0.08);addOsc(880,'square',0.3,0.06);addOsc(60,'sawtooth',0.4,0.25);
-        o.type='square';o.frequency.setValueAtTime(660,now);o.frequency.exponentialRampToValueAtTime(110,now+0.3);
-        g.gain.setValueAtTime(0.5,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.35);o.start(now);o.stop(now+0.35);
-      },
-      skill: ()=>{
-        // スキル：気合いの入った重い一撃
-        makeNoise(0.15,0.2);
-        addOsc(110,'sawtooth',0.4,0.3);addOsc(220,'square',0.3,0.2);
-        o.type='sawtooth';o.frequency.setValueAtTime(330,now);o.frequency.exponentialRampToValueAtTime(110,now+0.08);o.frequency.exponentialRampToValueAtTime(220,now+0.35);
-        g.gain.setValueAtTime(0.5,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.4);o.start(now);o.stop(now+0.4);
-      },
-      magic: ()=>{
-        // 魔法：神秘的な厚い響き
-        addOsc(264,'sine',0.3,0.5);addOsc(396,'sine',0.25,0.5);addOsc(528,'sine',0.2,0.5);
-        o.type='sine';o.frequency.setValueAtTime(132,now);o.frequency.exponentialRampToValueAtTime(528,now+0.2);o.frequency.exponentialRampToValueAtTime(264,now+0.5);
-        g.gain.setValueAtTime(0.4,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.6);o.start(now);o.stop(now+0.6);
-      },
-      heal: ()=>{
-        // 回復：温かく広がる音
-        addOsc(396,'sine',0.2,0.5);addOsc(528,'sine',0.2,0.5);addOsc(660,'sine',0.15,0.4);
-        o.type='sine';o.frequency.setValueAtTime(264,now);o.frequency.linearRampToValueAtTime(528,now+0.2);o.frequency.linearRampToValueAtTime(792,now+0.45);
-        g.gain.setValueAtTime(0.3,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.5);o.start(now);o.stop(now+0.5);
-      },
-      buff: ()=>{
-        addOsc(440,'triangle',0.25,0.3);addOsc(660,'triangle',0.2,0.25);
-        o.type='triangle';o.frequency.setValueAtTime(330,now);o.frequency.linearRampToValueAtTime(660,now+0.25);
-        g.gain.setValueAtTime(0.35,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.35);o.start(now);o.stop(now+0.35);
-      },
-      debuff: ()=>{
-        makeNoise(0.3,0.15);addOsc(100,'sawtooth',0.3,0.35);
-        o.type='sawtooth';o.frequency.setValueAtTime(300,now);o.frequency.exponentialRampToValueAtTime(60,now+0.4);
-        g.gain.setValueAtTime(0.4,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.45);o.start(now);o.stop(now+0.45);
-      },
-      stun: ()=>{
-        makeNoise(0.08,0.35);addOsc(880,'square',0.3,0.1);addOsc(440,'square',0.25,0.1,0.08);
-        o.type='square';o.frequency.setValueAtTime(1200,now);o.frequency.exponentialRampToValueAtTime(200,now+0.18);
-        g.gain.setValueAtTime(0.45,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.22);o.start(now);o.stop(now+0.22);
-      },
-      defend: ()=>{
-        makeNoise(0.1,0.15);addOsc(110,'triangle',0.3,0.25);
-        o.type='triangle';o.frequency.setValueAtTime(220,now);o.frequency.linearRampToValueAtTime(165,now+0.2);
-        g.gain.setValueAtTime(0.4,now);g.gain.exponentialRampToValueAtTime(0.001,now+0.28);o.start(now);o.stop(now+0.28);
-      },
-      win: ()=>{
-        const notes=[[523,0],[659,0.14],[784,0.28],[1047,0.42],[784,0.56],[1047,0.7]];
-        notes.forEach(([f,t])=>{addOsc(f,'triangle',0.3,0.28,t);addOsc(f/2,'sine',0.15,0.3,t);});return;
-      },
-      lose: ()=>{
-        const notes=[[392,0],[330,0.2],[262,0.42],[196,0.65]];
-        notes.forEach(([f,t])=>{addOsc(f,'sawtooth',0.25,0.35,t);addOsc(f/2,'sine',0.1,0.4,t);});return;
-      },
-    };
-    if(presets[type])presets[type]();
-  }catch(e){}
-}
-
-// BGM：外部音源ファイルを使用
-// public/sounds/bgm_battle_select.mp3 と public/sounds/bgm_battle.mp3 を用意してください
-let bgmAudio=null;
-let bgmType=null;
-const BGM_FILES={
-  preBattle:'/audio/bgm_pre.mp3',
-  inBattle:'/audio/bgm_battle.mp3',
-  capture:'/audio/bgm_capture.mp3',
-  collection:'/audio/bgm_collection.mp3',
-  synthesis:'/audio/bgm_synthesis.mp3',
-  quiz:'/audio/bgm_quiz.mp3',
-  write:'/audio/bgm_write.mp3',
-};
-
-function showBGMDebug(msg){
-  let el=document.getElementById('bgm-debug');
-  if(!el){el=document.createElement('div');el.id='bgm-debug';
-    el.style.cssText='position:fixed;top:60px;left:8px;right:8px;background:rgba(0,0,0,.85);color:#4ade80;font-size:10px;padding:6px 10px;border-radius:8px;z-index:9999;pointer-events:none;letter-spacing:.5px;';
-    document.body.appendChild(el);}
-  el.textContent='🎵 '+msg;
-  clearTimeout(el._t);el._t=setTimeout(()=>{if(el.parentNode)el.parentNode.removeChild(el);},4000);
-}
-
-function playBGM(type){
-  if(!soundEnabled)return;
-  if(bgmType===type&&bgmAudio&&!bgmAudio.paused)return;
-  // 多重再生防止：全てのBGMを確実に止める
-  if(bgmAudio){try{bgmAudio.pause();bgmAudio.src='';}catch(e){}bgmAudio=null;}
-  if(bgmInterval){clearTimeout(bgmInterval);bgmInterval=null;}
-  bgmType=null;
-  bgmType=type;
-  // 「?v=2」を付けることで、ブラウザに「これは新しいファイルだ！」と強制認識させます
-  const src=BGM_FILES[type] + '?v=2';
-  showBGMDebug('再生試行: '+type+' → '+src);
-  if(!src){_playGeneratedBGM(type);showBGMDebug('プログラム生成BGM: '+type);return;}
-  try{
-    bgmAudio=new Audio(src);
-    bgmAudio.loop=true;
-    bgmAudio.volume=0.5;
-    bgmAudio.addEventListener('error',()=>{
-      showBGMDebug('ファイルなし → 生成BGM: '+type);
-      _playGeneratedBGM(type);
-    });
-    // AudioContextをresumeしてからplay（Autoplayブロック対策）
-    const tryPlay=()=>{
-      bgmAudio.play().then(()=>showBGMDebug('再生中: '+src)).catch(e=>{
-        showBGMDebug('ブロック: '+e.message+' → 生成BGM');
-        _playGeneratedBGM(type);
-      });
-    };
-    if(audioCtx&&audioCtx.state==='suspended'){
-      audioCtx.resume().then(tryPlay);
-    }else{
-      tryPlay();
-    }
-  }catch(e){_playGeneratedBGM(type);}
-}
-
-function stopBGM(){
-  const prev=bgmType;
-  bgmType=null;
-  if(bgmAudio){try{bgmAudio.pause();bgmAudio.src='';}catch(e){}bgmAudio=null;}
-  if(bgmInterval){clearTimeout(bgmInterval);bgmInterval=null;}
-  if(window._bgmAudio){try{window._bgmAudio.pause();window._bgmAudio.src='';}catch(e){}window._bgmAudio=null;}
-}
-
-let bgmInterval=null;
-function _playGeneratedBGM(type){
-  // ファイルがない場合のプログラム生成BGM
-  try{
-    const ctx=getAudioCtx();
-    if(ctx.state==='suspended')ctx.resume();
-    // タイプ別音楽パターン
-    const patterns={
-      preBattle:  {notes:[262,330,392,330,294,262,294,330],speed:0.3,vol:0.07},
-      inBattle:   {notes:[392,494,523,494,440,392,440,494],speed:0.15,vol:0.08},
-      capture:    {notes:[523,659,784,659,523,392,523,659],speed:0.35,vol:0.06},
-      collection: {notes:[330,392,440,392,330,294,330,392],speed:0.4,vol:0.06},
-      synthesis:  {notes:[440,554,659,554,440,370,440,554],speed:0.25,vol:0.07},
-      quiz:       {notes:[392,440,494,440,392,330,392,440],speed:0.35,vol:0.06},
-      write:      {notes:[264,330,396,330,264,220,264,330],speed:0.5,vol:0.05},
-    };
-    const pat=patterns[type]||patterns.collection;
-    const loopLen=pat.notes.length*pat.speed;
-    let startTime=ctx.currentTime;
-    const scheduleBGM=()=>{
-      if(bgmType!==type)return;
-      pat.notes.forEach((freq,i)=>{
-        const o=ctx.createOscillator();
-        const g=ctx.createGain();
-        const f=ctx.createBiquadFilter();
-        f.type='lowpass';f.frequency.value=1200;
-        o.connect(f);f.connect(g);g.connect(ctx.destination);
-        o.type='triangle';o.frequency.value=freq;
-        const t=startTime+i*pat.speed;
-        g.gain.setValueAtTime(0,t);
-        g.gain.linearRampToValueAtTime(pat.vol,t+0.04);
-        g.gain.exponentialRampToValueAtTime(0.001,t+pat.speed*0.9);
-        o.start(t);o.stop(t+pat.speed);
-      });
-      startTime+=loopLen;
-      bgmInterval=setTimeout(scheduleBGM,(loopLen*1000)-50);
-    };
-    scheduleBGM();
-  }catch(e){console.log('Generated BGM error',e);}
-}
-
-function toggleSound(){
-  soundEnabled=!soundEnabled;
-  if(!soundEnabled)stopBGM();
-  const btn=document.getElementById('sound-toggle-btn');
-  if(btn)btn.textContent=soundEnabled?'🔊':'🔇';
-  localStorage.setItem('kh_sound',soundEnabled?'1':'0');
-}
-
 // ===== INIT =====
 window.onload=async()=>{
   await initIDB();
-  soundEnabled=localStorage.getItem('kh_sound')!=='0';
   apiKey=localStorage.getItem('kh_apikey')||'';
   stabilityKey=localStorage.getItem('kh_stabilitykey')||'';
   // IDBからロード（なければlocalStorageにフォールバック）
@@ -1451,7 +1230,6 @@ window.onload=async()=>{
     itemCards=it||JSON.parse(localStorage.getItem('kh_items')||'[]');
   }catch(e){characters=[];itemCards=[];}
   resumeRecoveryTimers();
-  soundEnabled=localStorage.getItem('kh_sound')!=='0';
   if(apiKey){
     showMainApp();
     // 初回のみストレージ注意を表示
@@ -1496,18 +1274,59 @@ function importData(e){
 }
 
 function saveState(){
-  idbSet('kh_chars',characters).catch(e=>console.warn('IDB save error',e));
-  idbSet('kh_items',itemCards).catch(e=>console.warn('IDB save error',e));
+  // artImgは容量が大きいので除外して保存
   const charsLite=characters.map(c=>{const{artImg,...r}=c;return r;});
   const itemsLite=itemCards.map(i=>{const{artImg,...r}=i;return r;});
+  // IDBに保存（非同期、エラーはサイレント）
+  idbSet('kh_chars',charsLite).catch(e=>console.warn('IDB save error',e));
+  idbSet('kh_items',itemsLite).catch(e=>console.warn('IDB save error',e));
+  // LocalStorageにも保存（フォールバック用）
   try{
     localStorage.setItem('kh_chars',JSON.stringify(charsLite));
     localStorage.setItem('kh_items',JSON.stringify(itemsLite));
   }catch(e){
+    // LocalStorage容量超過は無視（IDBがメイン）
     console.warn('localStorage full, using IDB only');
   }
 }
 
+function exportData(){
+  const data={
+    version:1,
+    exportedAt:new Date().toISOString(),
+    characters,
+    itemCards
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`kanjiHunter_backup_${new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(e){
+  const file=e.target.files?.[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!data.characters||!data.itemCards)throw new Error('形式が正しくありません');
+      const addChars=data.characters.filter(nc=>!characters.some(c=>c.id===nc.id));
+      const addItems=data.itemCards.filter(ni=>!itemCards.some(i=>i.id===ni.id));
+      characters=[...characters,...addChars];
+      itemCards=[...itemCards,...addItems];
+      saveState();updateHeaderCount();renderCollection();
+      alert(`✅ 復元完了！\nキャラ+${addChars.length}体、カード+${addItems.length}枚を追加しました。`);
+    }catch(err){
+      alert('❌ 復元失敗: '+err.message);
+    }
+    e.target.value='';
+  };
+  reader.readAsText(file);
+}
 function saveApiKey(){
   const a=document.getElementById('api-key-input').value.trim();
   const s=document.getElementById('stability-key-input').value.trim();
@@ -1533,10 +1352,6 @@ function showTab(name){
   if(name==='collection')renderCollection();
   if(name==='battle')renderBattleSelect();
   if(name==='synthesis')initSynthesis();
-  // ⑤ 各タブのBGM
-  const tabBGM={capture:'capture',collection:'collection',synthesis:'synthesis'};
-  if(tabBGM[name])playBGM(tabBGM[name]);
-  if(name==='battle')playBGM('preBattle');
 }
 function setCollTab(t){
   collTab=t;
@@ -1658,9 +1473,7 @@ async function generateItemImage(item){
   if(!stabilityKey)return null;
   const typeDesc={skill:'glowing fantasy battle skill rune magic circle',magic:'magical spell scroll tome with runes',weapon:'complete fantasy weapon full view white background',armor:'complete fantasy armor set full view white background',tool:'fantasy adventure tool gadget complete view',item:'fantasy potion or magical object complete view',recovery:'glowing healing potion complete view white background'};
   const qual={SSR:'legendary ultimate',SR:'epic powerful'}[item.rarity]||'';
-  const itemStyles=['detailed fantasy illustration','vibrant anime style','dark fantasy art','retro RPG style','painterly fantasy'];
-  const iStyle=itemStyles[Math.floor(Math.random()*itemStyles.length)];
-  const prompt=`${iStyle}, ${qual} ${typeDesc[item.cardType]||'fantasy item'}, ${item.name}, entire object completely visible, white simple background, colorful, masterpiece`;
+  const prompt=`Dragon Quest JRPG anime style, ${qual} ${typeDesc[item.cardType]||'fantasy item'}, ${item.name}, entire object completely visible, white simple background, colorful vibrant, cel-shaded anime, masterpiece`;
   try{const res=await fetch('/api/image',{method:'POST',headers:{'Content-Type':'application/json','x-stability-key':stabilityKey},body:JSON.stringify({prompt})});const data=await res.json();return data.image||null;}catch(e){return null;}
 }
 
@@ -1678,19 +1491,6 @@ async function generateCharImage(char){
     'full body crouching ready to fight whole character visible',
   ];
   const scene=scenes[Math.floor(Math.random()*scenes.length)];
-  const artStyles=[
-    'detailed fantasy illustration, intricate linework, rich colors',
-    'watercolor fantasy art, soft washes, delicate details',
-    'dark fantasy oil painting style, dramatic lighting, moody atmosphere',
-    'vibrant anime illustration, clean bold lines, dynamic shading',
-    'painterly RPG concept art, impressionistic brushwork, vivid palette',
-    'ink and wash style, expressive brushstrokes, eastern art influence',
-    'classic fairy tale illustration, ornate decorative style',
-    'gritty western fantasy art, realistic proportions, muted earth tones',
-    'luminous digital painting, glowing magical effects, high contrast',
-    'vintage woodblock print inspired, bold outlines, flat color fields',
-  ];
-  const artStyle=artStyles[Math.floor(Math.random()*artStyles.length)];
   const isMonster=char.race==='モンスター族'&&char.monsterType;
   const gender=char.gender==='女'?'beautiful female':char.gender==='不明'?'':'handsome male';
   const race=isMonster?`${char.monsterType} monster`:(raceDesc[char.race]||'human');
@@ -1698,10 +1498,9 @@ async function generateCharImage(char){
   const job=isMonster?'':(jobDesc[char.job]||'warrior');
   const qual={SSR:'legendary ultimate',SR:'epic powerful',R:'skilled',N:'',C:''}[char.rarity]||'';
   const mood=char.artMood||'';
-  // ランダムで様々な絵柄テイスト
   const prompt=isMonster
-    ?`${artStyle}, ${qual} ${race} monster, ${mood}, full body monster completely visible from head to toe, ${bg}, masterpiece`
-    :`${artStyle}, ${gender} ${race} ${job}, ${mood}, ${scene}, face and full body completely visible head to toe, ${bg}, ${qual}, masterpiece quality`;
+    ?`Akira Toriyama Dragon Quest JRPG anime style, ${qual} ${race} monster, ${mood}, full body monster completely visible from head to toe, ${bg}, colorful fantasy RPG illustration, cel-shaded clean anime lines, masterpiece`
+    :`Akira Toriyama Dragon Quest JRPG anime style, ${gender} ${race} ${job}, ${mood}, ${scene}, face and full body completely visible head to toe, ${bg}, colorful vibrant fantasy RPG character illustration, cel-shaded clean anime lines, ${qual}, masterpiece quality`;
   try{
     const res=await fetch('/api/image',{method:'POST',headers:{'Content-Type':'application/json','x-stability-key':stabilityKey},body:JSON.stringify({prompt})});
     const data=await res.json();
@@ -2298,69 +2097,62 @@ async function analyzeImage(omakase=false){
     const cardTypeHint=selectedCardType==='auto'?autoHints[Math.floor(Math.random()*autoHints.length)]:selectedCardType;
     const forceType=selectedCardType!=='auto'?selectedCardType:null;
 
-    const prompt=`あなたは漢字ハンターゲームのAIエンジンです。実物の本から撮影した画像を分析してください。
+    const prompt=`あなたは「漢字ハンター」の召喚士です。
+画像から以下の漢字を採集し、キャラクターまたはアイテムを錬成してJSONで出力してください。
 
-【ステップ1: テキスト読み取り】
-画像内のテキストを注意深く正確に読んでください。
-- 縦書き: 右から左、上から下の順
-- 横書き: 左から右、上から下の順
-⚠️ 読み取れなかった文字は絶対に推測・補完しないこと。見えた文字のみ使用。
+
+【ステップ1：高速採集】
+- 主格（1文字）：最も難易度が高く、カードの核となる特徴的な漢字。
+- 副格（5文字程度）：画像内のあちこちからランダムに拾った素材漢字。（※カードの要素として使用）
+※文章の正確な文字起こしは不要です。
+
 
 【ステップ2: 実物の本チェック】
-デジタル画面ならisRealBook:false。
+デジタル画面ならisRealBook:falseにしてください。
 
-【ステップ3: 漢字選択】
-読み取ったテキストから最も「レア・特徴的」な漢字を1文字選択。簡単な漢字は避ける。
 
-【ステップ4: カード種類の決定】
+【ステップ3: カード種類の決定】
 以下のカード種類からひとつ選ぶ（${forceType?'【必須: '+forceType+'を選択してください】':'ヒント:'+cardTypeHint}）:
-- character: キャラクターカード（人物・存在を表す漢字）
-- skill: スキルカード（動作・技を表す漢字）→ バトル中SPで使えるスキルを付与。type:"atk"(攻撃)/"heal"(HP回復)/"buff"(ATK強化)/"stun"(1ターンスキップ)/"sleep"(2ターン眠り)/"drain"(HP吸収)のいずれか
-- magic: 魔法カード（神秘・自然・力を表す漢字）→ バトル中MPで使える魔法を付与。type:"magic"(攻撃)/"heal"(HP回復)/"debuff"(ATK&DEF弱体化)/"stun"(気絶)/"sleep"(眠り)/"drain"(HP吸収)のいずれか
-- weapon: 武器カード（攻撃・刃を表す漢字）→ 原則ATK強化のみ。SSRのみ他ステータスも可
-- armor: 防具カード（守り・盾を表す漢字）→ 原則DEF強化のみ。SSRのみ他ステータスも可
-- item: アイテムカード（装飾品・工具・嗜好品を表す漢字）→ ATK/DEF以外のステータス1種のみ強化(SPD/LCK/INT/HP/MP/SP)
-- recovery: 回復薬カード（癒し・回復・薬・治を表す漢字）→ バトル中&バトル前に使える回復アイテム。healTypeは"hp"/"mp"/"sp"のいずれか
+- character: キャラ（人物・存在）
+- skill: スキル（動作・技）
+- magic: 魔法（神秘・自然・力）
+- weapon: 武器（攻撃・刃）
+- armor: 防具（守り・盾）
+- item: アイテム（装飾・道具）
+- recovery: 回復薬（癒し・回復・薬）
 
-【ステップ5: カード内容の生成】
-全カード共通:
-- rarity: C/N/R/SR/SSR（確率目安: C=35%, N=35%, R=20%, SR=8%, SSR=2%。星4(SR)以上は出にくく）（確率目安: C=35%, N=35%, R=20%, SR=8%, SSR=2%。星4(SR)以上は出にくくすること）
-- kanji: 選んだ漢字1文字
-- reading: その漢字の読み（音読み・訓読み、例：「火」→「か・ひ」）
-- meaning: その漢字の意味（30文字程度）
-- examples: その漢字を使った熟語・例文（2〜3個、カンマ区切り。例：「火山、火事、火の用心」）
-- context: 上記readingとmeaningとexamplesをまとめた文字列（互換性のため残す）
-- lore: カードの設定・説明（25文字程度）
+
+【ステップ4: カードの錬成ルール】
+- rarity: C/N/R/SR/SSR（確率目安: C=35%, N=35%, R=20%, SR=8%, SSR=2%）
+- kanji: 「主格」の1文字
+- context: 「素材漢字: 〇, 〇, 〇, 〇, 〇」の形式で副格の漢字を列挙。
+- lore: 錬成されたカードの物語や設定（25文字程度）。必ず「副格」の漢字の要素を混ぜ合わせること。
+
 
 characterカードのみ追加:
-- job: 選択肢(ヒント:${jobHint}): 魔法使い/剣士/僧侶/忍者/竜騎士/吟遊詩人/召喚士/賢者/暗黒騎士/聖騎士
-- race: 選択肢(ヒント:${raceHint}): 人族/エルフ族/ハーフエルフ族/ダークエルフ族/ホビット族/ドワーフ族/魔族/竜族/モンスター族
+- job: (ヒント:${jobHint}) 魔法使い/剣士/僧侶/忍者/竜騎士/吟遊詩人/召喚士/賢者/暗黒騎士/聖騎士
+- race: (ヒント:${raceHint}) 人族/エルフ族/ハーフエルフ族/ダークエルフ族/ホビット族/ドワーフ族/魔族/竜族/モンスター族
 - gender: 男/女/不明
 - element: 火/水/木/土/風/金/闇/光
 - baseVal: 50-200
 - charName: キャラクター名（漢字+称号）
-- monsterType: モンスター族のみ具体名（例:スライム）、それ以外は空文字
-- skills: 固有スキル（最大2個）[{name,spCost:10-50,desc,type:"atk"/"def"/"buff"}]。キャラ固有のもの2個まで
-- magics: 固有魔法（最大2個）[{name,mpCost:10-60,desc,type:"magic"/"heal"/"debuff"}]。キャラ固有のもの2個まで
+- monsterType: モンスター族のみ具体名、それ以外は空文字
+- skills: 固有スキル（最大2個）[{name,spCost:10-50,desc,type:"atk"/"def"/"buff"/"stun"/"sleep"/"drain"}]
+- magics: 固有魔法（最大2個）[{name,mpCost:10-60,desc,type:"magic"/"heal"/"debuff"/"stun"/"sleep"/"drain"}]
 - artMood: 英語の画像生成プロンプトヒント
 
+
 非characterカード:
-- name: カード名（漢字+効果名）
-- bonuses: ステータスボーナスオブジェクト
-  weapon: {atk:XX} のみ（SSRのみ+crit等可）
-  armor: {def:XX} のみ（SSRのみ+hp等可）
-  item: {spd:XX} or {lck:XX} or {int:XX} or {hp:XX} or {mp:XX} or {sp:XX} のうち1つだけ
-  skill/magic: ボーナスなし(bonuses:{})でOK、代わりにskillDataを記述
-  レア度に応じてボーナス値: C=5-15, N=10-25, R=20-40, SR=35-60, SSR=50-80
+- name: カード名
+- bonuses: {atk:XX}など1種のみ
 - effectDesc: 装備効果の説明（15文字程度）
 
-JSONのみ返してください（cardType="character"の例）:
-{"isRealBook":true,"cardType":"character","kanji":"漢","rarity":"SR","job":"魔法使い","race":"エルフ族","gender":"女","element":"火","baseVal":155,"charName":"蒼炎の魔女","monsterType":"","skills":[{"name":"炎刃","spCost":20,"desc":"炎の刃","type":"atk"}],"magics":[{"name":"業火","mpCost":30,"desc":"炎魔法","type":"magic"}],"context":"実際の文章","lore":"設定","artMood":"female elf wizard blue fire","warningMsg":""}
 
-（cardType="weapon"の例）:
-{"isRealBook":true,"cardType":"weapon","kanji":"斬","rarity":"R","name":"斬鉄の大剣","bonuses":{"atk":35,"crit":8},"effectDesc":"ATKとCRITが上昇","context":"実際の文章","lore":"伝説の刃","warningMsg":""}`;
+【出力形式（厳守）】
+以下の項目を埋めた純粋なJSONのみを返してください。前後に解説やマークダウン記号(\`\`\`jsonなど)を含めないでください。`;
 
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},{type:'text',text:prompt}]}]})});
+    // モデルをGemini 1.5 Flashに変更
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-1.5-flash',max_tokens:1400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},{type:'text',text:prompt}]}]})});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
     const text=data.content?.map(b=>b.text||'').join('')||'';
@@ -2375,20 +2167,14 @@ JSONのみ返してください（cardType="character"の例）:
 
     if(p.cardType==='character'){
       const stats=buildStats(p.job,p.baseVal||100);
-      const VALID_RACES_LIST=['人族','エルフ族','ハーフエルフ族','ダークエルフ族','ホビット族','ドワーフ族','魔族','竜族','モンスター族'];
-      const VALID_JOBS=['魔法使い','剣士','僧侶','忍者','竜騎士','吟遊詩人','召喚士','賢者','暗黒騎士','聖騎士'];
-      const VALID_ELEMS=['火','水','木','土','風','金','闇','光'];
-      const safeRace=VALID_RACES_LIST.includes(p.race)?p.race:'人族';
-      const safeJob=VALID_JOBS.includes(p.job)?p.job:'剣士';
-      const safeElem=VALID_ELEMS.includes(p.element)?p.element:'火';
-      const char={id:Date.now(),cardType:'character',kanji:p.kanji,rarity:p.rarity||'N',job:safeJob,race:safeRace,gender:p.gender||'男',element:safeElem,baseVal:p.baseVal||100,...stats,
+      const char={id:Date.now(),cardType:'character',kanji:p.kanji,rarity:p.rarity||'N',job:p.job||'剣士',race:p.race||'人族',gender:p.gender||'男',element:p.element||'火',baseVal:p.baseVal||100,...stats,
       innateSkills:limitInnateSkills(p.skills||[],p.rarity||'N'),
       innateMagics:limitInnateSkills(p.magics||[],p.rarity||'N'),
       skills:limitInnateSkills(p.skills||[],p.rarity||'N'),
       magics:limitInnateSkills(p.magics||[],p.rarity||'N'),
       monsterType:p.monsterType||'',context:p.context,lore:p.lore,artMood:p.artMood,charName:p.charName,exp:0,artImg:null,artType:null,equippedSlots:[]};
       if(shouldUseAPI(char.rarity)){
-        showLoading(true,'キャラクター画像を生成中...','イラストを描いています');
+        showLoading(true,'キャラクター画像を生成中...','DQ風イラストを描いています');
         char.artImg=await generateCharImage(char);
       }else{
         // C/NはGemini製画像を使用（artImgはnullのままにしてcompositeで描画）
@@ -2451,11 +2237,8 @@ async function buildCardFromParsed(p, isSynthesis=false){
     const char={
       id:Date.now()+Math.random()*1000,cardType:'character',
       kanji:p.kanji,rarity:p.rarity||'N',
-      job:(['魔法使い','剣士','僧侶','忍者','竜騎士','吟遊詩人','召喚士','賢者','暗黒騎士','聖騎士'].includes(p.job)?p.job:'剣士'),
-      race:(['人族','エルフ族','ハーフエルフ族','ダークエルフ族','ホビット族','ドワーフ族','魔族','竜族','モンスター族'].includes(p.race)?p.race:'人族'),
-      gender:p.gender||'男',
-      element:(['火','水','木','土','風','金','闇','光'].includes(p.element)?p.element:'火'),
-      baseVal:p.baseVal||100,...stats,
+      job:p.job||'剣士',race:p.race||'人族',gender:p.gender||'男',
+      element:p.element||'火',baseVal:p.baseVal||100,...stats,
       innateSkills:limitInnateSkills(p.skills||[],p.rarity||'N',isSynthesis),
       innateMagics:limitInnateSkills(p.magics||[],p.rarity||'N',isSynthesis),
       skills:limitInnateSkills(p.skills||[],p.rarity||'N',isSynthesis),
@@ -2511,36 +2294,34 @@ async function analyzeOmakase(){
     const raceHints=['人族','エルフ族','ハーフエルフ族','ダークエルフ族','ホビット族','ドワーフ族','魔族','竜族','モンスター族'];
     const job1=jobHints[Math.floor(Math.random()*jobHints.length)];
     const race1=raceHints[Math.floor(Math.random()*raceHints.length)];
-    const prompt=`あなたは漢字ハンターゲームのAIエンジンです。画像の本から異なる5箇所のテキストを読み取り、各箇所から漢字1文字を選んで5枚のカードを生成してください。
+    const prompt=`あなたは漢字ハンターゲームの召喚士です。画像から漢字を拾い読みし、異なる5枚のカードを生成してください。
+
 
 カード種類（順番通り）: 1=${types[0]} 2=${types[1]} 3=${types[2]} 4=${types[3]} 5=${types[4]}
 レア度: 1枚目=通常(C35%N35%R20%SR8%SSR2%), 2〜5枚目=低レア(C50%N35%R13%SR1.5%SSR0.5%)
 jobヒント:${job1} raceヒント:${race1}
 
-各カードの必須フィールド:
+
+【ルール】
+- 正確な文字起こしは不要です。各カードにつき、目立つ漢字を1文字（kanji）選び、さらに周囲の漢字を適当に拾って素材（context内に列挙）として混ぜ合わせてください。
 - isRealBook: true（デジタル画面ならfalse）
-- cardType: 指定の種類
 - kanji: 漢字1文字
 - rarity: C/N/R/SR/SSR
-- reading: 漢字の読み（音読み・訓読み）
-- meaning: 漢字の意味(30文字)
-- examples: 熟語・例文2〜3個(カンマ区切り)
-- context: readingとmeaningとexamplesをまとめた文字列
-- lore: 設定(25文字)
+- context: 「素材漢字: 〇, 〇, 〇」の形式
+- lore: 拾った素材漢字の要素を混ぜた設定
 
-characterカード追加: job, race, gender(男/女/不明), element(火/水/木/土/風/金/闇/光), baseVal(50-200), charName, monsterType, skills([{name,spCost,type:"atk"/"heal"/"buff",desc}]0〜2個), magics([{name,mpCost,type:"magic"/"heal"/"debuff",desc}]0〜2個), artMood
-非characterカード追加: name, bonuses({atk:XX}weapon/{def:XX}armor/{spd/lck/int/hp/mp/sp:XX}item/{}skill・magic), effectDesc
-skillカード: skillData:{name,spCost:20-40,type:"atk"/"heal"/"buff",desc}
-magicカード: magicData:{name,mpCost:20-50,type:"magic"/"heal"/"debuff",desc}
-recoveryカード: healType:"hp"/"mp"/"sp", healPct:0.25-0.5, maxUses:2-4
 
-JSON配列のみ返答（他のテキスト一切不要）:
-[{"isRealBook":true,"cardType":"${types[0]}","kanji":"例","rarity":"N","context":"文章","lore":"説明",...},...]`;
+characterカード追加: job, race, gender, element, baseVal(50-200), charName, monsterType, skills(0〜2個), magics(0〜2個), artMood
+非characterカード追加: name, bonuses, effectDesc, (skillData/magicData/healType等)
 
+
+JSONの「配列のみ」を返してください。前後に解説やマークダウンは一切不要です。`;
+
+    // モデルをGemini 1.5 Flashに変更
     const res=await fetch('/api/analyze',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':apiKey},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:3000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},{type:'text',text:prompt}]}]})
+      body:JSON.stringify({model:'gemini-1.5-flash',max_tokens:3000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},{type:'text',text:prompt}]}]})
     });
     const data=await res.json();
     if(data.error)throw new Error('API: '+(data.error.message||JSON.stringify(data.error)));
@@ -2920,7 +2701,6 @@ async function startBattle(){
   b._bHp=getEffectiveStat(b,'hp');b._bMp=getEffectiveStat(b,'mp');b._bSp=getEffectiveStat(b,'sp');b._defUp=false;b._status='';b._leveledUp=false;b._debuffAtk=1;b._debuffDef=1;b._buffAtk=1;
   document.getElementById('battle-log-area').style.display='block';
   document.getElementById('battle-log').innerHTML='';
-  playBGM('inBattle');
   document.getElementById('battle-start-btn').style.display='none';
   document.getElementById('battle-mode-area').style.display='none';
   document.getElementById('affinity-info').style.display='none';
@@ -2985,7 +2765,6 @@ async function startBattle(){
     await sleep(200);
   }
   // Player char (a) takes damage → start recovery timer
-  stopBGM();
   startRecovery(battlePair[0]);
   // Opponent (b) → restore to pre-battle state (no damage carried over)
   const bCol=characters.find(c=>c.id===b.id);
@@ -3095,7 +2874,6 @@ function showBattleResultScreen(winner,loser){
           </div>`:'<div style="font-size:11px;opacity:.4;margin:8px 0">経験値は獲得できません</div>'}
         <button class="result-close-btn" style="background:${rc.color};color:#000" onclick="closeBattleResultScreen()">戻る →</button>
       </div>`;
-    playSE(isPlayerWin?'win':'lose');
     document.getElementById('battle-result-screen').style.background=bgColor;
     document.getElementById('battle-result-screen').classList.add('active');
     window._battleResultResolve=resolve;
@@ -3190,8 +2968,6 @@ async function getAction(char){
   return autoAct(char,getLevel(char.exp||0));
 }
 function autoAct(char,lv){
-  // stun/sleep中は何もしない
-  if(char._stunTurns>0||char._sleepTurns>0)return{type:'stunned'};
   const hpPct=char._bHp/getEffectiveStat(char,'hp');
   if(hpPct<0.2&&Math.random()<0.4)return{type:'defend'};
   const skills=(char.skills||[]).filter(s=>char._bSp>=(s.spCost||0));
@@ -3238,7 +3014,6 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
     defender._bHp=Math.max(0,defender._bHp-dmg);
     eText=isCrit?`💥${dmg}!`:`${dmg}`;eColor=isCrit?'#FFD700':'#fb923c';
     msg=`⚔️ ${attacker.kanji}の攻撃！${dmg}${isCrit?' 会心！':''}ダメージ${atkMult>1?' ⬆属性有利':''}`;
-    playSE(isCrit?'crit':'attack');
     atkEffect=isCrit?'crit':'attack';
     atkEffectColor=isCrit?'#FFD700':'#fb923c';
     defEffect='damage';
@@ -3276,7 +3051,6 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         defender._bHp=Math.max(0,defender._bHp-dmg);
         eText=`⚔️${dmg}!`;eColor='#FFD700';
         msg=`💥 ${attacker.kanji}「${sk.name}」！${dmg}の大ダメージ！`;
-        playSE('skill');
         atkEffect='skill';atkEffectColor='#FFD700';defEffect='damage';dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }else if(sk.type==='def'){
         const h=Math.floor(maxHp*0.15);
@@ -3296,44 +3070,6 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         msg=`✨ ${attacker.kanji}「${sk.name}」！ATK×1.5強化 & SP+${sr}`;
         atkEffect='buff';atkEffectColor='#fbbf24';atkEffectLabel='ATK';
         defEffect=null;
-      }else if(sk.type==='stun'){
-        // 相手のターンを1回飛ばす
-        defender._stunTurns=(defender._stunTurns||0)+1;
-        defender._status='⚡気絶';
-        dmg=Math.max(3,Math.floor(atkATK*0.8*atkMult*defMult-defDEF*0.1));
-        defender._bHp=Math.max(0,defender._bHp-dmg);
-        eText=`⚡${dmg}`;eColor='#fbbf24';
-        msg=`⚡ ${attacker.kanji}「${sk.name}」！${defender.kanji}を気絶させた！(次ターンスキップ) +${dmg}ダメージ`;
-        atkEffect='skill';atkEffectColor='#fbbf24';defEffect='damage';
-        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
-      }else if(sk.type==='sleep'){
-        // 相手を2〜3ターン眠らせる
-        defender._sleepTurns=(defender._sleepTurns||0)+2;
-        defender._status='💤眠り';
-        eText='💤';eColor='#818cf8';
-        msg=`💤 ${attacker.kanji}「${sk.name}」！${defender.kanji}を眠らせた！(2ターンスキップ)`;
-        atkEffect='skill';atkEffectColor='#818cf8';defEffect=null;
-      }else if(sk.type==='drain'){
-        // 相手のHPを吸収
-        dmg=Math.max(5,Math.floor(atkATK*1.1*atkMult*defMult-defDEF*0.1));
-        defender._bHp=Math.max(0,defender._bHp-dmg);
-        const drain=Math.floor(dmg*0.5);
-        attacker._bHp=Math.min(getEffectiveStat(attacker,'hp'),attacker._bHp+drain);
-        attacker._bSp=Math.max(0,attacker._bSp-sk.spCost);
-        eText=`🩸${dmg}`;eColor='#ef4444';
-        msg=`🩸 ${attacker.kanji}「${sk.name}」！${dmg}ダメージ & HP+${drain}吸収！`;
-        atkEffect='skill';atkEffectColor='#ef4444';defEffect='damage';
-        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
-      }else{
-        // 予期せぬタイプの場合のフォールバック（drain扱い）
-        dmg=Math.max(5,Math.floor(atkATK*1.1*atkMult*defMult-defDEF*0.1));
-        defender._bHp=Math.max(0,defender._bHp-dmg);
-        const drain=Math.floor(dmg*0.5);
-        attacker._bHp=Math.min(getEffectiveStat(attacker,'hp'),attacker._bHp+drain);
-        eText=`🩸${dmg}`;eColor='#ef4444';
-        msg=`🩸 ${attacker.kanji}「${sk.name}」(特殊)！${dmg}ダメージ & HP+${drain}吸収！`;
-        atkEffect='skill';atkEffectColor='#ef4444';defEffect='damage';
-        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }
     }
 
@@ -3351,14 +3087,12 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         defender._bHp=Math.max(0,defender._bHp-dmg);
         eText=`✨${dmg}!`;eColor='#a78bfa';
         msg=`✨ ${attacker.kanji}「${mg.name}」！${dmg}の魔法ダメージ！`;
-        playSE('magic');
         atkEffect='magic';atkEffectColor='#a78bfa';defEffect='damage';
         dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }else if(mg.type==='heal'){
         let healPct=mg.healPct||(0.25+Math.random()*0.15);
         const h=Math.floor(maxHp*healPct);
         attacker._bHp=Math.min(maxHp,attacker._bHp+h);
-        playSE('heal');
         eText=`💚+${h}`;eColor='#4ade80';
         msg=`💚 ${attacker.kanji}「${mg.name}」！HP+${h}（${Math.round(healPct*100)}%）回復！`;
         atkEffect='heal';atkEffectColor='#4ade80';atkEffectLabel='HP';defEffect=null;
@@ -3386,48 +3120,9 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         eText=`🌑${dmg}`;eColor='#a78bfa';
         msg=`🌑 ${attacker.kanji}「${mg.name}」！${defender.kanji}を弱体化(ATK&DEF-30%×2ターン) +${dmg}ダメージ`;
         atkEffect='magic';atkEffectColor='#a78bfa';defEffect='damage';dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
-      }else if(mg.type==='stun'){
-        defender._stunTurns=(defender._stunTurns||0)+1;
-        defender._status='⚡気絶';
-        dmg=Math.max(3,Math.floor(atkINT*0.7*atkMult));
-        defender._bHp=Math.max(0,defender._bHp-dmg);
-        eText=`⚡${dmg}`;eColor='#fbbf24';
-        msg=`⚡ ${attacker.kanji}「${mg.name}」！${defender.kanji}を気絶！(次ターンスキップ) +${dmg}ダメージ`;
-        atkEffect='magic';atkEffectColor='#fbbf24';defEffect='damage';
-        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
-      }else if(mg.type==='sleep'){
-        defender._sleepTurns=(defender._sleepTurns||0)+2;
-        defender._status='💤眠り';
-        eText='💤';eColor='#818cf8';
-        msg=`💤 ${attacker.kanji}「${mg.name}」！${defender.kanji}を眠りに誘う！(2ターンスキップ)`;
-        atkEffect='magic';atkEffectColor='#818cf8';defEffect=null;
-      }else if(mg.type==='drain'){
-        dmg=Math.max(5,Math.floor(atkINT*1.3*atkMult*defMult-defDEF*0.1));
-        defender._bHp=Math.max(0,defender._bHp-dmg);
-        const drain=Math.floor(dmg*0.6);
-        attacker._bHp=Math.min(getEffectiveStat(attacker,'hp'),attacker._bHp+drain);
-        attacker._bMp=Math.max(0,attacker._bMp-mg.mpCost);
-        eText=`🩸${dmg}`;eColor='#ef4444';
-        msg=`🩸 ${attacker.kanji}「${mg.name}」！${dmg}ダメージ & HP+${drain}吸収！`;
-        atkEffect='magic';atkEffectColor='#ef4444';defEffect='damage';
-        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
-      }else{
-        // 予期せぬタイプの場合のフォールバック（stun扱い）
-        defender._stunTurns=(defender._stunTurns||0)+1;
-        defender._status='⚡気絶';
-        dmg=Math.max(3,Math.floor(atkINT*0.7*atkMult));
-        defender._bHp=Math.max(0,defender._bHp-dmg);
-        eText=`⚡${dmg}`;eColor='#fbbf24';
-        msg=`⚡ ${attacker.kanji}「${mg.name}」(特殊)！${defender.kanji}を気絶！(次ターンスキップ) +${dmg}ダメージ`;
-        atkEffect='magic';atkEffectColor='#fbbf24';defEffect='damage';
-        dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }
     }
 
-  }else if(action.type==='stunned'){
-    msg=`${attacker._sleepTurns>0?'💤':'⚡'} ${attacker.kanji}は${attacker._sleepTurns>0?'眠っている':'気絶中'}！行動できない！`;
-    eText=attacker._sleepTurns>0?'💤':'⚡';eColor='#818cf8';
-    atkEffect=null;defEffect=null;
   }else if(action.type==='defend'){
     const h=Math.floor(maxHp*0.05);
     attacker._defUp=true;attacker._status='🛡️';
@@ -3439,18 +3134,12 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
 
   // ===== EFFECTS SEQUENCE (manual only) =====
   if(isManual){
-    // Step1: Attacker card effect + 効果音
-    if(atkEffect){
-      cardEffect(atkSide,atkEffect,atkEffectColor,atkEffectLabel);
-      // エフェクトと同時に効果音
-      const seMap={attack:'attack',crit:'crit',skill:'skill',magic:'magic',heal:'heal',buff:'buff',defend:'defend',drain:'skill',stun:'stun',sleep:'debuff'};
-      playSE(seMap[atkEffect]||'attack');
-    }
+    // Step1: Attacker card effect
+    if(atkEffect)cardEffect(atkSide,atkEffect,atkEffectColor,atkEffectLabel);
     // Step2: Wait for attacker effect to show
     await sleep(600);
-    // Step3: Defender effect (damage shake) + ② 斬撃音
+    // Step3: Defender effect (damage shake)
     if(defEffect==='damage'){
-      playSE('slash'); // バシュッ！
       shakeBfsSlot(defSide,dmgSize);
       shakeEl('slot-'+defSide);
     }
@@ -3463,11 +3152,9 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
     // Step6: Wait then show log
     await sleep(400);
   }else{
-    // Auto mode: 効果音＋揺れ
-    if(atkEffect){const seMap={attack:'attack',crit:'crit',skill:'skill',magic:'magic',heal:'heal',buff:'buff',defend:'defend',drain:'skill',stun:'stun'};playSE(seMap[atkEffect]||'attack');}
+    // Auto mode: 小さなエフェクト演出（spawnEffectの数値と揺れ）
     if(defEffect==='damage'){
-      await sleep(150);
-      playSE('slash');
+      await sleep(150); // 数値エフェクトが出るまで少し待つ
       shakeEl('slot-'+defSide);
     }
   }
@@ -3520,12 +3207,7 @@ function refreshBfsActions(playerChar){
 }
 function showBattleFullscreen(show,playerChar){
   const fs=document.getElementById('battle-fullscreen');
-  if(!show){
-    fs.classList.remove('active');
-    // バト選に戻ったらpreBattle BGMを再生
-    playBGM('preBattle');
-    return;
-  }
+  if(!show){fs.classList.remove('active');return;}
   fs.classList.add('active');
   // Initial render
   const[a,b]=battlePair;
