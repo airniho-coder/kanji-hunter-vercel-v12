@@ -454,10 +454,19 @@ body{display:flex;justify-content:center;}
     <div id="alert-area"></div>
     <div id="new-card-area"></div>
     <div class="guide-box" id="guide-box">
-      <div class="guide-item">📖 実物の本から撮影してください</div>
-      <div class="guide-item">🃏 キャラ・スキル・武器・防具・アイテムが出現</div>
+      <div style="font-size:12px;line-height:2;color:rgba(255,220,120,.75);letter-spacing:1px;margin-bottom:8px;font-style:italic">
+        📚 本の中に眠る漢字たちが、<br>あなただけの英雄や秘宝へと目覚める——<br>
+        <span style="opacity:.7;font-size:10px">さあ、ページをひらいて召喚の儀を始めよう。</span>
+      </div>
+      <div class="guide-item">📖 実物の本を撮影して漢字を採集</div>
+      <div class="guide-item">✨ 漢字の力からキャラや装備が錬成される</div>
       <div class="guide-item">🎨 レアリティが高いほど強力なカード</div>
       <div class="guide-item">⚔️ カードをキャラに装備してバトル強化</div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:10px;opacity:.35;letter-spacing:1px">APIキーの変更・再設定</div>
+        <button onclick="showSetupPage()" style="font-size:10px;padding:5px 10px;border-radius:7px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);cursor:pointer;font-family:'Noto Serif JP',serif;letter-spacing:1px">⚙️ 設定</button>
+      </div>
+
     </div>
   </div>
 </div>
@@ -1342,6 +1351,19 @@ function showMainApp(){
   updateHeaderCount();
   resumeRecoveryTimers();
 }
+function showSetupPage(){
+  ['capture','collection','synthesis','battle'].forEach(t=>{
+    const p=document.getElementById('page-'+t);
+    if(p)p.classList.remove('active');
+  });
+  document.getElementById('tabbar').style.display='none';
+  document.getElementById('page-setup').classList.add('active');
+  // 現在のAPIキーを入力欄に表示
+  const keyInput=document.getElementById('api-key-input');
+  if(keyInput&&apiKey)keyInput.value=apiKey;
+  stopBGM();
+}
+
 function showTab(name){
   ['capture','collection','synthesis','battle'].forEach(t=>{
     const p=document.getElementById('page-'+t);const tb=document.getElementById('tab-'+t);
