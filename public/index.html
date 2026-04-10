@@ -3325,13 +3325,14 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
         atkEffect='skill';atkEffectColor='#ef4444';defEffect='damage';
         dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }else{
-        // 未知タイプ→通常攻撃にフォールバック
-        attacker._bSp=Math.max(0,attacker._bSp-sk.spCost);
-        dmg=Math.max(2,Math.floor(atkATK*1.1*atkMult*defMult-defDEF*0.15));
+        // 予期せぬタイプの場合のフォールバック（drain扱い）
+        dmg=Math.max(5,Math.floor(atkATK*1.1*atkMult*defMult-defDEF*0.1));
         defender._bHp=Math.max(0,defender._bHp-dmg);
-        eText=`⚔️${dmg}`;eColor='#fb923c';
-        msg=`⚔️ ${attacker.kanji}「${sk.name}」！${dmg}ダメージ`;
-        atkEffect='skill';atkEffectColor='#fb923c';defEffect='damage';
+        const drain=Math.floor(dmg*0.5);
+        attacker._bHp=Math.min(getEffectiveStat(attacker,'hp'),attacker._bHp+drain);
+        eText=`🩸${dmg}`;eColor='#ef4444';
+        msg=`🩸 ${attacker.kanji}「${sk.name}」(特殊)！${dmg}ダメージ & HP+${drain}吸収！`;
+        atkEffect='skill';atkEffectColor='#ef4444';defEffect='damage';
         dmgSize=(()=>{const p=dmg/getEffectiveStat(defender,'hp');return p>=0.6?'large':p>=0.3?'medium':'small';})();
       }
     }
