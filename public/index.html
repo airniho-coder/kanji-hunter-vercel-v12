@@ -1426,18 +1426,18 @@ function playSE(type){
 }
 
 function saveState(){
-  // artImgは容量が大きいので除外して保存
-  const charsLite=characters.map(c=>{const{artImg,...r}=c;return r;});
-  const itemsLite=itemCards.map(i=>{const{artImg,...r}=i;return r;});
-  // IDBに保存（非同期、エラーはサイレント）
-  idbSet('kh_chars',charsLite).catch(e=>console.warn('IDB save error',e));
-  idbSet('kh_items',itemsLite).catch(e=>console.warn('IDB save error',e));
-  // LocalStorageにも保存（フォールバック用）
-  try{
-    localStorage.setItem('kh_chars',JSON.stringify(charsLite));
-    localStorage.setItem('kh_items',JSON.stringify(itemsLite));
-  }catch(e){
-    // LocalStorage容量超過は無視（IDBがメイン）
+  // 🌟【ここが重要】IndexedDBには、画像(artImg)を含めた「すべてのデータ」を保存します
+  idbSet('kh_chars', characters).catch(e => console.warn('IDB save error', e));
+  idbSet('kh_items', itemCards).catch(e => console.warn('IDB save error', e));
+
+  // LocalStorageは容量制限が厳しいため、画像を除いた「軽量版」のみを保存します
+  const charsLite = characters.map(c => { const { artImg, ...r } = c; return r; });
+  const itemsLite = itemCards.map(i => { const { artImg, ...r } = i; return r; });
+
+  try {
+    localStorage.setItem('kh_chars', JSON.stringify(charsLite));
+    localStorage.setItem('kh_items', JSON.stringify(itemsLite));
+  } catch (e) {
     console.warn('localStorage full, using IDB only');
   }
 }
