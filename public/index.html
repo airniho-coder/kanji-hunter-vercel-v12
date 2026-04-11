@@ -310,12 +310,11 @@ body{display:flex;justify-content:center;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-4px)}}
 @keyframes efloat{0%{opacity:0;transform:translateY(0) scale(.6)}15%{opacity:1;transform:translateY(-10px) scale(1.3)}70%{opacity:1;transform:translateY(-32px) scale(1)}100%{opacity:0;transform:translateY(-52px) scale(.9)}}
-@keyframes battleIntro{0%{opacity:0;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}100%{opacity:0;transform:translateY(-70px) scale(1.2)}}
 @keyframes battleIntro{0%{opacity:0;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
 @keyframes shake{0%,100%{transform:rotate(0deg)}20%{transform:rotate(-3deg)}40%{transform:rotate(3deg)}60%{transform:rotate(-2.5deg)}80%{transform:rotate(2.5deg)}}
 @keyframes critFlash{0%{opacity:0;transform:scale(.5)}40%{opacity:1;transform:scale(1.4)}70%{opacity:.8;transform:scale(1.1)}100%{opacity:0;transform:scale(1.6)}}
 @keyframes shakeSmall{0%,100%{transform:rotate(0deg)}25%{transform:rotate(-1.5deg)}75%{transform:rotate(1.5deg)}}
-@keyframes shakeLarge{0%,100%{transform:rotate(0deg)}10%{transform:rotate(-5deg)}25%{transform:rotate(5deg)}40%{transform:rotate(-4deg)}55%{transform:rotate(4deg)}70%{transform:rotate(-2deg)}85%{transform:rotate(2deg)}}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+@keyframes shakeLarge{0%,100%{transform:rotate(0deg)}10%{transform:rotate(-5deg)}25%{transform:rotate(5deg)}40%{transform:rotate(-4deg)}55%{transform:rotate(4deg)}70%{transform:rotate(-2deg)}85%{transform:rotate(2deg)}}
 @keyframes flashEl{0%,100%{opacity:1}50%{opacity:.08}}
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:rgba(255,200,80,.3);border-radius:3px;}
@@ -370,12 +369,6 @@ body{display:flex;justify-content:center;}
   <div class="loading-sub" id="loading-sub">しばらくお待ちください</div>
 </div>
 <!-- 学習モーダル -->
-<div id="learning-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:400;overflow-y:auto;padding:20px 16px">
-  <div style="max-width:480px;margin:0 auto">
-    <div id="learning-content"></div>
-  </div>
-</div>
-
 <div class="exp-popup" id="exp-popup">
   <div id="exp-popup-content"></div>
   <button class="btn btn-gold btn-sm" style="margin-top:10px" onclick="closeExpPopup()">閉じる</button>
@@ -588,21 +581,6 @@ body{display:flex;justify-content:center;}
 </div>
 
 <!-- データ保存注意ポップアップ -->
-<div id="storage-notice-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:500;align-items:center;justify-content:center;padding:20px">
-  <div style="max-width:400px;width:100%;background:#13131a;border:1px solid #2a2a3a;border-radius:20px;padding:28px 24px">
-    <div style="text-align:center;margin-bottom:20px">
-      <div style="font-size:32px;margin-bottom:8px">💾</div>
-      <div style="font-size:15px;font-weight:700;letter-spacing:2px;color:#c9a84c">データ保存について</div>
-    </div>
-    <div style="font-size:11px;line-height:2;opacity:.8;margin-bottom:20px;background:rgba(255,255,255,.04);padding:14px;border-radius:12px">
-      <div style="margin-bottom:8px">📱 <b>自動保存（IndexedDB）</b><br>カードやキャラクターはスマホのブラウザ内に自動保存されます。通常の使用では消えません。</div>
-      <div style="margin-bottom:8px">⚠️ <b>消える可能性があるケース</b><br>・ブラウザのキャッシュ・データを全削除した場合<br>・スマホを初期化した場合</div>
-      <div>💡 <b>手動バックアップ推奨</b><br>コレクション画面の「⬇ 保存」ボタンでJSONファイルをダウンロードできます。定期的にバックアップを取ってください。</div>
-    </div>
-    <button onclick="confirmStorageNotice()" style="width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,#c9a84c,#e8c97a);border:none;color:#0a0a0f;font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;cursor:pointer;letter-spacing:2px">理解しました →</button>
-  </div>
-</div>
-
 <!-- データ保存注意ポップアップ -->
 <div id="storage-notice-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:500;align-items:center;justify-content:center;padding:20px">
   <div style="max-width:400px;width:100%;background:#13131a;border:1px solid #2a2a3a;border-radius:20px;padding:28px 24px">
@@ -856,7 +834,7 @@ async function executeSynthesis(){
     else{itemCards=removeId(itemCards,c0.id);itemCards=removeId(itemCards,c1.id);}
     // 強化カードを生成
     const newCard=JSON.parse(JSON.stringify(c0));
-    newCard.id=Date.now();
+    newCard.id=Date.now()+Math.floor(Math.random()*1000);
     newCard.rarity=newRarity;
     // ステータス15%アップ
     if(newCard.cardType==='character'){
@@ -912,12 +890,18 @@ JSONのみ返答（不要フィールドも省略せず全て記載）:
       const data=await res.json();
       if(data.error)throw new Error(data.error.message);
       const text=data.content?.map(b=>b.text||'').join('')||'';
+      if(!text) throw new Error('AIが空の返答を返しました（制限がかかった可能性があります）');
       const jS=text.indexOf('{'),jE=text.lastIndexOf('}');
+      if(jS===-1) throw new Error('JSONデータが見つかりませんでした: '+text.slice(0,50));
       const p=JSON.parse(text.slice(jS,jE+1));
       // 合成元を削除
       const removeCard=(id,type)=>{
         if(type==='character')characters=characters.filter(c=>c.id!==id);
-        else itemCards=itemCards.filter(c=>c.id!==id);
+        else{
+          itemCards=itemCards.filter(c=>c.id!==id);
+          // 装備していたキャラのスロットから外す
+          characters.forEach(c=>{if(c.equippedSlots)c.equippedSlots=c.equippedSlots.map(eid=>eid===id?null:eid);});
+        }
       };
       removeCard(c0.id,c0.cardType);
       removeCard(c1.id,c1.cardType);
@@ -942,9 +926,15 @@ JSONのみ返答（不要フィールドも省略せず全て記載）:
         </div>`;
         synSlots=[null,null];renderSynSlots();
       }
-    }catch(e){
-      resultEl.innerHTML=`<div style="color:#ef4444;font-size:12px;padding:12px">合成失敗: ${e.message.slice(0,80)}</div>`;
-    }finally{showLoading(false);}
+  }catch(e){
+      console.error(e);
+      const errorMsg = e.message || String(e);
+      resultEl.innerHTML=`<div style="color:#ef4444;font-size:12px;padding:12px;background:rgba(255,0,0,0.1);border-radius:8px">合成失敗: ${errorMsg.slice(0,100)}</div>`;
+    }finally{
+      showLoading(false);
+      btn.disabled=false;
+      updateSynBtn();
+    }
   }
   btn.disabled=false;updateSynBtn();
 }
@@ -967,6 +957,9 @@ function openLearningModal(html){
 function closeLearningModal(){
   document.getElementById('learning-modal').style.display='none';
   learningCharId=null;quizState=null;writeState=null;
+  // バトル画面が表示中ならpreBattle BGMに戻す
+  const battleActive=document.getElementById('page-battle')?.classList.contains('active');
+  if(battleActive)playBGM('preBattle');
 }
 
 function addExp(charId, amount){
@@ -989,6 +982,7 @@ async function startLearningQuiz(charId){
   const char=characters.find(c=>c.id===id)||battlePair[0];
   if(!char){openLearningModal('<div style="color:#ef4444;padding:20px">キャラが見つかりません</div>');return;}
   learningCharId=char.id;
+  playBGM('quiz');
   openLearningModal(`<div style="text-align:center;padding:40px 0;color:#c9a84c">
     <div style="font-size:24px;margin-bottom:8px">📝 クイズ</div>
     <div style="font-size:13px;opacity:.6">「${char.kanji}」についての問題を作っています...</div>
@@ -1069,6 +1063,7 @@ async function startLearningWrite(charId){
   learningCharId=char.id;
   writeState={charId:char.id,kanji:char.kanji,round:1,correct:0,total:5};
   // まずモーダルを開いてからrenderWriteRoundを呼ぶ
+  playBGM('write');
   openLearningModal('<div style="text-align:center;padding:40px 0;color:#c9a84c"><div style="font-size:24px">✏️</div><div style="font-size:12px;margin-top:8px;opacity:.6">準備中...</div></div>');
   setTimeout(()=>renderWriteRound(char),50);
 }
@@ -1426,59 +1421,23 @@ function playSE(type){
 }
 
 function saveState(){
-  // 🌟【ここが重要】IndexedDBには、画像(artImg)を含めた「すべてのデータ」を保存します
-  idbSet('kh_chars', characters).catch(e => console.warn('IDB save error', e));
-  idbSet('kh_items', itemCards).catch(e => console.warn('IDB save error', e));
-
-  // LocalStorageは容量制限が厳しいため、画像を除いた「軽量版」のみを保存します
-  const charsLite = characters.map(c => { const { artImg, ...r } = c; return r; });
-  const itemsLite = itemCards.map(i => { const { artImg, ...r } = i; return r; });
-
-  try {
-    localStorage.setItem('kh_chars', JSON.stringify(charsLite));
-    localStorage.setItem('kh_items', JSON.stringify(itemsLite));
-  } catch (e) {
-    console.warn('localStorage full, using IDB only');
-  }
+  // まずIndexedDB（画像あり）への保存を試みる
+  idbSet('kh_chars', characters).then(() => {
+    // IndexedDBが成功した場合のみ、LocalStorage（軽量版）を更新
+    const charsLite = characters.map(c => { const { artImg, ...r } = c; return r; });
+    const itemsLite = itemCards.map(i => { const { artImg, ...r } = i; return r; });
+    try {
+      localStorage.setItem('kh_chars', JSON.stringify(charsLite));
+      localStorage.setItem('kh_items', JSON.stringify(itemsLite));
+    } catch(e) { console.warn('LocalStorage満杯'); }
+  }).catch(e => {
+    console.error('保存失敗（容量不足の可能性）:', e);
+    showAlert('warn', '💾 保存容量が限界です。不要なキャラを削除してください。');
+  });
+  // itemCardsも並行してIDBに保存
+  idbSet('kh_items', itemCards).catch(e => console.warn('IDB items save error', e));
 }
 
-function exportData(){
-  const data={
-    version:1,
-    exportedAt:new Date().toISOString(),
-    characters,
-    itemCards
-  };
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;
-  a.download=`kanjiHunter_backup_${new Date().toLocaleDateString('ja-JP').replace(/\//g,'-')}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function importData(e){
-  const file=e.target.files?.[0];
-  if(!file)return;
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    try{
-      const data=JSON.parse(ev.target.result);
-      if(!data.characters||!data.itemCards)throw new Error('形式が正しくありません');
-      const addChars=data.characters.filter(nc=>!characters.some(c=>c.id===nc.id));
-      const addItems=data.itemCards.filter(ni=>!itemCards.some(i=>i.id===ni.id));
-      characters=[...characters,...addChars];
-      itemCards=[...itemCards,...addItems];
-      saveState();updateHeaderCount();renderCollection();
-      alert(`✅ 復元完了！\nキャラ+${addChars.length}体、カード+${addItems.length}枚を追加しました。`);
-    }catch(err){
-      alert('❌ 復元失敗: '+err.message);
-    }
-    e.target.value='';
-  };
-  reader.readAsText(file);
-}
 function saveApiKey(){
   const a=document.getElementById('api-key-input').value.trim();
   const s=document.getElementById('stability-key-input').value.trim();
@@ -2921,6 +2880,8 @@ async function startBattle(){
   addLog(`🏆 「${winner.kanji}」の勝利！`);
   document.getElementById('manual-actions-area').style.display='none';
   disableBfsActions();
+  // manualResolveを確実にクリア（スタック防止）
+  if(manualResolve){manualResolve({type:'attack'});manualResolve=null;}
   // Update final slots
   updateSlots(a,b,winner.id);
   await sleep(600);
@@ -3136,6 +3097,8 @@ async function getAction(char){
   return autoAct(char,getLevel(char.exp||0));
 }
 function autoAct(char,lv){
+  // stun/sleep中はターンスキップ
+  if(char._stunTurns>0||char._sleepTurns>0)return{type:'stunned'};
   const hpPct=char._bHp/getEffectiveStat(char,'hp');
   if(hpPct<0.2&&Math.random()<0.4)return{type:'defend'};
   const skills=(char.skills||[]).filter(s=>char._bSp>=(s.spCost||0));
@@ -3356,6 +3319,10 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
       }
     }
 
+  }else if(action.type==='stunned'){
+    msg=`${attacker._sleepTurns>0?'💤':'⚡'} ${attacker.kanji}は${attacker._sleepTurns>0?'眠っている':'気絶中'}！行動できない！`;
+    eText=attacker._sleepTurns>0?'💤':'⚡';eColor='#818cf8';
+    atkEffect=null;defEffect=null;
   }else if(action.type==='defend'){
     const h=Math.floor(maxHp*0.05);
     attacker._defUp=true;attacker._status='🛡️';
@@ -3440,7 +3407,7 @@ function refreshBfsActions(playerChar){
 }
 function showBattleFullscreen(show,playerChar){
   const fs=document.getElementById('battle-fullscreen');
-  if(!show){fs.classList.remove('active');return;}
+  if(!show){fs.classList.remove('active');playBGM('preBattle');return;}
   fs.classList.add('active');
   // Initial render
   const[a,b]=battlePair;
