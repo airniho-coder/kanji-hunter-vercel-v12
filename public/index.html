@@ -993,23 +993,47 @@ async function startLearningQuiz(charId){
     <div style="font-size:13px;opacity:.6">「${char.kanji}」についての問題を作っています...</div>
   </div>`);
   try{
-    const prompt=`漢字「${char.kanji}」についての5択クイズを1問作ってください。
-漢字情報: 読み=${char.reading||''}、意味=${char.meaning||''}、例=${char.examples||''}
+    // クイズ生成：reading情報があれば読みクイズ、なければ意味・熟語系
+    const hasReading=char.reading&&char.reading.length>0;
+    const prompt=`漢字「${char.kanji}」の5択クイズを1問作ってください。
+漢字情報: 読み=${char.reading||'不明'}、意味=${char.meaning||'不明'}、例=${char.examples||'なし'}
 
-問題タイプをランダムに1つ選ぶ: 読みを答える / 意味を答える / この漢字を使った正しい4字熟語または諺を選ぶ / 熟語を完成させる
+【重要ルール】
+1. choicesは必ず5つの文字列の配列にすること
+2. correctは必ずchoicesの配列の中の1つと【完全に同一の文字列】にすること
+3. correctがchoicesに含まれていない場合は作り直すこと
+4. JSONのみ返答（前後の説明・マークダウン不要）
 
-JSONのみ返答:
-{"type":"reading/meaning/kanji/jukugo","question":"問題文","correct":"正解","choices":["選択肢1","選択肢2","選択肢3","選択肢4","選択肢5"],"explanation":"解説20文字"}
-※choicesは必ず5つ、correctはchoicesの中の1つと全く同じ文字列にすること`;
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-2.5-flash-lite',max_tokens:500,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
+問題タイプ: ${hasReading?'読みを答える（ひらがなで）':'意味または熟語を答える'}
+
+出力形式:
+{"type":"reading","question":"漢字「${char.kanji}」の読み方は？","correct":"こよみ","choices":["こよみ","れき","しょ","ふみ","ふる"],"explanation":"「暦」はこよみと読み、カレンダーを意味します"}
+
+※上記はあくまで出力形式の例です。実際の問題を作成してください。`;
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-2.5-flash-lite',max_tokens:600,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
     const data=await res.json();
+    if(data.error)throw new Error(data.error.message||'API error');
     const text=data.content?.map(b=>b.text||'').join('')||'';
-    const jS=text.indexOf('{'),jE=text.lastIndexOf('}');
-    const q=JSON.parse(text.slice(jS,jE+1));
+    if(!text)throw new Error('レスポンスが空です');
+    const clean=text.replace(/```json|```/g,'').trim();
+    const jS=clean.indexOf('{'),jE=clean.lastIndexOf('}');
+    if(jS<0||jE<=jS)throw new Error('JSON形式ではありません');
+    const q=JSON.parse(clean.slice(jS,jE+1));
+    // バリデーション：correctがchoicesに含まれているか確認
+    if(!q.correct||!q.choices||!Array.isArray(q.choices)||q.choices.length<2)
+      throw new Error('クイズデータが不正です');
+    // correctがchoicesにない場合は先頭に追加
+    if(!q.choices.includes(q.correct))q.choices[0]=q.correct;
     quizState={q,charId:char.id,answered:false};
     renderQuiz(char,q);
   }catch(e){
-    openLearningModal(`<div style="color:#ef4444;padding:20px">問題生成失敗: ${e.message.slice(0,80)}<br><br><button onclick="closeLearningModal()" style="padding:8px 16px;border-radius:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;cursor:pointer">閉じる</button></div>`);
+    // 失敗時はリトライボタンを表示
+    openLearningModal(`<div style="color:#ef4444;padding:20px;text-align:center">
+      <div style="font-size:20px;margin-bottom:8px">⚠️</div>
+      <div style="font-size:12px;opacity:.7;margin-bottom:16px">問題の生成に失敗しました<br>${e.message.slice(0,60)}</div>
+      <button onclick="startLearningQuiz(${char.id})" style="padding:10px 20px;border-radius:8px;background:rgba(255,200,80,.2);border:1px solid rgba(255,200,80,.4);color:#FFD700;cursor:pointer;font-family:'Noto Serif JP',serif;margin-right:8px">🔄 再挑戦</button>
+      <button onclick="closeLearningModal()" style="padding:10px 20px;border-radius:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;cursor:pointer;font-family:'Noto Serif JP',serif">閉じる</button>
+    </div>`);
   }
 }
 
