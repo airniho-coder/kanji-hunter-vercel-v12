@@ -2019,7 +2019,7 @@ function itemCardHTML(item,showEquipBtn=false,equippedCharId=null){
       <div class="item-header">
         <div class="item-icon">${isRecovery?recoveryCardArt(item.rarity,item.healType||'hp'):typeIcon}</div>
         <div class="item-header-info">
-          <div class="item-name" style="color:${rc.color}">${item.name||item.kanji}</div>
+          <div class="item-name" style="color:${rc.color}">${(item.name&&item.name!=="undefined")?item.name:item.kanji}</div>
           <div class="item-type-badge">${typeLabel} / ${starsHTML(rc.stars,rc.color)} ${item.rarity}</div>
           ${isRecovery?usesBar:''}
         </div>
@@ -2274,10 +2274,13 @@ characterカードのみ追加:
 - artMood: 英語の画像生成プロンプトヒント
 
 
-非characterカード:
-- name: カード名
-- bonuses: {atk:XX}など1種のみ
-- effectDesc: 装備効果の説明（15文字程度）
+非characterカード（skill/magic/weapon/armor/item/recovery 全て必須）:
+- name: カード名（必ず日本語で入力。例:「炎の剣」「疾風スラッシュ」「回復の泉」）
+- bonuses: weapon={atk:XX}, armor={def:XX}, item={sp:XX}, skill/magic/recovery={}
+- effectDesc: 効果説明（15文字程度、必ず記述）
+- skillData: skillのみ必須 {name:技名,spCost:20,type:"atk",desc:"効果説明"}
+- magicData: magicのみ必須 {name:魔法名,mpCost:25,type:"magic",desc:"効果説明"}
+- healType: recoveryのみ必須 "hp"/"mp"/"sp"
 
 
 【出力形式（厳守）】
@@ -2333,7 +2336,7 @@ characterカードのみ追加:
         else _bon={sp:Math.floor(5+Math.random()*15)};
       }
       const _eff=p.effectDesc||(_sd?`SP${_sd.spCost} ${_sd.desc}`:_md?`MP${_md.mpCost} ${_md.desc}`:'');
-      const item={id:Date.now(),cardType:p.cardType||'item',kanji:p.kanji,rarity:p.rarity||'N',name:p.name||p.kanji,bonuses:_bon,effectDesc:_eff,context:p.context,lore:p.lore,artImg:null,skillData:_sd,magicData:_md};
+      const item={id:Date.now(),cardType:p.cardType||'item',kanji:p.kanji,rarity:p.rarity||'N',name:(p.name&&p.name!=='undefined')?p.name:p.kanji,bonuses:_bon,effectDesc:_eff,context:p.context,lore:p.lore,artImg:null,skillData:_sd,magicData:_md};
       if(stabilityKey&&(item.rarity==='SR'||item.rarity==='SSR')){
         showLoading(true,'アイテム画像を生成中...','イラストを描いています');
         item.artImg=await generateItemImage(item);
@@ -2436,7 +2439,7 @@ async function buildCardFromParsed(p, isSynthesis=false){
     return{
       id:Date.now()+Math.random()*1000,
       cardType:cType,kanji:p.kanji,rarity:p.rarity||'N',
-      name:p.name||p.kanji,bonuses,
+      name:(p.name&&p.name!=='undefined')?p.name:p.kanji,bonuses,
       effectDesc,context:p.context||'',lore:p.lore||'',
       reading:p.reading||'',meaning:p.meaning||'',examples:p.examples||'',
       artImg:null,skillData,magicData
@@ -2511,7 +2514,7 @@ JSONの「配列のみ」を返してください。前後に解説やマーク�
         console.error('card build error',p.kanji,e2);
         // ビルドエラーでもシンプルカードとして追加
         try{
-          const fallback={id:Date.now()+Math.random(),cardType:p.cardType||'item',kanji:p.kanji,rarity:p.rarity||'N',name:p.name||p.charName||p.kanji,bonuses:p.bonuses||{},effectDesc:p.effectDesc||'',context:p.context||'',lore:p.lore||'',skillData:p.skillData||null,magicData:p.magicData||null};
+          const fallback={id:Date.now()+Math.random(),cardType:p.cardType||'item',kanji:p.kanji,rarity:p.rarity||'N',name:(p.name&&p.name!=='undefined')?p.name:(p.charName||p.kanji),bonuses:p.bonuses||{},effectDesc:p.effectDesc||'',context:p.context||'',lore:p.lore||'',skillData:p.skillData||null,magicData:p.magicData||null};
           omakaseCards.push(fallback);
           console.log('fallback card added:',p.kanji);
         }catch(e3){console.error('fallback failed',e3);}
