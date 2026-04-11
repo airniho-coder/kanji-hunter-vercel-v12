@@ -20,12 +20,10 @@ export default async function handler(req, res) {
 
   try {
     const { messages, max_tokens } = req.body;
-    
-    // 💡 魔法の1行：フロントエンドが何を要求しても、強制的に Gemini 1.5 Flash に書き換える！
     const targetModel = 'gemini-1.5-flash';
 
 
-    // 1. Anthropic形式 → Gemini形式の変換
+    // フロントエンド（Anthropic形式）を Gemini形式に変換
     const contents = messages.map(m => {
       const parts = m.content.map(c => {
         if (c.type === 'text') {
@@ -47,7 +45,7 @@ export default async function handler(req, res) {
     });
 
 
-    // 2. Gemini API へ送信
+    // 🌟 魔法のコード：GeminiのNGワード制限（セーフティ）をすべて解除して送信！
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -56,7 +54,13 @@ export default async function handler(req, res) {
         generationConfig: {
           maxOutputTokens: max_tokens || 2048,
           temperature: 0.7
-        }
+        },
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+        ]
       }),
     });
 
@@ -69,7 +73,7 @@ export default async function handler(req, res) {
     }
 
 
-    // 3. フロントエンド（index.html）が読み取れる形式に戻して返す
+    // フロントエンドが読み取れる形式に戻して返す
     const textResponse = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
     res.status(200).json({
       content: [{ type: 'text', text: textResponse }]
