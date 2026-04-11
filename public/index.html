@@ -1611,10 +1611,26 @@ async function generateItemImage(item){
 
 async function generateCharImage(char){
   if(!stabilityKey)return null;
+
+  // 画風（スタイル）のリストを定義
+  const ART_STYLES = [
+    "Akira Toriyama Dragon Quest JRPG anime style",
+    "Studio Ghibli hand-drawn watercolor anime style",
+    "Final Fantasy Yoshitaka Amano elegant concept art style",
+    "90s retro cel-shaded anime style",
+    "Ukiyo-e Japanese woodblock print style with paper texture",
+    "Cyberpunk neon cinematic anime style",
+    "Dark souls gothic oil painting style",
+    "Vibrant pixel art game character portrait"
+  ];
+  
+  // ランダムに1つ選ぶ
+  const selectedStyle = ART_STYLES[Math.floor(Math.random() * ART_STYLES.length)];
+
   const raceDesc={'人族':'human','エルフ族':'elf with very long pointed ears fair skin','ハーフエルフ族':'half-elf slightly pointed ears','ダークエルフ族':'dark elf with dark purple skin long white hair glowing red eyes pointed ears','ホビット族':'hobbit extremely short stature large hairy feet curly hair chubby','ドワーフ族':'dwarf very stocky muscular body long braided beard short height','魔族':'demon with large curved ram horns dark red skin sharp fangs black tail sinister','竜族':'dragonkin with visible green scales on skin small horns slit yellow eyes clawed hands','モンスター族':'monster creature'};
   const elemBg={火:'volcanic lava cave with fire and embers background',水:'underwater or rainy riverside background blue mist',木:'enchanted forest with glowing green trees background',土:'ancient ruins stone desert background',風:'stormy sky clouds wind swirling background',金:'lightning storm golden battlefield background',闇:'dark dungeon shadowy void purple mist background',光:'heavenly bright temple holy rays of light background'};
   const jobDesc={'剣士':'warrior gripping sword ready to strike','魔法使い':'wizard casting glowing spell hands raised','忍者':'ninja in mid-air jumping crouching action','僧侶':'priest channeling holy energy arms spread','竜騎士':'dragon knight charging with lance on dragon','吟遊詩人':'bard performing playing instrument dancing','召喚士':'summoner opening magical portal summoning','賢者':'sage reading floating ancient tome gesturing','暗黒騎士':'dark knight swinging black sword attacking','聖騎士':'paladin charging with holy shield raised'};
-  // Scene/pose based on element and artMood for variety
+  
   const scenes=[
     'full body dynamic action pose whole character visible from head to toe',
     'full body battle stance character shown completely head to feet dramatic angle',
@@ -1630,9 +1646,12 @@ async function generateCharImage(char){
   const job=isMonster?'':(jobDesc[char.job]||'warrior');
   const qual={SSR:'legendary ultimate',SR:'epic powerful',R:'skilled',N:'',C:''}[char.rarity]||'';
   const mood=char.artMood||'';
+  
+  // プロンプトの先頭に selectedStyle を組み込む
   const prompt=isMonster
-    ?`Akira Toriyama Dragon Quest JRPG anime style, ${qual} ${race} monster, ${mood}, full body monster completely visible from head to toe, ${bg}, colorful fantasy RPG illustration, cel-shaded clean anime lines, masterpiece`
-    :`Akira Toriyama Dragon Quest JRPG anime style, ${gender} ${race} ${job}, ${mood}, ${scene}, face and full body completely visible head to toe, ${bg}, colorful vibrant fantasy RPG character illustration, cel-shaded clean anime lines, ${qual}, masterpiece quality`;
+    ?`${selectedStyle}, ${qual} ${race} monster, ${mood}, full body monster completely visible from head to toe, ${bg}, colorful fantasy RPG illustration, cel-shaded clean anime lines, masterpiece`
+    :`${selectedStyle}, ${gender} ${race} ${job}, ${mood}, ${scene}, face and full body completely visible head to toe, ${bg}, colorful vibrant fantasy RPG character illustration, cel-shaded clean anime lines, ${qual}, masterpiece quality`;
+    
   try{
     const res=await fetch('/api/image',{method:'POST',headers:{'Content-Type':'application/json','x-stability-key':stabilityKey},body:JSON.stringify({prompt})});
     const data=await res.json();
