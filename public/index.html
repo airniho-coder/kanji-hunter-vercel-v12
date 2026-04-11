@@ -2876,6 +2876,11 @@ function selectForBattle(id,evt){
   }
   battleResult=null;
   showTab('battle');
+  // バトルアリーナへ自動スクロール
+  setTimeout(()=>{
+    const arena=document.querySelector('.battle-arena');
+    if(arena)arena.scrollIntoView({behavior:'smooth',block:'start'});
+  },50);
   // Re-apply battle mode UI state
   document.getElementById('mode-auto').classList.toggle('active',battleMode==='auto');
   document.getElementById('mode-manual').classList.toggle('active',battleMode==='manual');
