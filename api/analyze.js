@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
   try {
     const { messages, max_tokens } = req.body;
-    const targetModel = 'gemini-1.5-flash';
+    const targetModel = 'gemini-1.5-flash-latest';
 
 
     // フロントエンド（Anthropic形式）を Gemini形式に変換
