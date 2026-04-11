@@ -886,7 +886,7 @@ JSONのみ返答（不要フィールドも省略せず全て記載）:
 "skills":[{"name":"スキル名","spCost":25,"type":"atk","desc":"説明"}],
 "magics":[],"reading":"読み（音読み・訓読み）","meaning":"意味30文字","examples":"熟語や例文2〜3個"}`;
 
-      const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-1.5-flash',max_tokens:800,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
+      const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-1.5-flash-latest',max_tokens:800,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
       const data=await res.json();
       // Geminiのエラー構造に対応（message直下またはerror.message）
       if(data.error)throw new Error(typeof data.error==='string'?data.error:(data.error.message||JSON.stringify(data.error)));
@@ -1001,7 +1001,7 @@ async function startLearningQuiz(charId){
 JSONのみ返答:
 {"type":"reading/meaning/kanji/jukugo","question":"問題文","correct":"正解","choices":["選択肢1","選択肢2","選択肢3","選択肢4","選択肢5"],"explanation":"解説20文字"}
 ※choicesは必ず5つ、correctはchoicesの中の1つと全く同じ文字列にすること`;
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-1.5-flash',max_tokens:500,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-1.5-flash-latest',max_tokens:500,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
     const data=await res.json();
     const text=data.content?.map(b=>b.text||'').join('')||'';
     const jS=text.indexOf('{'),jE=text.lastIndexOf('}');
@@ -1142,7 +1142,7 @@ ${isFirst?'お手本をなぞって書いた練習です。':'自分で書いた
 - 明らかに全く違う文字の場合のみfalseにしてください
 
 JSONのみ返答: {"ok":true/false,"feedback":"ひとこと20文字以内"}`;
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-1.5-flash',max_tokens:150,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/png',data:imgData}},{type:'text',text:prompt}]}]})});
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-1.5-flash-latest',max_tokens:150,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/png',data:imgData}},{type:'text',text:prompt}]}]})});
     const data2=await res.json();
     const text=data2.content?.map(b=>b.text||'').join('')||'';
     const jS=text.indexOf('{'),jE=text.lastIndexOf('}');
@@ -2284,7 +2284,7 @@ characterカードのみ追加:
 以下の項目を埋めた純粋なJSONのみを返してください。前後に解説やマークダウン記号(\`\`\`jsonなど)を含めないでください。`;
 
     // モデルをGemini 1.5 Flashに変更
-    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-1.5-flash',max_tokens:1400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},{type:'text',text:prompt}]}]})});
+    const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-1.5-flash-latest',max_tokens:1400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},{type:'text',text:prompt}]}]})});
     const data=await res.json();
     if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
     const text=data.content?.map(b=>b.text||'').join('')||'';
@@ -2453,7 +2453,7 @@ JSONの「配列のみ」を返してください。前後に解説やマーク�
     const res=await fetch('/api/analyze',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':apiKey},
-      body:JSON.stringify({model:'gemini-1.5-flash',max_tokens:3000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},{type:'text',text:prompt}]}]})
+      body:JSON.stringify({model:'gemini-1.5-flash-latest',max_tokens:3000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},{type:'text',text:prompt}]}]})
     });
     const data=await res.json();
     if(data.error)throw new Error('API: '+(data.error.message||JSON.stringify(data.error)));
