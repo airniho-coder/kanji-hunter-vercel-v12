@@ -1891,6 +1891,9 @@ function charDetailHTML(char,showBattleBtn=true){
   const cardBg=char.rarity==='SR'?'linear-gradient(135deg,#1a1200,#2e1e00,#1a1200)':char.rarity==='SSR'?'linear-gradient(135deg,#08000f,#120018,#08000f)':rc.bg;
   const cardBorder=char.rarity==='SR'?'#FFD700':char.rarity==='SSR'?'#ff88ff':rc.color;
 
+  // 装備ボーナスを取得
+  const bonus = getEquipBonuses(char);
+
   const equipSlots=Array.from({length:slots},(_,i)=>{
     const itemId=(char.equippedSlots||[])[i];
     const item=itemId?itemCards.find(c=>c.id===itemId):null;
@@ -1912,6 +1915,9 @@ function charDetailHTML(char,showBattleBtn=true){
     <div class="card-back-art-wrap">
       ${char.artImg?`<img src="${char.artImg}" class="card-back-art" alt="">`:`<div style="height:130px;overflow:hidden;filter:brightness(.5)">${generatePixelArt(char)}</div>`}
       <div class="card-back-art-overlay"><div class="card-back-kanji" style="color:${rc.color}">${char.kanji}</div></div>
+      <div style="position:absolute; top:10px; left:10px;">
+        <span class="rarity-badge" style="background:${rc.color}dd;color:#000;font-weight:900;">${char.rarity}</span>
+      </div>
     </div>
     <div class="card-back-body">
       <div class="char-name-back" style="color:${rc.color}">${char.charName}</div>
@@ -1922,11 +1928,15 @@ function charDetailHTML(char,showBattleBtn=true){
         <div class="exp-track"><div class="exp-fill" style="width:${expPct(char.exp||0)}%"></div></div>
       </div>
       <div class="stats-grid">
-        ${statRow('HP',getLvBonus(char.hp,lv),'#4ade80',999)}${statRow('MP',getLvBonus(char.mp,lv),'#818cf8',400)}
-        ${statRow('SP',getLvBonus(char.sp,lv),'#fbbf24',400)}${statRow('ATK',getLvBonus(char.atk,lv),'#fb923c',400)}
-        ${statRow('DEF',getLvBonus(char.def,lv),'#38bdf8',400)}${statRow('SPD',getLvBonus(char.spd,lv),'#f472b6',400)}
-        ${statRow('INT',getLvBonus(char.int,lv),'#a78bfa',400)}${statRow('LCK',getLvBonus(char.lck,lv),'#fde68a',400)}
-        ${statRow('CRIT',getLvBonus(char.crit,lv),'#f87171',30)}
+        ${statRow('HP', getEffectiveStat(char,'hp'), '#4ade80', 999)}
+        ${statRow('MP', getEffectiveStat(char,'mp'), '#818cf8', 400)}
+        ${statRow('SP', getEffectiveStat(char,'sp'), '#fbbf24', 400)}
+        ${statRow('ATK', getEffectiveStat(char,'atk'), '#fb923c', 400)}
+        ${statRow('DEF', getEffectiveStat(char,'def'), '#38bdf8', 400)}
+        ${statRow('SPD', getEffectiveStat(char,'spd'), '#f472b6', 400)}
+        ${statRow('INT', getEffectiveStat(char,'int'), '#a78bfa', 400)}
+        ${statRow('LCK', getEffectiveStat(char,'lck'), '#fde68a', 400)}
+        ${statRow('CRIT', getEffectiveStat(char,'crit'), '#f87171', 30)}
       </div>
     </div>
     <div class="skills-section">
