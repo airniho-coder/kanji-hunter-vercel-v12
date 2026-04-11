@@ -1066,7 +1066,7 @@ async function startLearningWrite(charId){
   const char=characters.find(c=>c.id===id)||battlePair[0];
   if(!char){openLearningModal('<div style="color:#ef4444;padding:20px">キャラが見つかりません</div>');return;}
   learningCharId=char.id;
-  writeState={charId:char.id,kanji:char.kanji,round:1,correct:0,total:5};
+  writeState={charId:char.id,kanji:char.kanji,round:1,correct:0,total:2};
   // まずモーダルを開いてからrenderWriteRoundを呼ぶ
   playBGM('write');
   openLearningModal('<div style="text-align:center;padding:40px 0;color:#c9a84c"><div style="font-size:24px">✏️</div><div style="font-size:12px;margin-top:8px;opacity:.6">準備中...</div></div>');
