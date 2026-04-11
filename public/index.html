@@ -2003,7 +2003,17 @@ function itemCardHTML(item,showEquipBtn=false,equippedCharId=null){
   const rc=RARITY[item.rarity]||RARITY.C;
   const typeIcon=CARD_TYPE_ICONS[item.cardType]||'📦';
   const typeLabel=CARD_TYPE_LABELS[item.cardType]||item.cardType;
-  const bonusLines=Object.entries(item.bonuses||{}).filter(([,v])=>v).map(([k,v])=>`<div class="item-effect"><span class="item-effect-label">${k.toUpperCase()}</span><span class="item-effect-val" style="color:${rc.color}">+${v}</span></div>`).join('');
+  // bonusesのフラット化（AIが{atk:{value:10}}などネスト構造を返す場合に対応）
+  const flatBonuses={};
+  Object.entries(item.bonuses||{}).forEach(([k,v])=>{
+    if(typeof v==='number'&&v)flatBonuses[k]=v;
+    else if(typeof v==='object'&&v!==null){
+      // ネストされたオブジェクト → 数値を取り出す
+      const num=v.value||v.amount||v.val||Object.values(v).find(x=>typeof x==='number');
+      if(num)flatBonuses[k]=num;
+    }
+  });
+  const bonusLines=Object.entries(flatBonuses).map(([k,v])=>`<div class="item-effect"><span class="item-effect-label">${k.toUpperCase()}</span><span class="item-effect-val" style="color:${rc.color}">+${v}</span></div>`).join('');
   const equippedOn=equippedCharId?characters.find(c=>c.id===equippedCharId):null;
   // Recovery card special display
   const isRecovery=item.cardType==='recovery';
@@ -2297,6 +2307,15 @@ characterカードのみ追加:
     const jsonEnd=jsonStr.lastIndexOf('}');
     if(jsonStart>=0&&jsonEnd>jsonStart)jsonStr=jsonStr.slice(jsonStart,jsonEnd+1);
     const p=JSON.parse(jsonStr);
+    // kanjiが取れなかった場合のフォールバック（多段組等で抽出失敗時）
+    if(!p.kanji||p.kanji==='undefined'||p.kanji==='null'||p.kanji.length===0){
+      // nameやcharNameから漢字1文字を探す
+      const src=(p.name||p.charName||p.context||'');
+      const m=src.match(/[一-鿿]/);
+      p.kanji=m?m[0]:'？';
+    }
+    // nameが欠けている場合もフォールバック
+    if(!p.name||p.name==='undefined')p.name=null;
     /* ① デジタル画像もOK - isRealBookチェック廃止 */
     if(p.warningMsg)showAlert('warn','⚠️ '+p.warningMsg);
 
@@ -2327,9 +2346,18 @@ characterカードのみ追加:
     }else{
       // ③ スキル・魔法fallback
       let _sd=p.skillData||null,_md=p.magicData||null;
-      if((p.cardType||'item')==='skill'&&!_sd)_sd={name:p.name||p.kanji+'の技',spCost:20,type:'atk',desc:`${p.kanji}の力で強力な一撃`};
-      if((p.cardType||'item')==='magic'&&!_md)_md={name:p.name||p.kanji+'の魔法',mpCost:25,type:'magic',healPct:0,desc:`${p.kanji}の魔力で魔法ダメージ`};
-      let _bon=p.bonuses||{};
+      if((p.cardType||'item')==='skill'&&!_sd)_sd={name:(p.name&&p.name!=='undefined')?p.name:p.kanji+'の技',spCost:20,type:'atk',desc:`${p.kanji}の力で強力な一撃`};
+      if((p.cardType||'item')==='magic'&&!_md)_md={name:(p.name&&p.name!=='undefined')?p.name:p.kanji+'の魔法',mpCost:25,type:'magic',healPct:0,desc:`${p.kanji}の魔力で魔法ダメージ`};
+      // bonusesフラット化
+      let _rawBon=p.bonuses||{};
+      let _bon={};
+      Object.entries(_rawBon).forEach(([k,v])=>{
+        if(typeof v==='number')_bon[k]=v;
+        else if(typeof v==='object'&&v!==null){
+          const num=v.value||v.amount||v.val||Object.values(v).find(x=>typeof x==='number');
+          if(num)_bon[k]=num;
+        }
+      });
       if(['item','weapon','armor'].includes(p.cardType||'item')&&Object.keys(_bon).length===0){
         if(p.cardType==='weapon')_bon={atk:Math.floor(10+Math.random()*20)};
         else if(p.cardType==='armor')_bon={def:Math.floor(10+Math.random()*20)};
@@ -2379,7 +2407,14 @@ JSONのみ返してください。`;
 }
 
 async function buildCardFromParsed(p, isSynthesis=false){
-  if(!p||!p.kanji)return null;
+  if(!p)return null;
+  // kanjiが無い・undefined文字列の場合フォールバック
+  if(!p.kanji||p.kanji==='undefined'||p.kanji==='null'){
+    const src=(p.name||p.charName||p.context||'');
+    const m=src.match(/[一-鿿]/);
+    p.kanji=m?m[0]:'？';
+  }
+  if(!p.name||p.name==='undefined')p.name=null;
   if(p.cardType==='character'){
     // ⑤おまかせ時キャラはR以下に制限（isSynthesisでなければ）
     if(!isSynthesis&&['SR','SSR'].includes(p.rarity))p.rarity='R';
@@ -2423,13 +2458,22 @@ async function buildCardFromParsed(p, isSynthesis=false){
     let magicData=p.magicData||null;
     const cType=p.cardType||'item';
     if(cType==='skill'&&!skillData){
-      skillData={name:p.name||p.kanji+'の技',spCost:20,type:'atk',desc:`${p.kanji}の力で敵に強力な一撃を与える`};
+      skillData={name:(p.name&&p.name!=='undefined')?p.name:p.kanji+'の技',spCost:20,type:'atk',desc:`${p.kanji}の力で敵に強力な一撃を与える`};
     }
     if(cType==='magic'&&!magicData){
-      magicData={name:p.name||p.kanji+'の魔法',mpCost:25,type:'magic',healPct:0,desc:`${p.kanji}の魔力で敵に魔法ダメージを与える`};
+      magicData={name:(p.name&&p.name!=='undefined')?p.name:p.kanji+'の魔法',mpCost:25,type:'magic',healPct:0,desc:`${p.kanji}の魔力で敵に魔法ダメージを与える`};
     }
     // bonusesもスキル・魔法は空でOK、itemなら何か1つ必ず入れる
-    let bonuses=p.bonuses||{};
+    // bonusesのフラット化（ネスト対応）
+    let rawBonuses=p.bonuses||{};
+    let bonuses={};
+    Object.entries(rawBonuses).forEach(([k,v])=>{
+      if(typeof v==='number')bonuses[k]=v;
+      else if(typeof v==='object'&&v!==null){
+        const num=v.value||v.amount||v.val||Object.values(v).find(x=>typeof x==='number');
+        if(num)bonuses[k]=num;
+      }
+    });
     if((cType==='item'||cType==='weapon'||cType==='armor')&&Object.keys(bonuses).length===0){
       if(cType==='weapon')bonuses={atk:Math.floor(10+Math.random()*20)};
       else if(cType==='armor')bonuses={def:Math.floor(10+Math.random()*20)};
