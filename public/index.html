@@ -28,7 +28,7 @@ body{display:flex;justify-content:center;}
   display:flex;align-items:center;justify-content:space-between;}
 .logo{font-size:22px;font-weight:900;letter-spacing:4px;
   background:linear-gradient(90deg,#FFD700,#FF8C00,#FFD700);background-size:200% auto;
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:shimmer 3s linear infinite;}
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:shimmer 3s linear infinite;}
 .tabbar{display:flex;position:fixed;bottom:0;left:50%;transform:translateX(-50%);
   width:100%;max-width:480px;background:rgba(5,5,8,.97);
   border-top:1px solid rgba(255,200,80,.12);z-index:100;backdrop-filter:blur(10px);}
@@ -220,7 +220,7 @@ body{display:flex;justify-content:center;}
 
 /* SETUP */
 .setup-page{padding:20px 16px;}
-.setup-title{font-size:18px;font-weight:700;letter-spacing:2px;margin-bottom:7px;background:linear-gradient(90deg,#FFD700,#FF8C00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.setup-title{font-size:18px;font-weight:700;letter-spacing:2px;margin-bottom:7px;background:linear-gradient(90deg,#FFD700,#FF8C00);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
 .api-input{width:100%;padding:11px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,200,80,.2);color:var(--text);font-size:11px;font-family:monospace;margin-bottom:6px;}
 .api-input:focus{outline:none;border-color:var(--gold);}
 .setup-label{font-size:10px;opacity:.4;margin-bottom:3px;margin-top:7px;letter-spacing:1px;}
@@ -2363,7 +2363,7 @@ characterカードのみ追加:
       magics:limitInnateSkills(p.magics||[],p.rarity||'N'),
       monsterType:p.monsterType||'',context:p.context,lore:p.lore,artMood:p.artMood,charName:p.charName,exp:0,artImg:null,artType:null,equippedSlots:[]};
       if(shouldUseAPI(char.rarity)){
-        showLoading(true,'キャラクター画像を生成中...','DQ風イラストを描いています');
+        showLoading(true,'キャラクター画像を生成中...','イラストを描いています');
         char.artImg=await generateCharImage(char);
       }else{
         // C/NはGemini製画像を使用（artImgはnullのままにしてcompositeで描画）
@@ -2563,7 +2563,7 @@ characterカード追加: job, race, gender, element, baseVal(50-200), charName,
 
 JSONの「配列のみ」を返してください。前後に解説やマークダウンは一切不要です。`;
 
-    // モデルをGemini 1.5 Flashに変更
+    // モデルをGemini 2.5 Flash liteに変更
     const res=await fetch('/api/analyze',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':apiKey},
