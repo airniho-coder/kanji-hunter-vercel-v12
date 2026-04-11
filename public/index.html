@@ -996,7 +996,7 @@ async function startLearningQuiz(charId){
     const prompt=`漢字「${char.kanji}」についての5択クイズを1問作ってください。
 漢字情報: 読み=${char.reading||''}、意味=${char.meaning||''}、例=${char.examples||''}
 
-問題タイプをランダムに1つ選ぶ: 読みを答える / 意味を答える / この読みの漢字を選ぶ / 熟語を完成させる
+問題タイプをランダムに1つ選ぶ: 読みを答える / 意味を答える / この漢字を使った正しい4字熟語または諺を選ぶ / 熟語を完成させる
 
 JSONのみ返答:
 {"type":"reading/meaning/kanji/jukugo","question":"問題文","correct":"正解","choices":["選択肢1","選択肢2","選択肢3","選択肢4","選択肢5"],"explanation":"解説20文字"}
