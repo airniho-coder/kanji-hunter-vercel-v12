@@ -1077,17 +1077,18 @@ ${typeInstructions[finalType]}
 
 function renderQuiz(char,q){
   const rc=RARITY[char.rarity]||RARITY.C;
-  // タイプバッジの表示
   const typeBadge={
-    reading:  {icon:'📖',label:'読み問題',    color:'#38bdf8'},
-    meaning:  {icon:'📚',label:'意味問題',    color:'#a78bfa'},
+    reading:     {icon:'📖',label:'読み問題',       color:'#38bdf8'},
+    meaning:     {icon:'📚',label:'意味問題',       color:'#a78bfa'},
     trivia_wrong:{icon:'🔍',label:'雑学・間違い探し',color:'#fb923c'},
-    trivia_right:{icon:'💡',label:'雑学・正しいもの', color:'#4ade80'},
-    jukugo:   {icon:'🈳',label:'熟語問題',    color:'#fbbf24'},
+    trivia_right:{icon:'💡',label:'雑学・正しいもの',color:'#4ade80'},
+    jukugo:      {icon:'🈳',label:'熟語問題',       color:'#fbbf24'},
   };
   const badge=typeBadge[q.type]||{icon:'📝',label:'クイズ',color:'#c9a84c'};
-  // 選択肢をシャッフル
+  // シャッフルしてquizStateに保存（onclickに渡さない）
   const shuffled=[...q.choices].sort(()=>Math.random()-.5);
+  quizState.shuffled=shuffled;
+  const nums=['①','②','③','④','⑤'];
   const html=`
     <div style="margin-bottom:12px;text-align:center">
       <div style="font-size:48px;font-weight:900;color:${rc.color}">${char.kanji}</div>
@@ -1097,25 +1098,28 @@ function renderQuiz(char,q){
     <div style="font-size:13px;font-weight:700;margin-bottom:14px;line-height:1.7;letter-spacing:.5px;padding:10px;background:rgba(255,255,255,.04);border-radius:8px;border-left:3px solid ${badge.color}88">${q.question}</div>
     <div style="display:flex;flex-direction:column;gap:8px" id="quiz-choices">
       ${shuffled.map((c,i)=>`
-        <button onclick="answerQuiz('${c.replace(/'/g,"\'").replace(/"/g,'&quot;')}','${q.correct.replace(/'/g,"\'").replace(/"/g,'&quot;')}',${JSON.stringify(shuffled).replace(/'/g,"\'")})" id="qc-${i}"
+        <button onclick="answerQuiz(${i})" id="qc-${i}"
           style="padding:11px 14px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#e8e4d8;font-size:12px;cursor:pointer;font-family:'Noto Serif JP',serif;text-align:left;transition:all .15s;line-height:1.5">
-          <span style="opacity:.5;margin-right:6px">${['①','②','③','④','⑤'][i]}</span>${c}
+          <span style="opacity:.5;margin-right:6px">${nums[i]}</span>${c}
         </button>`).join('')}
     </div>
     <div id="quiz-result" style="margin-top:16px"></div>`;
   document.getElementById('learning-content').innerHTML=html;
 }
 
-function answerQuiz(chosen,correct,choices){
+function answerQuiz(idx){
   if(quizState?.answered)return;
   quizState.answered=true;
+  const shuffled=quizState.shuffled||quizState.q.choices;
+  const correct=quizState.q.correct;
+  const chosen=shuffled[idx];
   const isCorrect=chosen===correct;
-  // ボタン色更新（シャッフル後のインデックスで判定）
+  // ボタン色更新
   document.querySelectorAll('[id^="qc-"]').forEach((btn,i)=>{
     btn.disabled=true;
-    const c=choices?choices[i]:btn.textContent.trim().slice(2);
+    const c=shuffled[i];
     if(c===correct)btn.style.background='rgba(74,222,128,.25)';
-    else if(txt===chosen&&!isCorrect)btn.style.background='rgba(239,68,68,.25)';
+    else if(i===idx&&!isCorrect)btn.style.background='rgba(239,68,68,.25)';
   });
   let expMsg='';
   if(isCorrect){
