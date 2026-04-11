@@ -888,12 +888,17 @@ JSONのみ返答（不要フィールドも省略せず全て記載）:
 
       const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey},body:JSON.stringify({model:'gemini-1.5-flash',max_tokens:800,messages:[{role:'user',content:[{type:'text',text:prompt}]}]})});
       const data=await res.json();
-      if(data.error)throw new Error(data.error.message);
+      // Geminiのエラー構造に対応（message直下またはerror.message）
+      if(data.error)throw new Error(typeof data.error==='string'?data.error:(data.error.message||JSON.stringify(data.error)));
       const text=data.content?.map(b=>b.text||'').join('')||'';
-      if(!text) throw new Error('AIが空の返答を返しました（制限がかかった可能性があります）');
+      // デバッグ：受け取ったテキストを表示
+      showBGMDebug('合成AI返答: '+(text.slice(0,40)||'(空)'));
+      if(!text) throw new Error('AIが空の返答を返しました。セーフティフィルターの可能性があります');
       const jS=text.indexOf('{'),jE=text.lastIndexOf('}');
-      if(jS===-1) throw new Error('JSONデータが見つかりませんでした: '+text.slice(0,50));
-      const p=JSON.parse(text.slice(jS,jE+1));
+      if(jS===-1) throw new Error('JSON未検出。返答: '+text.slice(0,80));
+      let p;
+      try{p=JSON.parse(text.slice(jS,jE+1));}
+      catch(parseErr){throw new Error('JSON解析失敗: '+text.slice(jS,jS+80));}
       // 合成元を削除
       const removeCard=(id,type)=>{
         if(type==='character')characters=characters.filter(c=>c.id!==id);
