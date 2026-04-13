@@ -860,13 +860,25 @@ async function executeSynthesis(){
     </div>`;
     synSlots=[null,null];renderSynSlots();
 
-  }else{
+ }else{
     // ===== 方式C: 漢字合成 =====
     try{
       showLoading(true,'漢字を合成中...','AIが新しい漢字を錬成しています');
       // 合成元の文章コンテキストを取得
       const ctx0=c0.context||c0.lore||c0.charName||c0.name||c0.kanji;
       const ctx1=c1.context||c1.lore||c1.charName||c1.name||c1.kanji;
+      
+      // レア度の高い方を算出
+      const rLv={C:1,N:2,R:3,SR:4,SSR:5};
+      const targetRarity=(rLv[c0.rarity]||1)>=(rLv[c1.rarity]||1)?c0.rarity:c1.rarity;
+      
+      // キャラクターカードが含まれているか判定
+      const hasChar = c0.cardType==='character'||c1.cardType==='character';
+      const typeRule = hasChar 
+        ? '- cardTypeは必ず "character" にすること' 
+        : '- cardTypeは絶対に "character" にしないこと（skill/magic/weapon/armor/item/recovery のいずれかにすること）';
+      const exampleType = hasChar ? 'character' : 'weapon';
+
       const prompt=`漢字ハンターゲームの合成システムです。
 「${c0.kanji}」と「${c1.kanji}」の2つの漢字を合成して新しい漢字1文字を生成し、カードを作ってください。
 
@@ -877,12 +889,15 @@ async function executeSynthesis(){
 ルール:
 - 2つの漢字の意味・形・読みを組み合わせた新しい漢字1文字を選ぶ（実在する漢字が望ましい）
 - 合成元の文脈から連想した新しい物語・設定を考える
-- レア度はR(50%)/SR(40%)/SSR(10%)
+- レア度は必ず ${targetRarity} に設定すること
+${typeRule}
 - characterカードの場合、固有スキルまたは固有魔法を最大1つだけ生成すること（2つ以上は禁止）
+- 非characterカードの場合、name(名称)とbonuses(ステータス上昇値 例:{"atk":15})を必ず設定すること
 - スキル・魔法は必ずname,spCost/mpCost,type,descを全て埋めること
 
 JSONのみ返答（不要フィールドも省略せず全て記載）:
-{"newKanji":"漢字1文字","reason":"なぜその漢字か20文字","isRealBook":true,"cardType":"character","kanji":"newKanjiと同じ","rarity":"SR","lore":"設定","charName":"キャラ名","job":"剣士","race":"人族","gender":"男","element":"火","baseVal":130,"monsterType":"","artMood":"","context":"2つの文脈から連想した新しい物語30文字",
+{"newKanji":"漢字1文字","reason":"なぜその漢字か20文字","isRealBook":true,"cardType":"${exampleType}","kanji":"newKanjiと同じ","rarity":"${targetRarity}","lore":"設定","charName":"キャラ名","name":"アイテム・装備名(非キャラ時必須)","job":"剣士","race":"人族","gender":"男","element":"火","baseVal":130,"monsterType":"","artMood":"","context":"2つの文脈から連想した新しい物語30文字",
+"bonuses":{"atk":15},"effectDesc":"効果説明",
 "skills":[{"name":"スキル名","spCost":25,"type":"atk","desc":"説明"}],
 "magics":[],"reading":"読み（音読み・訓読み）","meaning":"意味30文字","examples":"熟語や例文2〜3個"}`;
 
