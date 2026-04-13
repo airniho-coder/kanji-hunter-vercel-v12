@@ -1920,7 +1920,10 @@ function kanjiOnlyDisplay(char){
 
 // ===== RENDER HELPERS =====
 function starsHTML(count,color){return Array.from({length:5}).map((_,i)=>`<span style="opacity:${i<count?1:.12};color:${color}">★</span>`).join('');}
-function statRow(label,val,color,max){return`<div class="stat-row"><div class="stat-top"><span class="stat-label">${label}</span><span class="stat-num">${val}</span></div><div class="stat-track"><div class="stat-fill" style="width:${Math.min(100,Math.round(val/(max||400)*100))}%;background:${color}"></div></div></div>`;}
+function statRow(label,val,bonusVal,color,max){
+  const bonusText = bonusVal > 0 ? `<span style="color:#fbbf24;font-size:9px;margin-right:4px">(+${bonusVal})</span>` : '';
+  return`<div class="stat-row"><div class="stat-top"><span class="stat-label">${label}</span><span class="stat-num">${bonusText}${val}</span></div><div class="stat-track"><div class="stat-fill" style="width:${Math.min(100,Math.round(val/(max||400)*100))}%;background:${color}"></div></div></div>`;
+}
 function elemColor(e){return{火:'#ef4444',水:'#38bdf8',木:'#4ade80',土:'#fbbf24',風:'#a3e635',金:'#f0abfc',闇:'#a78bfa',光:'#fde68a'}[e]||'#fff';}
 
 function artHTML(char,h){
@@ -2029,15 +2032,15 @@ function charDetailHTML(char,showBattleBtn=true){
         <div class="exp-track"><div class="exp-fill" style="width:${expPct(char.exp||0)}%"></div></div>
       </div>
       <div class="stats-grid">
-        ${statRow('HP', getEffectiveStat(char,'hp'), '#4ade80', 999)}
-        ${statRow('MP', getEffectiveStat(char,'mp'), '#818cf8', 400)}
-        ${statRow('SP', getEffectiveStat(char,'sp'), '#fbbf24', 400)}
-        ${statRow('ATK', getEffectiveStat(char,'atk'), '#fb923c', 400)}
-        ${statRow('DEF', getEffectiveStat(char,'def'), '#38bdf8', 400)}
-        ${statRow('SPD', getEffectiveStat(char,'spd'), '#f472b6', 400)}
-        ${statRow('INT', getEffectiveStat(char,'int'), '#a78bfa', 400)}
-        ${statRow('LCK', getEffectiveStat(char,'lck'), '#fde68a', 400)}
-        ${statRow('CRIT', getEffectiveStat(char,'crit'), '#f87171', 30)}
+        ${statRow('HP', getEffectiveStat(char,'hp'), bonus.hp||0, '#4ade80', 999)}
+        ${statRow('MP', getEffectiveStat(char,'mp'), bonus.mp||0, '#818cf8', 400)}
+        ${statRow('SP', getEffectiveStat(char,'sp'), bonus.sp||0, '#fbbf24', 400)}
+        ${statRow('ATK', getEffectiveStat(char,'atk'), bonus.atk||0, '#fb923c', 400)}
+        ${statRow('DEF', getEffectiveStat(char,'def'), bonus.def||0, '#38bdf8', 400)}
+        ${statRow('SPD', getEffectiveStat(char,'spd'), bonus.spd||0, '#f472b6', 400)}
+        ${statRow('INT', getEffectiveStat(char,'int'), bonus.int||0, '#a78bfa', 400)}
+        ${statRow('LCK', getEffectiveStat(char,'lck'), bonus.lck||0, '#fde68a', 400)}
+        ${statRow('CRIT', getEffectiveStat(char,'crit'), bonus.crit||0, '#f87171', 30)}
       </div>
     </div>
     <div class="skills-section">
