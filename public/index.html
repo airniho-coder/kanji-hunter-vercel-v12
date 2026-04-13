@@ -2396,7 +2396,8 @@ characterカードのみ追加:
 
 
 非characterカード（skill/magic/weapon/armor/item/recovery 全て必須）:
-- name: カード名（必ず日本語で入力。例:「炎の剣」「疾風スラッシュ」「回復の泉」）
+- name: 漢字1文字や適当な名称は禁止。カード種類に合った「RPGゲームらしい名称」を必ず付けてください。
+  weapon(例:炎の剣/大地の槍), armor(例:光の盾/鉄壁の鎧), magic(例:火炎魔法/極寒ブリザード), skill(例:疾風斬り/絶対防御), item(例:力の指輪), recovery(例:特製ポーション)
 - bonuses: weapon={atk:XX}, armor={def:XX}, item={sp:XX}, skill/magic/recovery={}
 - effectDesc: 効果説明（15文字程度、必ず記述）
 - skillData: skillのみ必須 {name:技名,spCost:20,type:"atk",desc:"効果説明"}
@@ -2525,10 +2526,12 @@ async function buildCardFromParsed(p, isSynthesis=false){
     const m=src.match(/[一-鿿]/);
     p.kanji=m?m[0]:'？';
   }
-  if(!p.name||p.name==='undefined')p.name=null;
+  if(!p.name||p.name==='undefined'||p.name==='？')p.name=null;
+  
+  // おまかせ召喚時は全カードのレア度を最高Rに制限する
+  if(!isSynthesis&&['SR','SSR'].includes(p.rarity)) p.rarity='R';
+
   if(p.cardType==='character'){
-    // ⑤おまかせ時キャラはR以下に制限（isSynthesisでなければ）
-    if(!isSynthesis&&['SR','SSR'].includes(p.rarity))p.rarity='R';
     const stats=buildStats(p.job||'剣士',p.baseVal||100);
     const char={
       id:Date.now()+Math.random()*1000,cardType:'character',
@@ -2591,10 +2594,14 @@ async function buildCardFromParsed(p, isSynthesis=false){
       else bonuses={sp:Math.floor(5+Math.random()*15)};
     }
     const effectDesc=p.effectDesc||(skillData?`SP${skillData.spCost} ${skillData.desc}`:magicData?`MP${magicData.mpCost} ${magicData.desc}`:'');
+    
+    // AIが名前を付け忘れた場合の種別に合わせたフォールバック名
+    const fallbackName = p.kanji + (cType==='weapon'?'の武器':cType==='armor'?'の防具':cType==='magic'?'魔法':cType==='skill'?'の技':cType==='recovery'?'薬':'の欠片');
+    
     return{
       id:Date.now()+Math.random()*1000,
       cardType:cType,kanji:p.kanji,rarity:p.rarity||'N',
-      name:(p.name&&p.name!=='undefined')?p.name:p.kanji,bonuses,
+      name: p.name ? p.name : fallbackName, bonuses,
       effectDesc,context:p.context||'',lore:p.lore||'',
       reading:p.reading||'',meaning:p.meaning||'',examples:p.examples||'',
       artImg:null,skillData,magicData
@@ -2621,22 +2628,25 @@ async function analyzeOmakase(){
     const prompt=`あなたは漢字ハンターゲームの召喚士です。画像から漢字を拾い読みし、異なる5枚のカードを生成してください。
 
 
-カード種類（順番通り）: 1=${types[0]} 2=${types[1]} 3=${types[2]} 4=${types[3]} 5=${types[4]}
-レア度: 全カード(C40%N35%R20%SR4%SSR1%)。ただしcharacterカードは最大R（SRやSSRにしない）
+カード種類（必ずこの配列通りに生成すること）: 1=${types[0]} 2=${types[1]} 3=${types[2]} 4=${types[3]} 5=${types[4]}
+レア度: 全て C, N, R のいずれか（SRとSSRは絶対に使用しないこと）
 jobヒント:${job1} raceヒント:${race1}
 
 
 【ルール】
 - 正確な文字起こしは不要です。各カードにつき、目立つ漢字を1文字（kanji）選び、さらに周囲の漢字を適当に拾って素材（context内に列挙）として混ぜ合わせてください。
+- 1枚目から5枚目まで、指定された「カード種類」を必ず守ってください。全てitemにしないでください。武器、スキル、魔法、回復薬、アイテム、防具がランダムに出るようにしてください。
 - isRealBook: true（デジタル画面ならfalse）
 - kanji: 漢字1文字
-- rarity: C/N/R/SR/SSR
+- rarity: C/N/R のいずれか
 - context: 「素材漢字: 〇, 〇, 〇」の形式
 - lore: 拾った素材漢字の要素を混ぜた設定
 
 
 characterカード追加: job, race, gender, element, baseVal(50-200), charName, monsterType, skills(0〜2個), magics(0〜2個), artMood
-非characterカード追加: name, bonuses, effectDesc, (skillData/magicData/healType等)
+非characterカード追加: 
+- name: 漢字1文字や適当な名称は禁止。カード種類に合ったゲームらしい名称（○○剣、○○の盾、火炎魔法、必殺斬り、ポーション等）を必ずつけること。
+- bonuses, effectDesc, (skillData/magicData/healType等)
 
 
 JSONの「配列のみ」を返してください。前後に解説やマークダウンは一切不要です。`;
@@ -2669,7 +2679,9 @@ JSONの「配列のみ」を返してください。前後に解説やマーク�
         console.error('card build error',p.kanji,e2);
         // ビルドエラーでもシンプルカードとして追加
         try{
-          const fallback={id:Date.now()+Math.random(),cardType:p.cardType||'item',kanji:p.kanji,rarity:p.rarity||'N',name:(p.name&&p.name!=='undefined')?p.name:(p.charName||p.kanji),bonuses:p.bonuses||{},effectDesc:p.effectDesc||'',context:p.context||'',lore:p.lore||'',skillData:p.skillData||null,magicData:p.magicData||null};
+          const cType = p.cardType||'item';
+          const fallbackName = p.kanji + (cType==='weapon'?'の武器':cType==='armor'?'の防具':cType==='magic'?'魔法':cType==='skill'?'の技':cType==='recovery'?'薬':'の欠片');
+          const fallback={id:Date.now()+Math.random(),cardType:cType,kanji:p.kanji,rarity:['C','N','R'].includes(p.rarity)?p.rarity:'N',name:(p.name&&p.name!=='undefined'&&p.name!=='？')?p.name:fallbackName,bonuses:p.bonuses||{},effectDesc:p.effectDesc||'',context:p.context||'',lore:p.lore||'',skillData:p.skillData||null,magicData:p.magicData||null};
           omakaseCards.push(fallback);
           console.log('fallback card added:',p.kanji);
         }catch(e3){console.error('fallback failed',e3);}
