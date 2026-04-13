@@ -318,6 +318,17 @@ body{display:flex;justify-content:center;}
 @keyframes flashEl{0%,100%{opacity:1}50%{opacity:.08}}
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-thumb{background:rgba(255,200,80,.3);border-radius:3px;}
+
+/* ===== COLLECTION GRID VIEW ===== */
+.coll-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 0 14px 14px; }
+.mini-card { border-radius: 8px; overflow: hidden; position: relative; background: rgba(0,0,0,.4); border: 1px solid rgba(255,255,255,.1); cursor: pointer; aspect-ratio: 3/4; display: flex; flex-direction: column; transition: transform 0.15s; }
+.mini-card:active { transform: scale(0.95); }
+.mini-card-art { flex: 1; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; }
+.mini-card-art img { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+.mini-card-info { padding: 4px; text-align: center; background: rgba(0,0,0,.8); border-top: 1px solid rgba(255,255,255,.1); }
+.mini-card-name { font-size: 9px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: .5px; }
+.mini-card-rarity { font-size: 8px; font-weight: 900; position: absolute; top: 4px; left: 4px; padding: 1px 4px; border-radius: 4px; background: rgba(0,0,0,.7); border: 1px solid; }
+.mini-card-type { position: absolute; top: 4px; right: 4px; font-size: 10px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
 </style>
 </head>
 <body>
@@ -467,9 +478,10 @@ body{display:flex;justify-content:center;}
 <!-- COLLECTION -->
 <div class="page" id="page-collection">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px 5px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;width:100%">
       <div style="font-size:11px;letter-spacing:3px;opacity:.4;text-transform:uppercase">コレクション</div>
       <div style="display:flex;gap:6px">
+        <button onclick="toggleCollView()" id="view-toggle-btn" style="font-size:12px;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#fff;cursor:pointer">▦</button>
         <button onclick="exportData()" style="font-size:9px;padding:4px 8px;border-radius:6px;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.3);color:#c9a84c;cursor:pointer;font-family:'Noto Serif JP',serif;letter-spacing:1px">⬇ 保存</button>
         <button onclick="document.getElementById('import-input').click()" style="font-size:9px;padding:4px 8px;border-radius:6px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);color:#818cf8;cursor:pointer;font-family:'Noto Serif JP',serif;letter-spacing:1px">⬆ 復元</button>
         <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(event)">
@@ -2849,35 +2861,99 @@ function registerCard(){
 }
 
 // ===== COLLECTION RENDER =====
+// 表示モードの記憶（詳細: detail / グリッド: grid）
+let collViewMode = localStorage.getItem('kh_coll_view') || 'detail';
+
+function toggleCollView() {
+  collViewMode = collViewMode === 'detail' ? 'grid' : 'detail';
+  localStorage.setItem('kh_coll_view', collViewMode);
+  renderCollection();
+}
+
+function openItemDetail(id) {
+  const item = itemCards.find(i => i.id === id);
+  if(!item) return;
+  document.getElementById('detail-content').innerHTML = `<div style="padding:16px;">${itemCardHTML(item)}</div><div style="padding:0 16px 16px"><button onclick="closeDetailModal()" style="width:100%;padding:10px;border-radius:8px;background:rgba(255,255,255,.1);border:none;color:#fff;font-family:'Noto Serif JP',serif;cursor:pointer;letter-spacing:2px">閉じる</button></div>`;
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function miniCardHTML(char) {
+  const rc = RARITY[char.rarity] || RARITY.C;
+  let artEl = '';
+  if(char.artImg) {
+    artEl = `<img src="${char.artImg}" alt="">`;
+  } else if(char.artType==='gemini'&&char.charImgPath) {
+    artEl = `<div style="width:100%;height:100%;background:#111;position:relative"><img src="${char.charImgPath}" style="width:100%;height:100%;object-fit:contain;object-position:top center" alt=""></div>`;
+  } else {
+    artEl = `<div style="font-size:32px;font-weight:900;color:${rc.color}">${char.kanji}</div>`;
+  }
+  const bg = char.rarity==='SR'?'linear-gradient(135deg,#1a1200,#2e1e00)':char.rarity==='SSR'?'linear-gradient(135deg,#08000f,#120018)':rc.bg;
+  
+  return `<div class="mini-card" style="background:${bg}; border-color:${rc.color}66; box-shadow: 0 0 8px ${rc.glow}20" onclick="openCharDetail(${char.id})">
+    <div class="mini-card-rarity" style="color:${rc.color};border-color:${rc.color}66">${char.rarity}</div>
+    <div class="mini-card-type">${ELEM_ICONS[char.element]||''}</div>
+    <div class="mini-card-art">${artEl}</div>
+    <div class="mini-card-info">
+      <div class="mini-card-name" style="color:${rc.color}">${char.charName || char.kanji}</div>
+    </div>
+  </div>`;
+}
+
+function miniItemCardHTML(item) {
+  const rc = RARITY[item.rarity] || RARITY.C;
+  const typeIcon = item.cardType === 'recovery' ? '💊' : (CARD_TYPE_ICONS[item.cardType] || '📦');
+  let artEl = '';
+  if(item.artImg) artEl = `<img src="${item.artImg}" alt="" style="padding:4px; object-fit:contain">`;
+  else artEl = `<div style="font-size:28px;font-weight:900;color:${rc.color}">${item.kanji}</div>`;
+  
+  const equippedOn = characters.find(c => (c.equippedSlots||[]).includes(item.id));
+  const eqIcon = equippedOn ? `<div style="position:absolute;top:20px;left:4px;font-size:8px;background:rgba(74,222,128,.8);padding:1px 3px;border-radius:4px;color:#000;font-weight:900;letter-spacing:0;z-index:2">E</div>` : '';
+  const bg = item.rarity==='SR'?'linear-gradient(135deg,#1a1200,#2e1e00)':item.rarity==='SSR'?'linear-gradient(135deg,#08000f,#120018)':rc.bg;
+
+  return `<div class="mini-card" style="background:${bg}; border-color:${rc.color}66; box-shadow: 0 0 8px ${rc.glow}20" onclick="openItemDetail(${item.id})">
+    <div class="mini-card-rarity" style="color:${rc.color};border-color:${rc.color}66">${item.rarity}</div>
+    <div class="mini-card-type">${typeIcon}</div>
+    ${eqIcon}
+    <div class="mini-card-art">${artEl}</div>
+    <div class="mini-card-info">
+      <div class="mini-card-name" style="color:${rc.color}">${item.name || item.kanji}</div>
+    </div>
+  </div>`;
+}
+
 function renderCollection(){
   const el=document.getElementById('coll-list');
+  const isGrid = collViewMode === 'grid';
+  
+  const btn = document.getElementById('view-toggle-btn');
+  if(btn) btn.textContent = isGrid ? '🔲' : '▦';
+  
+  const renderList = (items, emptyIcon, emptyText, type) => {
+    if(!items.length){
+      el.innerHTML=`<div class="empty-state"><div style="font-size:36px">${emptyIcon}</div><div>${emptyText}</div></div>`;
+      return;
+    }
+    if(isGrid){
+      el.innerHTML = `<div class="coll-grid">` + items.map(i => type === 'char' ? miniCardHTML(i) : miniItemCardHTML(i)).join('') + `</div>`;
+    } else {
+      el.innerHTML = items.map(i => `<div style="padding:0 14px ${type==='char'?'2px':'4px'}">${type==='char'?flipCardHTML(i):itemCardHTML(i)}</div>`).join('');
+    }
+  };
+
   if(collTab==='char'){
-    if(!characters.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">👤</div><div>本から漢字を探して<br>キャラクターを召喚しよう</div></div>';return;}
-    el.innerHTML=characters.map(c=>`<div style="padding:0 14px 2px">${flipCardHTML(c)}</div>`).join('');
+    renderList(characters, '👤', '本から漢字を探して<br>キャラクターを召喚しよう', 'char');
   }else if(collTab==='skill'){
-    const items=itemCards.filter(i=>i.cardType==='skill');
-    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">⚔️</div><div>スキルカードはまだありません</div></div>';return;}
-    el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
+    renderList(itemCards.filter(i=>i.cardType==='skill'), '⚔️', 'スキルカードはまだありません', 'item');
   }else if(collTab==='magic'){
-    const items=itemCards.filter(i=>i.cardType==='magic');
-    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">🔮</div><div>魔法カードはまだありません</div></div>';return;}
-    el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
+    renderList(itemCards.filter(i=>i.cardType==='magic'), '🔮', '魔法カードはまだありません', 'item');
   }else if(collTab==='weapon'){
-    const items=itemCards.filter(i=>i.cardType==='weapon');
-    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">🗡️</div><div>武器カードはまだありません</div></div>';return;}
-    el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
+    renderList(itemCards.filter(i=>i.cardType==='weapon'), '🗡️', '武器カードはまだありません', 'item');
   }else if(collTab==='armor'){
-    const items=itemCards.filter(i=>i.cardType==='armor');
-    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">🛡️</div><div>防具カードはまだありません</div></div>';return;}
-    el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
+    renderList(itemCards.filter(i=>i.cardType==='armor'), '🛡️', '防具カードはまだありません', 'item');
   }else if(collTab==='recovery'){
-    const items=itemCards.filter(i=>i.cardType==='recovery');
-    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">💉</div><div>回復薬カードはまだありません</div></div>';return;}
-    el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
+    renderList(itemCards.filter(i=>i.cardType==='recovery'), '💉', '回復薬カードはまだありません', 'item');
   }else{
-    const items=itemCards.filter(i=>i.cardType==='item'||i.cardType==='tool');
-    if(!items.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">💊</div><div>アイテムカードはまだありません</div></div>';return;}
-    el.innerHTML=items.map(i=>`<div style="padding:0 14px 4px">${itemCardHTML(i)}</div>`).join('');
+    renderList(itemCards.filter(i=>i.cardType==='item'||i.cardType==='tool'), '💊', 'アイテムカードはまだありません', 'item');
   }
 }
 
