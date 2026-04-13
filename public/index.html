@@ -2876,12 +2876,16 @@ function openCharDetail(id) {
   if(!char) return;
   
   // ポップアップ（detail-content）の中に、タップで裏返るカード（flipCardHTML）を描画する
+  // 重要：onclick="this.classList.toggle('flipped')" を外枠に追加して確実に動かします
   document.getElementById('detail-content').innerHTML = `
-    <div style="padding:16px;">
-      ${flipCardHTML(char)}
+    <div style="padding:16px; display:flex; justify-content:center;">
+      <div class="card-container" onclick="this.classList.toggle('flipped')" style="cursor:pointer; width:100%; max-width:320px;">
+        ${flipCardHTML(char)}
+      </div>
     </div>
     <div style="padding:0 16px 16px">
-      <button onclick="closeDetailModal()" style="width:100%;padding:10px;border-radius:8px;background:rgba(255,255,255,.1);border:none;color:#fff;font-family:'Noto Serif JP',serif;cursor:pointer;letter-spacing:2px">閉じる</button>
+      <p style="text-align:center; font-size:10px; opacity:0.5; margin-bottom:10px;">↑ カードをタップで裏表切り替え</p>
+      <button onclick="closeDetailModal()" style="width:100%; padding:12px; border-radius:8px; background:rgba(255,255,255,.1); border:none; color:#fff; font-family:'Noto Serif JP',serif; cursor:pointer; letter-spacing:2px">閉じる</button>
     </div>
   `;
   
