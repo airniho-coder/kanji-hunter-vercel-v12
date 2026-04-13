@@ -2870,10 +2870,22 @@ function toggleCollView() {
   renderCollection();
 }
 
-function openItemDetail(id) {
-  const item = itemCards.find(i => i.id === id);
-  if(!item) return;
-  document.getElementById('detail-content').innerHTML = `<div style="padding:16px;">${itemCardHTML(item)}</div><div style="padding:0 16px 16px"><button onclick="closeDetailModal()" style="width:100%;padding:10px;border-radius:8px;background:rgba(255,255,255,.1);border:none;color:#fff;font-family:'Noto Serif JP',serif;cursor:pointer;letter-spacing:2px">閉じる</button></div>`;
+function openCharDetail(id) {
+  // idからキャラクターを探す
+  const char = characters.find(c => c.id === id);
+  if(!char) return;
+  
+  // ポップアップ（detail-content）の中に、タップで裏返るカード（flipCardHTML）を描画する
+  document.getElementById('detail-content').innerHTML = `
+    <div style="padding:16px;">
+      ${flipCardHTML(char)}
+    </div>
+    <div style="padding:0 16px 16px">
+      <button onclick="closeDetailModal()" style="width:100%;padding:10px;border-radius:8px;background:rgba(255,255,255,.1);border:none;color:#fff;font-family:'Noto Serif JP',serif;cursor:pointer;letter-spacing:2px">閉じる</button>
+    </div>
+  `;
+  
+  // ポップアップを表示する
   document.getElementById('detail-modal').classList.add('open');
 }
 
