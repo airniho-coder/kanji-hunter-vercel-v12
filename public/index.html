@@ -2398,7 +2398,7 @@ characterカードのみ追加:
 非characterカード（skill/magic/weapon/armor/item/recovery 全て必須）:
 - name: 漢字1文字や適当な名称は禁止。カード種類に合った「RPGゲームらしい名称」を必ず付けてください。
   weapon(例:炎の剣/大地の槍), armor(例:光の盾/鉄壁の鎧), magic(例:火炎魔法/極寒ブリザード), skill(例:疾風斬り/絶対防御), item(例:力の指輪), recovery(例:特製ポーション)
-- bonuses: weapon={atk:XX}, armor={def:XX}, item={sp:XX}, skill/magic/recovery={}
+- bonuses: 必ず {ステータス名: 数値} の形式。ステータス名は【hp, mp, sp, atk, def, spd, int, lck, crit】のいずれか（必ず小文字）を使用すること。例: weapon={atk:15}, armor={def:20}, item={hp:50} 等
 - effectDesc: 効果説明（15文字程度、必ず記述）
 - skillData: skillのみ必須 {name:技名,spCost:20,type:"atk",desc:"効果説明"}
 - magicData: magicのみ必須 {name:魔法名,mpCost:25,type:"magic",desc:"効果説明"}
@@ -2461,14 +2461,29 @@ characterカードのみ追加:
       let _sd=p.skillData||null,_md=p.magicData||null;
       if((p.cardType||'item')==='skill'&&!_sd)_sd={name:(p.name&&p.name!=='undefined')?p.name:p.kanji+'の技',spCost:20,type:'atk',desc:`${p.kanji}の力で強力な一撃`};
       if((p.cardType||'item')==='magic'&&!_md)_md={name:(p.name&&p.name!=='undefined')?p.name:p.kanji+'の魔法',mpCost:25,type:'magic',healPct:0,desc:`${p.kanji}の魔力で魔法ダメージ`};
-      // bonusesフラット化
+      // bonusesフラット化とステータス名の正規化
       let _rawBon=p.bonuses||{};
       let _bon={};
       Object.entries(_rawBon).forEach(([k,v])=>{
-        if(typeof v==='number')_bon[k]=v;
+        let num=0;
+        if(typeof v==='number')num=v;
         else if(typeof v==='object'&&v!==null){
-          const num=v.value||v.amount||v.val||Object.values(v).find(x=>typeof x==='number');
-          if(num)_bon[k]=num;
+          num=v.value||v.amount||v.val||Object.values(v).find(x=>typeof x==='number')||0;
+        }
+        if(num){
+          const l=k.toLowerCase();
+          let validKey=null;
+          if(l.includes('atk')||l==='attack')validKey='atk';
+          else if(l.includes('def')||l==='armor'||l==='guard')validKey='def';
+          else if(l.includes('spd')||l==='speed'||l==='agi')validKey='spd';
+          else if(l.includes('int')||l==='magic')validKey='int';
+          else if(l.includes('lck')||l==='luck')validKey='lck';
+          else if(l.includes('crit')||l.includes('acc'))validKey='crit';
+          else if(l.includes('hp'))validKey='hp';
+          else if(l.includes('mp'))validKey='mp';
+          else if(l.includes('sp'))validKey='sp';
+          else validKey='atk'; // 全く不明なステータスは攻撃力に変換
+          _bon[validKey]=num;
         }
       });
       if(['item','weapon','armor'].includes(p.cardType||'item')&&Object.keys(_bon).length===0){
@@ -2584,14 +2599,29 @@ async function buildCardFromParsed(p, isSynthesis=false){
       magicData={name:(p.name&&p.name!=='undefined')?p.name:p.kanji+'の魔法',mpCost:25,type:'magic',healPct:0,desc:`${p.kanji}の魔力で敵に魔法ダメージを与える`};
     }
     // bonusesもスキル・魔法は空でOK、itemなら何か1つ必ず入れる
-    // bonusesのフラット化（ネスト対応）
+   // bonusesのフラット化とステータス名の正規化（ネスト対応）
     let rawBonuses=p.bonuses||{};
     let bonuses={};
     Object.entries(rawBonuses).forEach(([k,v])=>{
-      if(typeof v==='number')bonuses[k]=v;
+      let num=0;
+      if(typeof v==='number')num=v;
       else if(typeof v==='object'&&v!==null){
-        const num=v.value||v.amount||v.val||Object.values(v).find(x=>typeof x==='number');
-        if(num)bonuses[k]=num;
+        num=v.value||v.amount||v.val||Object.values(v).find(x=>typeof x==='number')||0;
+      }
+      if(num){
+        const l=k.toLowerCase();
+        let validKey=null;
+        if(l.includes('atk')||l==='attack')validKey='atk';
+        else if(l.includes('def')||l==='armor'||l==='guard')validKey='def';
+        else if(l.includes('spd')||l==='speed'||l==='agi')validKey='spd';
+        else if(l.includes('int')||l==='magic')validKey='int';
+        else if(l.includes('lck')||l==='luck')validKey='lck';
+        else if(l.includes('crit')||l.includes('acc'))validKey='crit';
+        else if(l.includes('hp'))validKey='hp';
+        else if(l.includes('mp'))validKey='mp';
+        else if(l.includes('sp'))validKey='sp';
+        else validKey='atk'; // フォールバック
+        bonuses[validKey]=num;
       }
     });
     if((cType==='item'||cType==='weapon'||cType==='armor')&&Object.keys(bonuses).length===0){
@@ -2636,7 +2666,7 @@ async function analyzeOmakase(){
 
 カード種類（必ずこの配列通りに生成すること）: 1=${types[0]} 2=${types[1]} 3=${types[2]} 4=${types[3]} 5=${types[4]}
 レア度: 全て C, N, R のいずれか（SRとSSRは絶対に使用しないこと）
-jobヒント:${job1}
+jobヒント:${job1} raceヒント:${race1}
 
 
 【ルール】
@@ -2650,10 +2680,11 @@ jobヒント:${job1}
 
 
 characterカード追加: job, race(カード順番に応じて必ず ${races[0]}, ${races[1]}, ${races[2]}, ${races[3]}, ${races[4]} のいずれかに設定し、artMood等の造形にも反映させること), gender, element, baseVal(50-200), charName, monsterType, skills(0〜2個), magics(0〜2個), artMood
-非characterカード追加: 
-- name: 漢字1文字や適当な名称は禁止。カード種類に合ったゲームらしい名称（○○剣、○○の盾、火炎魔法、必殺斬り、ポーション等）を必ずつけること。
-- bonuses, effectDesc, (skillData/magicData/healType等)
-
+非characterカード（skill/magic/weapon/armor/item/recovery 全て必須）追加:
+- name: 漢字1文字や適当な名称は禁止。カード種類に合った「RPGゲームらしい名称」を必ず付けてください。
+  weapon(例:炎の剣/大地の槍), armor(例:光の盾/鉄壁の鎧), magic(例:火炎魔法/極寒ブリザード), skill(例:疾風斬り/絶対防御), item(例:力の指輪), recovery(例:特製ポーション)
+- bonuses: 必ず {ステータス名: 数値} の形式。ステータス名は【hp, mp, sp, atk, def, spd, int, lck, crit】のいずれか（必ず小文字）を使用すること。例: weapon={atk:15}, armor={def:20}, item={hp:50} 等
+- effectDesc, (skillData/magicData/healType等)
 
 JSONの「配列のみ」を返してください。前後に解説やマークダウンは一切不要です。`;
 
