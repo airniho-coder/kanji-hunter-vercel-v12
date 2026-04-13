@@ -329,6 +329,13 @@ body{display:flex;justify-content:center;}
 .mini-card-name { font-size: 9px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: .5px; }
 .mini-card-rarity { font-size: 8px; font-weight: 900; position: absolute; top: 4px; left: 4px; padding: 1px 4px; border-radius: 4px; background: rgba(0,0,0,.7); border: 1px solid; }
 .mini-card-type { position: absolute; top: 4px; right: 4px; font-size: 10px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
+
+/* ===== CARD FLIP 3D ===== */
+.card-container { perspective: 1000px; width: 100%; }
+.card-inner { position: relative; width: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+.card-container.flipped .card-inner { transform: rotateY(180deg); }
+.card-front, .card-back { backface-visibility: hidden; -webkit-backface-visibility: hidden; width: 100%; }
+.card-back { position: absolute; top: 0; left: 0; transform: rotateY(180deg); border-radius: 18px; overflow: hidden; background: #0d0d18; }
 </style>
 </head>
 <body>
@@ -2870,26 +2877,44 @@ function toggleCollView() {
   renderCollection();
 }
 
+function toggleCardFlip(event) {
+  // 装備スロットやボタンを押した時はカードを裏返さない（誤爆防止）
+  if(event.target.closest('.equip-slot') || event.target.closest('.battle-btn') || event.target.closest('.skill-chip')) {
+    return;
+  }
+  const container = event.currentTarget.closest('.card-container') || event.currentTarget;
+  container.classList.toggle('flipped');
+}
+
 function openCharDetail(id) {
-  // idからキャラクターを探す
   const char = characters.find(c => c.id === id);
   if(!char) return;
   
-  // ポップアップ（detail-content）の中に、タップで裏返るカード（flipCardHTML）を描画する
-  // 重要：onclick="this.classList.toggle('flipped')" を外枠に追加して確実に動かします
+  // 表面のHTML（一覧画面に遷移してしまうonclickを無効化）
+  const frontHTML = flipCardHTML(char).replace(/onclick="openCharDetail\([^)]+\)"/, '');
+  // 裏面のHTML（ステータスや装備画面）
+  const backHTML = charDetailHTML(char);
+  
+  // 表面と裏面を重ね合わせる3D構造にする
   document.getElementById('detail-content').innerHTML = `
     <div style="padding:16px; display:flex; justify-content:center;">
-      <div class="card-container" onclick="this.classList.toggle('flipped')" style="cursor:pointer; width:100%; max-width:320px;">
-        ${flipCardHTML(char)}
+      <div class="card-container" onclick="toggleCardFlip(event)" style="cursor:pointer; width:100%; max-width:320px;">
+        <div class="card-inner">
+          <div class="card-front">
+            ${frontHTML}
+          </div>
+          <div class="card-back">
+            ${backHTML}
+          </div>
+        </div>
       </div>
     </div>
     <div style="padding:0 16px 16px">
-      <p style="text-align:center; font-size:10px; opacity:0.5; margin-bottom:10px;">↑ カードをタップで裏表切り替え</p>
+      <p style="text-align:center; font-size:10px; opacity:0.5; margin-bottom:10px;">↑ カードの余白タップで裏表切り替え</p>
       <button onclick="closeDetailModal()" style="width:100%; padding:12px; border-radius:8px; background:rgba(255,255,255,.1); border:none; color:#fff; font-family:'Noto Serif JP',serif; cursor:pointer; letter-spacing:2px">閉じる</button>
     </div>
   `;
   
-  // ポップアップを表示する
   document.getElementById('detail-modal').classList.add('open');
 }
 
