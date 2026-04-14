@@ -2110,7 +2110,6 @@ function charDetailHTML(char,showBattleBtn=true){
     ${showBattleBtn?`<button class="battle-btn" onclick="event.stopPropagation(); closeDetailModal(); selectForBattle(${char.id})">⚔️ バトルに出す</button>`:''}
   </div>`;
 }
-
 function openCharDetail(id){
   const char=characters.find(c=>c.id===id);if(!char)return;
   document.getElementById('detail-content').innerHTML=charDetailHTML(char);
