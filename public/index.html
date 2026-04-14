@@ -2040,13 +2040,13 @@ function charDetailHTML(char,showBattleBtn=true){
     const item=itemId?itemCards.find(c=>c.id===itemId):null;
     if(item){
       const irc=RARITY[item.rarity]||RARITY.C;
-      return`<button class="equip-slot filled" style="border-color:${irc.color}66;background:${irc.color}0a;color:inherit;font-family:inherit;width:100%" onclick="event.stopPropagation(); openEquipModal(${char.id},${i},event)">
+      return`<button class="equip-slot filled" style="border-color:${irc.color}66;background:${irc.color}0a;color:inherit;font-family:inherit;width:100%" onclick="openEquipModal(${char.id},${i})">
         <div class="equip-slot-icon">${CARD_TYPE_ICONS[item.cardType]||'📦'}</div>
         <div class="equip-slot-name">${item.name||item.kanji}</div>
         <div class="equip-slot-rarity" style="color:${irc.color}">${item.rarity}</div>
       </button>`;
     }
-    return`<button class="equip-slot" style="background:transparent;color:inherit;font-family:inherit;width:100%" onclick="event.stopPropagation(); openEquipModal(${char.id},${i},event)">
+    return`<button class="equip-slot" style="background:transparent;color:inherit;font-family:inherit;width:100%" onclick="openEquipModal(${char.id},${i})">
       <div style="font-size:14px;opacity:.25">＋</div>
       <div class="equip-slot-empty-label">装備</div>
     </button>`;
@@ -2083,13 +2083,13 @@ function charDetailHTML(char,showBattleBtn=true){
     <div class="skills-section">
       <div class="skills-title">⚔️ スキル（SP）</div>
       <div class="skills-row">
-        ${(char.innateSkills||char.skills?.slice(0,2)||[]).map(s=>`<button class="skill-chip tooltip-wrap" onclick="event.stopPropagation(); toggleTooltip(this)" style="border-color:${rc.color}55;color:${rc.color};cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🌟${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></button>`).join('')}
-        ${(char.skills||[]).slice((char.innateSkills||[]).length).map(s=>`<button class="skill-chip tooltip-wrap" onclick="event.stopPropagation(); toggleTooltip(this)" style="border-color:${rc.color}22;color:${rc.color}88;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🃏${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></button>`).join('')}
+        ${(char.innateSkills||char.skills?.slice(0,2)||[]).map(s=>`<button class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:${rc.color}55;color:${rc.color};cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🌟${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></button>`).join('')}
+        ${(char.skills||[]).slice((char.innateSkills||[]).length).map(s=>`<button class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:${rc.color}22;color:${rc.color}88;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🃏${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></button>`).join('')}
       </div>
       <div class="skills-title" style="margin-top:4px">🔮 魔法（MP）</div>
       <div class="skills-row">
-        ${(char.innateMagics||char.magics?.slice(0,2)||[]).map(m=>`<button class="skill-chip tooltip-wrap" onclick="event.stopPropagation(); toggleTooltip(this)" style="border-color:#818cf877;color:#818cf8;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🌟${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></button>`).join('')}
-        ${(char.magics||[]).slice((char.innateMagics||[]).length).map(m=>`<button class="skill-chip tooltip-wrap" onclick="event.stopPropagation(); toggleTooltip(this)" style="border-color:#818cf822;color:#818cf866;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🃏${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></button>`).join('')}
+        ${(char.innateMagics||char.magics?.slice(0,2)||[]).map(m=>`<button class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:#818cf877;color:#818cf8;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🌟${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></button>`).join('')}
+        ${(char.magics||[]).slice((char.innateMagics||[]).length).map(m=>`<button class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:#818cf822;color:#818cf866;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🃏${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></button>`).join('')}
       </div>
       <div style="font-size:8px;opacity:.3;padding:0 0 4px;letter-spacing:1px">🌟固有 / 🃏カード ✦タップで効果説明</div>
     </div>
@@ -2107,7 +2107,7 @@ function charDetailHTML(char,showBattleBtn=true){
       </div>
       <div class="equip-slots">${equipSlots}</div>
     </div>
-    ${showBattleBtn?`<button class="battle-btn" onclick="event.stopPropagation(); closeDetailModal(); selectForBattle(${char.id})">⚔️ バトルに出す</button>`:''}
+    ${showBattleBtn?`<button class="battle-btn" onclick="closeDetailModal(); selectForBattle(${char.id})">⚔️ バトルに出す</button>`:''}
   </div>`;
 }
 function openCharDetail(id){
@@ -2124,10 +2124,21 @@ function closeDetailModal(evt){
 }
 // Refresh detail modal content (after equip change)
 function refreshDetailModal(charId){
-  const char=characters.find(c=>c.id===charId);if(!char)return;
-  document.getElementById('detail-content').innerHTML=charDetailHTML(char);
+  const char = characters.find(c => c.id === charId);
+  if(!char) return;
+  
+  // 3D構造を壊さずに「裏面」のみを更新する
+  const backEl = document.querySelector('#detail-content .card-back');
+  if(backEl){
+    backEl.innerHTML = charDetailHTML(char);
+  } else {
+    openCharDetail(charId);
+    setTimeout(() => {
+      const container = document.querySelector('#detail-content .card-container');
+      if(container) container.classList.add('flipped');
+    }, 10);
+  }
 }
-
 
 function flipCard(id){openCharDetail(id);}
 
@@ -2198,8 +2209,7 @@ function itemCardHTML(item,showEquipBtn=false,equippedCharId=null){
 }
 
 // ===== EQUIPMENT MODAL =====
-function openEquipModal(charId,slotIdx,evt){
-  if(evt)evt.stopPropagation();
+function openEquipModal(charId, slotIdx){
   const char=characters.find(c=>c.id===charId);if(!char)return;
   equipModalTarget={charId,slotIdx};
   const modal=document.getElementById('equip-modal');
@@ -2211,11 +2221,9 @@ function openEquipModal(charId,slotIdx,evt){
     html+=`<div style="margin-bottom:12px"><button class="btn btn-ghost" onclick="unequipItem(${charId},${slotIdx})" style="font-size:12px;letter-spacing:1px">このスロットを外す</button></div>`;
   }
   const available=itemCards.filter(item=>{
-    // Check not already equipped by THIS char in another slot
     const slots=char.equippedSlots||[];
     const alreadyEquippedHere=slots.some((id,i)=>i!==slotIdx&&id===item.id);
     if(alreadyEquippedHere)return false;
-    // Check not equipped by ANY OTHER character
     const equippedByOther=characters.some(c=>{
       if(c.id===charId)return false;
       return(c.equippedSlots||[]).includes(item.id);
