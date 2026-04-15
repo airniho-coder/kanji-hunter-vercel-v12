@@ -2032,7 +2032,6 @@ function charDetailHTML(char,showBattleBtn=true){
   const cardBg=char.rarity==='SR'?'linear-gradient(135deg,#1a1200,#2e1e00,#1a1200)':char.rarity==='SSR'?'linear-gradient(135deg,#08000f,#120018,#08000f)':rc.bg;
   const cardBorder=char.rarity==='SR'?'#FFD700':char.rarity==='SSR'?'#ff88ff':rc.color;
 
-  // 装備ボーナスを取得
   const bonus = getEquipBonuses(char);
 
   const equipSlots=Array.from({length:slots},(_,i)=>{
@@ -2040,13 +2039,15 @@ function charDetailHTML(char,showBattleBtn=true){
     const item=itemId?itemCards.find(c=>c.id===itemId):null;
     if(item){
       const irc=RARITY[item.rarity]||RARITY.C;
-      return`<button class="equip-slot filled" style="border-color:${irc.color}66;background:${irc.color}0a;color:inherit;font-family:inherit;width:100%" onclick="openEquipModal(${char.id},${i})">
+      // onclickを削除し、目印として data-slot を付与
+      return`<button class="equip-slot filled" data-slot="${i}" style="border-color:${irc.color}66;background:${irc.color}0a;color:inherit;font-family:inherit;width:100%">
         <div class="equip-slot-icon">${CARD_TYPE_ICONS[item.cardType]||'📦'}</div>
         <div class="equip-slot-name">${item.name||item.kanji}</div>
         <div class="equip-slot-rarity" style="color:${irc.color}">${item.rarity}</div>
       </button>`;
     }
-    return`<button class="equip-slot" style="background:transparent;color:inherit;font-family:inherit;width:100%" onclick="openEquipModal(${char.id},${i})">
+    // onclickを削除し、目印として data-slot を付与
+    return`<button class="equip-slot" data-slot="${i}" style="background:transparent;color:inherit;font-family:inherit;width:100%">
       <div style="font-size:14px;opacity:.25">＋</div>
       <div class="equip-slot-empty-label">装備</div>
     </button>`;
@@ -2083,13 +2084,13 @@ function charDetailHTML(char,showBattleBtn=true){
     <div class="skills-section">
       <div class="skills-title">⚔️ スキル（SP）</div>
       <div class="skills-row">
-        ${(char.innateSkills||char.skills?.slice(0,2)||[]).map(s=>`<button class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:${rc.color}55;color:${rc.color};cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🌟${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></button>`).join('')}
-        ${(char.skills||[]).slice((char.innateSkills||[]).length).map(s=>`<button class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:${rc.color}22;color:${rc.color}88;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🃏${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></button>`).join('')}
+        ${(char.innateSkills||char.skills?.slice(0,2)||[]).map(s=>`<button class="skill-chip tooltip-wrap" style="border-color:${rc.color}55;color:${rc.color};cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🌟${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></button>`).join('')}
+        ${(char.skills||[]).slice((char.innateSkills||[]).length).map(s=>`<button class="skill-chip tooltip-wrap" style="border-color:${rc.color}22;color:${rc.color}88;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🃏${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></button>`).join('')}
       </div>
       <div class="skills-title" style="margin-top:4px">🔮 魔法（MP）</div>
       <div class="skills-row">
-        ${(char.innateMagics||char.magics?.slice(0,2)||[]).map(m=>`<button class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:#818cf877;color:#818cf8;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🌟${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></button>`).join('')}
-        ${(char.magics||[]).slice((char.innateMagics||[]).length).map(m=>`<button class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:#818cf822;color:#818cf866;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🃏${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></button>`).join('')}
+        ${(char.innateMagics||char.magics?.slice(0,2)||[]).map(m=>`<button class="skill-chip tooltip-wrap" style="border-color:#818cf877;color:#818cf8;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🌟${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></button>`).join('')}
+        ${(char.magics||[]).slice((char.innateMagics||[]).length).map(m=>`<button class="skill-chip tooltip-wrap" style="border-color:#818cf822;color:#818cf866;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🃏${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></button>`).join('')}
       </div>
       <div style="font-size:8px;opacity:.3;padding:0 0 4px;letter-spacing:1px">🌟固有 / 🃏カード ✦タップで効果説明</div>
     </div>
@@ -2107,9 +2108,10 @@ function charDetailHTML(char,showBattleBtn=true){
       </div>
       <div class="equip-slots">${equipSlots}</div>
     </div>
-    ${showBattleBtn?`<button class="battle-btn" onclick="closeDetailModal(); selectForBattle(${char.id})">⚔️ バトルに出す</button>`:''}
+    ${showBattleBtn?`<button class="battle-btn">⚔️ バトルに出す</button>`:''}
   </div>`;
 }
+
 function openCharDetail(id){
   const char=characters.find(c=>c.id===id);if(!char)return;
   document.getElementById('detail-content').innerHTML=charDetailHTML(char);
@@ -2884,12 +2886,36 @@ function toggleCollView() {
   renderCollection();
 }
 
-function toggleCardFlip(event) {
-  // 装備スロットやボタンを押した時はカードを裏返さない（誤爆防止）
-  if(event.target.closest('.equip-slot') || event.target.closest('.battle-btn') || event.target.closest('.skill-chip')) {
+
+// 既存の toggleCardFlip は消して、こちら（handleCardClick）に差し替えます
+function handleCardClick(e, charId) {
+  const target = e.target;
+  
+  // ① スキル・魔法チップを押した場合（ツールチップを開く）
+  const skillChip = target.closest('.skill-chip');
+  if (skillChip) {
+    toggleTooltip(skillChip);
+    return; // 処理を止めるので、絶対に裏返らない
+  }
+  
+  // ② 装備スロットを押した場合（装備画面を開く）
+  const equipSlot = target.closest('.equip-slot');
+  if (equipSlot) {
+    const slotIdx = parseInt(equipSlot.dataset.slot);
+    openEquipModal(charId, slotIdx);
     return;
   }
-  const container = event.currentTarget.closest('.card-container') || event.currentTarget;
+  
+  // ③ バトルに出すボタンを押した場合
+  const battleBtn = target.closest('.battle-btn');
+  if (battleBtn) {
+    closeDetailModal();
+    selectForBattle(charId);
+    return;
+  }
+  
+  // ④ 上記のどれでもない部分（余白や画像）をタップした時だけ、カードを裏返す
+  const container = e.currentTarget;
   container.classList.toggle('flipped');
 }
 
@@ -2897,15 +2923,12 @@ function openCharDetail(id) {
   const char = characters.find(c => c.id === id);
   if(!char) return;
   
-  // 表面のHTML（一覧画面に遷移してしまうonclickを無効化）
   const frontHTML = flipCardHTML(char).replace(/onclick="openCharDetail\([^)]+\)"/, '');
-  // 裏面のHTML（ステータスや装備画面）
   const backHTML = charDetailHTML(char);
   
-  // 表面と裏面を重ね合わせる3D構造にする
   document.getElementById('detail-content').innerHTML = `
     <div style="padding:16px; display:flex; justify-content:center;">
-      <div class="card-container" onclick="toggleCardFlip(event)" style="cursor:pointer; width:100%; max-width:320px;">
+      <div class="card-container" onclick="handleCardClick(event, ${char.id})" style="cursor:pointer; width:100%; max-width:320px;">
         <div class="card-inner">
           <div class="card-front">
             ${frontHTML}
