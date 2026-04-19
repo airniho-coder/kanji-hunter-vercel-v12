@@ -336,10 +336,6 @@ body{display:flex;justify-content:center;}
 .card-container.flipped .card-inner { transform: rotateY(180deg); }
 .card-front, .card-back { backface-visibility: hidden; -webkit-backface-visibility: hidden; width: 100%; }
 .card-back { position: absolute; top: 0; left: 0; transform: rotateY(180deg); border-radius: 18px; overflow: hidden; background: #0d0d18; }
-/* 3D反転中のポインターイベント制御: 見えている面だけがタップを受け取る */
-.card-back { pointer-events: none; }
-.card-container.flipped .card-back { pointer-events: auto; }
-.card-container.flipped .card-front { pointer-events: none; }
 </style>
 </head>
 <body>
@@ -2044,13 +2040,13 @@ function charDetailHTML(char,showBattleBtn=true){
     const item=itemId?itemCards.find(c=>c.id===itemId):null;
     if(item){
       const irc=RARITY[item.rarity]||RARITY.C;
-      return`<button class="equip-slot filled" style="border-color:${irc.color}66;background:${irc.color}0a;color:inherit;font-family:inherit;width:100%" onclick="event.stopPropagation();openEquipModal(${char.id},${i})">
+      return`<button class="equip-slot filled" style="border-color:${irc.color}66;background:${irc.color}0a;color:inherit;font-family:inherit;width:100%" onclick="openEquipModal(${char.id},${i})">
         <div class="equip-slot-icon">${CARD_TYPE_ICONS[item.cardType]||'📦'}</div>
         <div class="equip-slot-name">${item.name||item.kanji}</div>
         <div class="equip-slot-rarity" style="color:${irc.color}">${item.rarity}</div>
       </button>`;
     }
-    return`<button class="equip-slot" style="background:transparent;color:inherit;font-family:inherit;width:100%" onclick="event.stopPropagation();openEquipModal(${char.id},${i})">
+    return`<button class="equip-slot" style="background:transparent;color:inherit;font-family:inherit;width:100%" onclick="openEquipModal(${char.id},${i})">
       <div style="font-size:14px;opacity:.25">＋</div>
       <div class="equip-slot-empty-label">装備</div>
     </button>`;
@@ -2087,13 +2083,13 @@ function charDetailHTML(char,showBattleBtn=true){
     <div class="skills-section">
       <div class="skills-title">⚔️ スキル（SP）</div>
       <div class="skills-row">
-        ${(char.innateSkills||char.skills?.slice(0,2)||[]).map(s=>`<button class="skill-chip tooltip-wrap" onclick="event.stopPropagation();toggleTooltip(this)" style="border-color:${rc.color}55;color:${rc.color};cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🌟${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></button>`).join('')}
-        ${(char.skills||[]).slice((char.innateSkills||[]).length).map(s=>`<button class="skill-chip tooltip-wrap" onclick="event.stopPropagation();toggleTooltip(this)" style="border-color:${rc.color}22;color:${rc.color}88;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🃏${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></button>`).join('')}
+        ${(char.innateSkills||char.skills?.slice(0,2)||[]).map(s=>`<button class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:${rc.color}55;color:${rc.color};cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🌟${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></button>`).join('')}
+        ${(char.skills||[]).slice((char.innateSkills||[]).length).map(s=>`<button class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:${rc.color}22;color:${rc.color}88;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🃏${s.name} SP:${s.spCost}<span class="tooltip-bubble">${skillTooltip(s)}</span></button>`).join('')}
       </div>
       <div class="skills-title" style="margin-top:4px">🔮 魔法（MP）</div>
       <div class="skills-row">
-        ${(char.innateMagics||char.magics?.slice(0,2)||[]).map(m=>`<button class="skill-chip tooltip-wrap" onclick="event.stopPropagation();toggleTooltip(this)" style="border-color:#818cf877;color:#818cf8;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🌟${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></button>`).join('')}
-        ${(char.magics||[]).slice((char.innateMagics||[]).length).map(m=>`<button class="skill-chip tooltip-wrap" onclick="event.stopPropagation();toggleTooltip(this)" style="border-color:#818cf822;color:#818cf866;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🃏${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></button>`).join('')}
+        ${(char.innateMagics||char.magics?.slice(0,2)||[]).map(m=>`<button class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:#818cf877;color:#818cf8;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🌟${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></button>`).join('')}
+        ${(char.magics||[]).slice((char.innateMagics||[]).length).map(m=>`<button class="skill-chip tooltip-wrap" onclick="toggleTooltip(this)" style="border-color:#818cf822;color:#818cf866;cursor:pointer;background:rgba(255,255,255,.05);font-family:inherit">🃏${m.name} MP:${m.mpCost}<span class="tooltip-bubble">${magicTooltip(m)}</span></button>`).join('')}
       </div>
       <div style="font-size:8px;opacity:.3;padding:0 0 4px;letter-spacing:1px">🌟固有 / 🃏カード ✦タップで効果説明</div>
     </div>
@@ -2111,8 +2107,13 @@ function charDetailHTML(char,showBattleBtn=true){
       </div>
       <div class="equip-slots">${equipSlots}</div>
     </div>
-    ${showBattleBtn?`<button class="battle-btn" onclick="event.stopPropagation();closeDetailModal();selectForBattle(${char.id})">⚔️ バトルに出す</button>`:''}
+    ${showBattleBtn?`<button class="battle-btn" onclick="closeDetailModal(); selectForBattle(${char.id})">⚔️ バトルに出す</button>`:''}
   </div>`;
+}
+function openCharDetail(id){
+  const char=characters.find(c=>c.id===id);if(!char)return;
+  document.getElementById('detail-content').innerHTML=charDetailHTML(char);
+  document.getElementById('detail-modal').classList.add('open');
 }
 function closeDetailModal(evt){
   if(evt){
@@ -2125,17 +2126,15 @@ function closeDetailModal(evt){
 function refreshDetailModal(charId){
   const char = characters.find(c => c.id === charId);
   if(!char) return;
-
+  
   // 3D構造を壊さずに「裏面」のみを更新する
   const backEl = document.querySelector('#detail-content .card-back');
   if(backEl){
     backEl.innerHTML = charDetailHTML(char);
-    // 裏面更新後にアート部タップリスナーを再設定
-    _attachFlipBackListener();
   } else {
     openCharDetail(charId);
     setTimeout(() => {
-      const container = document.getElementById('kh-detail-card');
+      const container = document.querySelector('#detail-content .card-container');
       if(container) container.classList.add('flipped');
     }, 10);
   }
@@ -2886,42 +2885,29 @@ function toggleCollView() {
 }
 
 function toggleCardFlip(event) {
-  // ※この関数は新方式では直接呼ばれない（後方互換のために残す）
-  if(event && event.target && event.target.closest('button, a, .tooltip-bubble')) return;
-  const container = (event && event.currentTarget && event.currentTarget.closest('.card-container')) || document.getElementById('kh-detail-card');
-  if(container) container.classList.toggle('flipped');
-}
-
-
-function _attachFlipBackListener() {
-  // 裏面のアート部分をタップすると表面に戻す
-  const artWrap = document.querySelector('#kh-detail-card .card-back-art-wrap');
-  if(artWrap && !artWrap._flipListenerSet) {
-    artWrap.style.cursor = 'pointer';
-    artWrap._flipListenerSet = true;
-    artWrap.addEventListener('click', function() {
-      const c = document.getElementById('kh-detail-card');
-      if(c) c.classList.remove('flipped');
-    });
+  // 装備スロットやボタンを押した時はカードを裏返さない（誤爆防止）
+  if(event.target.closest('.equip-slot') || event.target.closest('.battle-btn') || event.target.closest('.skill-chip')) {
+    return;
   }
+  const container = event.currentTarget.closest('.card-container') || event.currentTarget;
+  container.classList.toggle('flipped');
 }
 
 function openCharDetail(id) {
   const char = characters.find(c => c.id === id);
   if(!char) return;
-
-  // 表面のHTML（openCharDetail onclickを無効化）
+  
+  // 表面のHTML（一覧画面に遷移してしまうonclickを無効化）
   const frontHTML = flipCardHTML(char).replace(/onclick="openCharDetail\([^)]+\)"/, '');
-  // 裏面のHTML
+  // 裏面のHTML（ステータスや装備画面）
   const backHTML = charDetailHTML(char);
-
-  // ★修正: card-container には onclick を置かない
-  // 表面全体タップ→裏面表示、裏面アート部タップ→表面表示
+  
+  // 表面と裏面を重ね合わせる3D構造にする
   document.getElementById('detail-content').innerHTML = `
     <div style="padding:16px; display:flex; justify-content:center;">
-      <div class="card-container" id="kh-detail-card" style="width:100%; max-width:320px;">
+      <div class="card-container" onclick="toggleCardFlip(event)" style="cursor:pointer; width:100%; max-width:320px;">
         <div class="card-inner">
-          <div class="card-front" onclick="document.getElementById('kh-detail-card').classList.add('flipped')" style="cursor:pointer;">
+          <div class="card-front">
             ${frontHTML}
           </div>
           <div class="card-back">
@@ -2931,15 +2917,14 @@ function openCharDetail(id) {
       </div>
     </div>
     <div style="padding:0 16px 16px">
-      <p style="text-align:center; font-size:10px; opacity:0.5; margin-bottom:10px;">↑ カードアートをタップで裏表切り替え</p>
+      <p style="text-align:center; font-size:10px; opacity:0.5; margin-bottom:10px;">↑ カードの余白タップで裏表切り替え</p>
       <button onclick="closeDetailModal()" style="width:100%; padding:12px; border-radius:8px; background:rgba(255,255,255,.1); border:none; color:#fff; font-family:'Noto Serif JP',serif; cursor:pointer; letter-spacing:2px">閉じる</button>
     </div>
   `;
-
-  // 裏面アート部タップ → 表面に戻す
-  _attachFlipBackListener();
+  
   document.getElementById('detail-modal').classList.add('open');
 }
+
 function miniCardHTML(char) {
   const rc = RARITY[char.rarity] || RARITY.C;
   let artEl = '';
@@ -4011,5 +3996,38 @@ function showLoading(v,t,s){document.getElementById('loading').classList.toggle(
 function showAlert(t,m){document.getElementById('alert-area').innerHTML=`<div class="alert alert-${t}">${m}</div>`;}
 function clearAlert(){document.getElementById('alert-area').innerHTML='';}
 </script>
+<div id="guild-screen" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:#1a0f08; z-index:9998; overflow-y:auto;">
+  
+  <div id="guild-intro" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:black; z-index:9999; display:flex; align-items:center; justify-content:center; flex-direction:column; color:var(--gold); transition:opacity 1s ease;">
+    <div id="guild-intro-text" style="font-size:18px; text-align:center; line-height:2;"></div>
+  </div>
+
+  <div id="guild-main" style="display:none; padding:20px; max-width:500px; margin:0 auto; padding-bottom:80px;">
+    <h2 style="color:var(--gold); text-align:center; margin-bottom:20px; font-size:24px;">冒険者ギルド</h2>
+    
+    <div style="background:rgba(0,0,0,0.6); border:2px solid var(--gold); border-radius:10px; padding:15px; display:flex; gap:15px; margin-bottom:20px;">
+      <img src="https://via.placeholder.com/100x100/3d2000/FFD700?text=Guild" alt="受付嬢" style="width:100px; height:100px; border-radius:50%; object-fit:cover; border:2px solid #fff;">
+      <div style="color:#e8e0d0; font-size:14px; display:flex; align-items:center;">
+        <p>「ようこそ、冒険者ギルドへ！<br>本日はどのようなご用件でしょうか？」</p>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <button class="sys-btn" onclick="openGuildRegistration()" style="padding:15px; font-size:16px;">📝 冒険者に登録する</button>
+      <button class="sys-btn" style="padding:15px; font-size:16px; opacity:0.5;" onclick="alert('【クエスト一覧】は次回実装予定です！')">📜 クエストを見に行く</button>
+      <button class="sys-btn" style="padding:15px; font-size:16px; opacity:0.5;" onclick="alert('【クエスト受領】は次回実装予定です！')">⚔️ クエストを受ける</button>
+      <button class="sys-btn" style="padding:15px; font-size:16px; opacity:0.5;" onclick="alert('【クエスト報告】は次回実装予定です！')">💰 結果を報告し報酬をもらう</button>
+      <button class="sys-btn" style="margin-top:20px; background:#6b0000; padding:15px;" onclick="exitGuild()">🚪 ギルドを出る</button>
+    </div>
+  </div>
+</div>
+
+<div id="guild-reg-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; max-width:400px; max-height:80vh; background:#2a2a35; border:3px solid var(--gold); border-radius:10px; z-index:10000; padding:20px; overflow-y:auto; box-shadow:0 0 20px rgba(0,0,0,0.8);">
+  <h3 style="color:var(--gold); text-align:center; margin-bottom:10px;">未登録の冒険者</h3>
+  <p style="color:#aaa; font-size:12px; text-align:center; margin-bottom:15px;">登録するキャラクターを選んでください</p>
+  <div id="unregistered-list" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+    </div>
+  <button class="sys-btn" style="background:#555; margin-top:20px; width:100%; padding:10px;" onclick="closeGuildRegistration()">キャンセル</button>
+</div>
 </body>
 </html>
