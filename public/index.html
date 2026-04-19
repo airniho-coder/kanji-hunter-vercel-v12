@@ -621,6 +621,7 @@ body{display:flex;justify-content:center;}
   <button class="tab" id="tab-collection" onclick="showTab('collection')"><span class="tab-icon">📜</span>コレクション</button>
   <button class="tab" id="tab-synthesis" onclick="showTab('synthesis')"><span class="tab-icon">⚗️</span>合成</button>
   <button class="tab" id="tab-battle" onclick="showTab('battle')"><span class="tab-icon">⚔️</span>バトル</button>
+  <button class="tab" id="tab-guild" onclick="handleGuildTabClick()"><span class="tab-icon">🗡️</span>冒険者ギルド</button>
 </div>
 </div>
 
@@ -3996,6 +3997,7 @@ function showLoading(v,t,s){document.getElementById('loading').classList.toggle(
 function showAlert(t,m){document.getElementById('alert-area').innerHTML=`<div class="alert alert-${t}">${m}</div>`;}
 function clearAlert(){document.getElementById('alert-area').innerHTML='';}
 </script>
+
 <div id="guild-screen" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:#1a0f08; z-index:9998; overflow-y:auto;">
   
   <div id="guild-intro" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:black; z-index:9999; display:flex; align-items:center; justify-content:center; flex-direction:column; color:var(--gold); transition:opacity 1s ease;">
