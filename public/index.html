@@ -611,7 +611,8 @@ body{display:flex;justify-content:center;}
         style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.4;">
       <!-- 受付嬢キャラ（後でGemini生成画像に差し替え） -->
       <div style="position:relative;z-index:2;text-align:center;padding-bottom:16px;">
-        <img id="guild-receptionist-img" src="assets/guild/receptionist.png"
+        <!-- 初期srcは1番を指定。JS側でランダムに上書きされる -->
+        <img id="guild-receptionist-img" src="assets/guild/receptionist_1.png"
           onerror="this.style.display='none';document.getElementById('guild-receptionist-fallback').style.display='block'"
           style="height:200px;object-fit:contain;filter:drop-shadow(0 0 20px rgba(201,168,76,0.4));">
         <!-- 画像がない場合のフォールバック -->
