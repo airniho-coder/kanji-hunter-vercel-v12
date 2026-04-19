@@ -1296,6 +1296,30 @@ JSONのみ返答: {"ok":true/false,"feedback":"ひとこと20文字以内"}`;
   }
 }
 
+// ギルドタブがクリックされた時の処理
+function handleGuildTabClick() {
+  // タブの「アクティブ（選択中）」状態を切り替え
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-guild').classList.add('active');
+  
+  // ギルド入場処理を実行
+  enterGuild();
+}
+
+// 既存の showTab 関数を少し修正
+// 他のタブ（召喚やコレクション）を押したときに、ギルド画面を確実に閉じるようにします
+const originalShowTab = showTab;
+showTab = function(tabName) {
+  // ギルド画面を隠す
+  const guildScreen = document.getElementById('guild-screen');
+  if (guildScreen) guildScreen.style.display = 'none';
+  
+  // ギルドタブのアクティブ状態を外す
+  document.getElementById('tab-guild').classList.remove('active');
+  
+  // 本来のタブ切り替え処理を実行
+  originalShowTab(tabName);
+};
 
 // ===== IndexedDB ストレージ =====
 const IDB_NAME='kanjiHunterDB', IDB_VER=1, IDB_STORE='gameData';
