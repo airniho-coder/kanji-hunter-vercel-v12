@@ -577,7 +577,7 @@ body{display:flex;justify-content:center;}
   <!-- ===== 冒険者ギルド ===== -->
 
   <!-- ① ギルド内アニメーション画面 -->
-  <div id="guild-anim-screen" style="position:relative;width:100%;height:calc(100vh - 80px);overflow:hidden;display:flex;align-items:center;justify-content:center;background:#0a0810;">
+  <div id="guild-anim-screen" style="position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#0a0810;">
     <!-- プレースホルダー背景（後でGemini生成動画/GIFに差し替え） -->
     <video id="guild-anim-video" src="assets/guild/guild_intro.mp4"
       autoplay muted playsinline
@@ -1784,7 +1784,6 @@ function startGuildAnimation(){
 　// アニメ画面を表示（タブバー80px分を引いた高さに補正）
   animScreen.style.display='flex';
   animScreen.style.position='relative';
-  animScreen.style.height='calc(100vh - 80px)';
   mainScreen.style.display='none';
 
   // 2回目以降も最初から再生（動画はミュートのまま）
