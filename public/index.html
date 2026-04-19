@@ -1566,6 +1566,8 @@ const BGM_FILES={
   synthesis:'/audio/bgm_synthesis.mp3',
   quiz:'/audio/bgm_quiz.mp3',
   write:'/audio/bgm_write.mp3',
+  guild:'/assets/guild/guild_bgm.mp3',      // ギルドアニメ動画用BGM
+  guildMain:'/audio/bgm/bgm_guild_main.mp3', // 受付嬢画面用BGM
 };
 
 function getAudioCtx(){
@@ -1798,12 +1800,14 @@ function startGuildAnimation(){
   // メニューをトップ（ギルド入口）状態にリセット
   showGuildMenu();
 
-  // 5秒後にアニメ画面を隠してメイン画面（受付嬢＋メニュー）を表示
+  // 8秒後にアニメ画面を隠してメイン画面（受付嬢＋メニュー）を表示
   setTimeout(()=>{
     animScreen.style.display='none';
     mainScreen.style.display='flex';
-    // 動画を停止（音声はplayBGMが引き続き管理）
+    // 動画を停止
     if(video){video.pause();}
+    // 受付嬢画面用BGMに切り替え
+    playBGM('guildMain');
   },8000);
 }
 
