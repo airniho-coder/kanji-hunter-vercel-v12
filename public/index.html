@@ -1775,10 +1775,20 @@ function startGuildAnimation(){
   const animScreen=document.getElementById('guild-anim-screen');
   const mainScreen=document.getElementById('guild-main-screen');
   if(!animScreen||!mainScreen)return;
+
+  // ギルドに入ったら前タブのBGMを停止する
+  stopBGM();
+
+　// アニメ画面を表示（タブバー80px分を引いた高さに補正）
   animScreen.style.display='flex';
   animScreen.style.position='relative';
   animScreen.style.height='calc(100vh - 80px)';
   mainScreen.style.display='none';
+  
+  // 2回目以降も最初から再生されるよう動画をリセット
+  const video=document.getElementById('guild-anim-video');
+  if(video){video.currentTime=0;video.play();}
+
   showGuildMenu();
   setTimeout(()=>{
     animScreen.style.display='none';
