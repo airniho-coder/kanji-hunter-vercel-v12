@@ -1784,7 +1784,6 @@ function startGuildAnimation(){
 　// アニメ画面を表示（タブバー80px分を引いた高さに補正）
   animScreen.style.display='flex';
   animScreen.style.position='relative';
-  mainScreen.style.display='none';
 
   // 2回目以降も最初から再生（動画はミュートのまま）
   const video=document.getElementById('guild-anim-video');
@@ -1799,15 +1798,29 @@ function startGuildAnimation(){
   // メニューをトップ（ギルド入口）状態にリセット
   showGuildMenu();
 
-  // 8秒後にアニメ画面を隠してメイン画面（受付嬢＋メニュー）を表示
-  setTimeout(()=>{
-    animScreen.style.display='none';
-    mainScreen.style.display='flex';
+  // アニメ終了後の画面切り替え処理を関数化（スキップ時にも使い回す）
+  const finishAnim=()=>{
+    // タイマーが残っていればキャンセル
+    if(window._guildAnimTimer){clearTimeout(window._guildAnimTimer);window._guildAnimTimer=null;}
+    // タップイベントを解除
+    animScreen.removeEventListener('click',skipAnim);
     // 動画を停止
     if(video){video.pause();}
+    // アニメ画面を隠してメイン画面を表示
+    animScreen.style.display='none';
+    mainScreen.style.display='flex';
     // 受付嬢画面用BGMに切り替え
     playBGM('guildMain');
-  },8000);
+  };
+
+  // タップでスキップする関数
+  const skipAnim=()=>{finishAnim();};
+
+  // アニメ画面をタップしたらスキップ
+  animScreen.addEventListener('click',skipAnim);
+
+  // 8秒後に自動で切り替え
+  window._guildAnimTimer=setTimeout(finishAnim,8000);
 }
 
 function showGuildMenu(){
