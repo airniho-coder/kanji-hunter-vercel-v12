@@ -1806,6 +1806,12 @@ function startGuildAnimation(){
     animScreen.removeEventListener('click',skipAnim);
     // 動画を停止
     if(video){video.pause();}
+    // 受付嬢画像を19枚の中からランダムで選択して表示
+    const rndNum=Math.floor(Math.random()*19)+1;
+    const receptionistImg=document.getElementById('guild-receptionist-img');
+    if(receptionistImg){
+      receptionistImg.src=`assets/guild/receptionist_(${rndNum}).png`;
+    }
     // アニメ画面を隠してメイン画面を表示
     animScreen.style.display='none';
     mainScreen.style.display='flex';
