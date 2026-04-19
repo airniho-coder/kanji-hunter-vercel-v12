@@ -1785,15 +1785,26 @@ function startGuildAnimation(){
   animScreen.style.height='calc(100vh - 80px)';
   mainScreen.style.display='none';
 
-  // 2回目以降も最初から再生されるよう動画をリセット
+  // 2回目以降も最初から再生（動画はミュートのまま）
   const video=document.getElementById('guild-anim-video');
   if(video){video.currentTime=0;video.play();}
 
+// ギルド専用BGMを再生（assets/guild/guild_bgm.mp3を参照）
+  playBGM('guild');
+
+  // メイン画面は非表示にしておく
+  mainScreen.style.display='none';
+
+  // メニューをトップ（ギルド入口）状態にリセット
   showGuildMenu();
+
+  // 5秒後にアニメ画面を隠してメイン画面（受付嬢＋メニュー）を表示
   setTimeout(()=>{
     animScreen.style.display='none';
     mainScreen.style.display='flex';
-  },5000);
+    // 動画を停止（音声はplayBGMが引き続き管理）
+    if(video){video.pause();}
+  },8000);
 }
 
 function showGuildMenu(){
