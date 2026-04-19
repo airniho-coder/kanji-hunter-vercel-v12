@@ -1647,11 +1647,19 @@ function startGuildAnimation(){
   const animScreen=document.getElementById('guild-anim-screen');
   const mainScreen=document.getElementById('guild-main-screen');
   if(!animScreen||!mainScreen)return;
-  // アニメ画面をリセットして表示
+
+  // アニメ画面を表示（タブバー80px分を引いた高さに補正）
   animScreen.style.display='flex';
+  animScreen.style.position='relative';
+  animScreen.style.height='calc(100vh - 80px)';
+
+  // メイン画面は非表示にしておく
   mainScreen.style.display='none';
+
+  // メニューをトップ（ギルド入口）状態にリセット
   showGuildMenu();
-  // 5秒後にメイン画面へ切り替え
+
+  // 5秒後にアニメ画面を隠してメイン画面（受付嬢＋メニュー）を表示
   setTimeout(()=>{
     animScreen.style.display='none';
     mainScreen.style.display='flex';
