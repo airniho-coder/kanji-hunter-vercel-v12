@@ -1818,18 +1818,92 @@ const ADVENTURER_RANK_LABELS={
 };
 
 function startGuildAnimation(){
+  const enterScreen=document.getElementById('guild-enter-screen');
   const animScreen=document.getElementById('guild-anim-screen');
   const mainScreen=document.getElementById('guild-main-screen');
   if(!animScreen||!mainScreen)return;
-  // アニメ画面をリセットして表示
-  animScreen.style.display='flex';
-  mainScreen.style.display='none';
-  showGuildMenu();
-  // 5秒後にメイン画面へ切り替え
-  setTimeout(()=>{
+
+  // 前タブのBGMを停止
+  stopBGM();
+
+  // 入口タップ画面があれば表示、なければ直接アニメへ
+  if(enterScreen){
+    enterScreen.style.display='flex';
     animScreen.style.display='none';
-    mainScreen.style.display='flex';
-  },5000);
+    mainScreen.style.display='none';
+  }else{
+    enterGuild();
+  }
+}
+
+// ギルドに入るボタンをタップしたときに呼ばれる
+// ユーザー操作が確定しているので動画・音声の再生が許可される
+function enterGuild(){
+  const enterScreen=document.getElementById('guild-enter-screen');
+  const animScreen=document.getElementById('guild-anim-screen');
+  const mainScreen=document.getElementById('guild-main-screen');
+
+  // 入口画面を隠してアニメ画面を表示
+  if(enterScreen)enterScreen.style.display='none';
+  animScreen.style.display='flex';
+  animScreen.style.position='relative';
+
+  // 動画をリセットして再生（ユーザー操作後なので許可される）
+  const video=document.getElementById('guild-anim-video');
+  if(video){video.currentTime=0;video.play();}
+
+  // ギルドアニメBGMを再生
+  playBGM('guild');
+
+  // メイン画面は非表示
+  mainScreen.style.display='none';
+
+  // メニューをトップ状態にリセット
+  showGuildMenu();
+
+  // アニメ終了後の画面切り替え処理（スキップ時にも使い回す）
+  const finishAnim=()=>{
+    if(window._guildAnimTimer){clearTimeout(window._guildAnimTimer);window._guildAnimTimer=null;}
+    // タップイベントを解除
+    animScreen.removeEventListener('click',skipAnim);
+    // 動画を停止
+    if(video){video.pause();}
+    // 受付嬢画像をランダムで選択して読み込み
+    const rndNum=Math.floor(Math.random()*19)+1;
+    const receptionistImg=document.getElementById('guild-receptionist-img');
+    if(receptionistImg){
+      receptionistImg.style.opacity='0';
+      receptionistImg.src=`assets/guild/receptionist_${rndNum}.png`;
+      receptionistImg.onload=()=>{
+        // 画像読み込み完了後にメイン画面を表示してフェードイン
+        animScreen.style.display='none';
+        mainScreen.style.display='flex';
+        receptionistImg.style.transition='opacity 0.5s';
+        receptionistImg.style.opacity='1';
+        playBGM('guildMain');
+        showGuildMenu();
+      };
+      receptionistImg.onerror=()=>{
+        // 画像が読み込めない場合もメイン画面は表示する
+        animScreen.style.display='none';
+        mainScreen.style.display='flex';
+        playBGM('guildMain');
+        showGuildMenu();
+      };
+    }else{
+      animScreen.style.display='none';
+      mainScreen.style.display='flex';
+      playBGM('guildMain');
+      showGuildMenu();
+    }
+  };
+
+  // タップでスキップする
+  const skipAnim=()=>{finishAnim();};
+  animScreen.addEventListener('click',skipAnim);
+
+  // 8秒後に自動で切り替え
+  window._guildAnimTimer=setTimeout(finishAnim,8000);
 }
 
 function showGuildMenu(){
