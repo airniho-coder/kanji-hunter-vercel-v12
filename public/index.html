@@ -1927,7 +1927,7 @@ function closeGuildRegisterModal(){
 function confirmGuildRegister(){
   if(!guildRegisterTarget)return;
   guildRegisterTarget.adventurerRank='G';
-  saveData();
+  saveState();
 
   // 完了ポップアップの内容を先にセット（closeの前に行う）
   document.getElementById('guild-complete-kanji').textContent=guildRegisterTarget.kanji||'？';
