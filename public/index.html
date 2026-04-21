@@ -1828,17 +1828,36 @@ function startGuildAnimation(){
     animScreen.removeEventListener('click',skipAnim);
     // 動画を停止
     if(video){video.pause();}
-    // 受付嬢画像を19枚の中からランダムで選択して表示
+    // 受付嬢画像をランダムで選択
     const rndNum=Math.floor(Math.random()*19)+1;
     const receptionistImg=document.getElementById('guild-receptionist-img');
     if(receptionistImg){
+      // 画像読み込み完了してからメイン画面を表示
+      receptionistImg.style.opacity='0';
       receptionistImg.src=`assets/guild/receptionist_${rndNum}.png`;
+      receptionistImg.onload=()=>{
+        // 画像読み込み完了後にメイン画面を表示してフェードイン
+        animScreen.style.display='none';
+        mainScreen.style.display='flex';
+        receptionistImg.style.transition='opacity 0.5s';
+        receptionistImg.style.opacity='1';
+        playBGM('guildMain');
+        showGuildMenu();
+      };
+      receptionistImg.onerror=()=>{
+        // 画像が読み込めなかった場合もメイン画面は表示する
+        animScreen.style.display='none';
+        mainScreen.style.display='flex';
+        playBGM('guildMain');
+        showGuildMenu();
+      };
+    }else{
+      // 要素が見つからない場合のフォールバック
+      animScreen.style.display='none';
+      mainScreen.style.display='flex';
+      playBGM('guildMain');
+      showGuildMenu();
     }
-    // アニメ画面を隠してメイン画面を表示
-    animScreen.style.display='none';
-    mainScreen.style.display='flex';
-    // 受付嬢画面用BGMに切り替え
-    playBGM('guildMain');
   };
 
   // タップでスキップする関数
