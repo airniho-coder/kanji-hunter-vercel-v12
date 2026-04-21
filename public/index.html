@@ -666,7 +666,8 @@ body{display:flex;justify-content:center;}
   </div><!-- /guild-main-screen -->
 
   <!-- 登録確認モーダル -->
-  <div id="guild-register-modal" style="display:none;position:fixed;inset:0;z-index:310;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:20px;">
+ <!-- display:flexをdisplay:noneと一緒に明示的に指定、JS側でflexに切り替える -->
+<div id="guild-register-modal" style="display:none;position:fixed;inset:0;z-index:310;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:20px;pointer-events:auto;">
     <div style="max-width:360px;width:100%;background:#13131a;border:1px solid rgba(201,168,76,.3);border-radius:20px;padding:24px;">
       <div style="text-align:center;margin-bottom:16px;">
         <div style="font-size:40px" id="guild-modal-kanji"></div>
@@ -1912,7 +1913,10 @@ function openGuildRegisterModal(cardId){
   document.getElementById('guild-modal-name').textContent=card.charName||card.kanji||'';
   document.getElementById('guild-modal-job').textContent=(card.job||'')+' ['+(card.rarity||'')+']';
   const modal=document.getElementById('guild-register-modal');
+  // flexで表示してボタンを中央揃えにする
   modal.style.display='flex';
+  modal.style.alignItems='center';
+  modal.style.justifyContent='center';
 }
 
 function closeGuildRegisterModal(){
