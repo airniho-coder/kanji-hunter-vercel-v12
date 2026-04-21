@@ -1777,18 +1777,19 @@ async function showGuildSpeech(text){
   const el=document.getElementById('guild-speech-text');
   if(!el)return;
   el.innerHTML='';
-  // HTMLタグ（<br>など）はそのまま挿入、それ以外は1文字ずつアニメ
+  // HTMLタグ（<br>など）はそのまま挿入、それ以外は1文字ずつ順番に表示
   const parts=text.split(/(<br>)/);
   for(const part of parts){
     if(part==='<br>'){el.innerHTML+='<br>';continue;}
     for(let i=0;i<part.length;i++){
       const span=document.createElement('span');
-      span.className='telop-char';
-      span.style.animationDelay=(i*40)+'ms';
       span.textContent=part[i];
+      span.style.opacity='0';
       el.appendChild(span);
-      // 1文字ごとに少し待つ
-      await sleep(40);
+      // 追加してからフェードインさせる
+      await sleep(50);
+      span.style.transition='opacity 0.1s';
+      span.style.opacity='1';
     }
   }
 }
