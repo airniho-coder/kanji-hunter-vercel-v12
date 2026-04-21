@@ -2889,8 +2889,38 @@ async function buildCardFromParsed(p, isSynthesis=false){
     p.charName = p.kanji ? p.kanji + 'の化身' : '名無しの英雄';
   }
   
-  // おまかせ召喚時は全カードのレア度を最高Rに制限する
-  if(!isSynthesis&&['SR','SSR'].includes(p.rarity)) p.rarity='R';
+  // おまかせ召喚時のレア度上限を漢字難易度に応じて設定する
+  // 難易度★1〜★2：上限R（従来通り）
+  // 難易度★3：上限SR
+  // 難易度★4：上限SSR
+  // 難易度★5：上限なし（SSRも出る）
+  if(!isSynthesis){
+    const diff = getKanjiDifficulty(p.kanji||'');
+    if(diff <= 2){
+      // ★1〜★2は従来通り上限R
+      if(['SR','SSR'].includes(p.rarity)) p.rarity='R';
+    } else if(diff === 3){
+      // ★3は上限SR
+      if(p.rarity==='SSR') p.rarity='SR';
+    }
+    // ★4〜★5は上限なし（そのまま）
+  }
+
+  // 合成・通常召喚時は漢字難易度でレアリティの下限を底上げする
+  // 難易度が高い漢字ほど低レアリティが出にくくなる
+  const RARITY_ORDER=['C','N','R','SR','SSR'];
+  const RARITY_FLOOR={1:'C', 2:'N', 3:'R', 4:'SR', 5:'SR'};
+  const RARITY_BONUS={5:{SR:'SSR'}}; // ★5のみSR→SSRに追加昇格
+  const diff2 = getKanjiDifficulty(p.kanji||'');
+  const floor = RARITY_FLOOR[diff2]||'C';
+  // 現在のレアリティが下限より低い場合は底上げ
+  if(RARITY_ORDER.indexOf(p.rarity||'N') < RARITY_ORDER.indexOf(floor)){
+    p.rarity = floor;
+  }
+  // ★5の追加昇格（SR→SSR）
+  if(RARITY_BONUS[diff2] && RARITY_BONUS[diff2][p.rarity]){
+    p.rarity = RARITY_BONUS[diff2][p.rarity];
+  }
 
   if(p.cardType==='character'){
     const stats=buildStats(p.job||'剣士',p.baseVal||100);
