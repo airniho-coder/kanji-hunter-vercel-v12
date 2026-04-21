@@ -1924,10 +1924,15 @@ function confirmGuildRegister(){
   if(!guildRegisterTarget)return;
   guildRegisterTarget.adventurerRank='G';
   saveData();
-  closeGuildRegisterModal();
-  // 完了ポップアップ
+
+  // 完了ポップアップの内容を先にセット（closeの前に行う）
   document.getElementById('guild-complete-kanji').textContent=guildRegisterTarget.kanji||'？';
   document.getElementById('guild-complete-name').textContent=guildRegisterTarget.charName||guildRegisterTarget.kanji||'';
+
+  // モーダルを閉じる（この中でguildRegisterTargetがnullになる）
+  closeGuildRegisterModal();
+
+  // 完了ポップアップを表示
   document.getElementById('guild-register-complete').style.display='flex';
 }
 
