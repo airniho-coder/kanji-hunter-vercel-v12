@@ -357,10 +357,6 @@ body{display:flex;justify-content:center;}
 .guild-rank-A{background:rgba(220,40,40,.15);color:#e05050;border:1px solid rgba(220,40,40,.4);}
 .guild-rank-S{background:rgba(201,168,76,.2);color:#c9a84c;border:1px solid rgba(201,168,76,.5);}
 .guild-rank-SS{background:linear-gradient(135deg,rgba(201,168,76,.3),rgba(255,220,100,.2));color:#e8c97a;border:1px solid rgba(201,168,76,.7);}
-
-/* 受付嬢セリフのテロップアニメーション */
-@keyframes telop{from{opacity:0}to{opacity:1}}
-.telop-char{display:inline;opacity:0;animation:telop 0.05s forwards;}
 </style>
 </head>
 <body>
@@ -581,13 +577,11 @@ body{display:flex;justify-content:center;}
   <!-- ===== 冒険者ギルド ===== -->
 
   <!-- ① ギルド内アニメーション画面 -->
-  <div id="guild-anim-screen" style="position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#0a0810;">
+  <div id="guild-anim-screen" style="position:relative;width:100%;height:100vh;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#0a0810;">
     <!-- プレースホルダー背景（後でGemini生成動画/GIFに差し替え） -->
-    <video id="guild-anim-video" src="assets/guild/guild_intro.mp4"
-      autoplay muted playsinline
-      style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;"
-      onerror="this.style.display='none';document.getElementById('guild-anim-fallback').style.display='flex'">
-    </video>
+    <img id="guild-anim-img" src="assets/guild/guild_intro.gif"
+      onerror="this.style.display='none';document.getElementById('guild-anim-fallback').style.display='flex'"
+      style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;">
     <!-- 画像が存在しない場合のフォールバック（CSSアニメ） -->
     <div id="guild-anim-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;position:absolute;inset:0;background:linear-gradient(180deg,#1a0f2e 0%,#0d1a2e 60%,#0a0810 100%);">
       <div style="font-size:48px;animation:guildFlicker 1.5s infinite alternate">🏰</div>
@@ -613,12 +607,11 @@ body{display:flex;justify-content:center;}
       <img src="assets/guild/guild_bg.png"
         onerror="this.style.display='none'"
         style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.4;">
-      <!-- 受付嬢キャラ-->
+      <!-- 受付嬢キャラ（後でGemini生成画像に差し替え） -->
       <div style="position:relative;z-index:2;text-align:center;padding-bottom:16px;">
-        <!-- 初期srcは1番を指定。JS側でランダムに上書きされる -->
-        <img id="guild-receptionist-img" src="assets/guild/receptionist_1.png"
+        <img id="guild-receptionist-img" src="assets/guild/receptionist.png"
           onerror="this.style.display='none';document.getElementById('guild-receptionist-fallback').style.display='block'"
-          style="max-height:50vh;object-fit:contain;filter:drop-shadow(0 0 20px rgba(201,168,76,0.4));">
+          style="height:200px;object-fit:contain;filter:drop-shadow(0 0 20px rgba(201,168,76,0.4));">
         <!-- 画像がない場合のフォールバック -->
         <div id="guild-receptionist-fallback" style="display:none;font-size:80px;line-height:1">👩‍💼</div>
       </div>
@@ -653,9 +646,15 @@ body{display:flex;justify-content:center;}
     <div id="guild-section-register" style="display:none;padding:0 16px 16px;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
         <button onclick="showGuildMenu()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:18px;cursor:pointer;">←</button>
-        <div style="font-size:11px;letter-spacing:3px;opacity:.5;text-transform:uppercase">メニューに戻る</div>
+        <div style="font-size:11px;letter-spacing:3px;opacity:.5;text-transform:uppercase">冒険者登録</div>
       </div>
-      
+      <!-- 受付嬢セリフ（登録用） -->
+      <div style="background:rgba(255,255,255,.06);border:1px solid rgba(201,168,76,.3);border-radius:16px;padding:14px 16px;margin-bottom:14px;">
+        <div style="font-size:9px;letter-spacing:2px;color:#c9a84c;margin-bottom:6px">受付嬢 リリア</div>
+        <div style="font-size:12px;line-height:1.9;color:rgba(255,255,255,.9)">
+          冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。<br>登録したいキャラクターを選んでください。
+        </div>
+      </div>
       <!-- 未登録カード一覧 -->
       <div id="guild-register-list" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
       <div id="guild-register-empty" style="display:none;text-align:center;padding:40px 0;color:rgba(255,255,255,.3);font-size:12px;line-height:2;">
@@ -666,8 +665,7 @@ body{display:flex;justify-content:center;}
   </div><!-- /guild-main-screen -->
 
   <!-- 登録確認モーダル -->
- <!-- display:flexをdisplay:noneと一緒に明示的に指定、JS側でflexに切り替える -->
-<div id="guild-register-modal" style="display:none;position:fixed;inset:0;z-index:310;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:20px;pointer-events:auto;">
+  <div id="guild-register-modal" style="display:none;position:fixed;inset:0;z-index:310;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:20px;">
     <div style="max-width:360px;width:100%;background:#13131a;border:1px solid rgba(201,168,76,.3);border-radius:20px;padding:24px;">
       <div style="text-align:center;margin-bottom:16px;">
         <div style="font-size:40px" id="guild-modal-kanji"></div>
@@ -1504,7 +1502,14 @@ window.onload=async()=>{
     characters=ch||JSON.parse(localStorage.getItem('kh_chars')||'[]');
     itemCards=it||JSON.parse(localStorage.getItem('kh_items')||'[]');
     // 既存カードに adventurerRank が無い場合は null（未登録）で補完
-    characters.forEach(c=>{if(c.adventurerRank===undefined)c.adventurerRank=null;});
+    characters.forEach(c=>{
+      if(c.adventurerRank===undefined)c.adventurerRank=null;
+      // 既存カードに漢字難易度が無い場合は自動判定で補完
+      if(c.kanjiDifficulty===undefined)c.kanjiDifficulty=getKanjiDifficulty(c.kanji||'');
+    });
+    itemCards.forEach(c=>{
+      if(c.kanjiDifficulty===undefined)c.kanjiDifficulty=getKanjiDifficulty(c.kanji||'');
+    });
   }catch(e){characters=[];itemCards=[];}
   resumeRecoveryTimers();
   if(apiKey){
@@ -1558,6 +1563,38 @@ let bgmType=null;
 let bgmInterval=null;
 let soundEnabled=true;
 
+// ===== 漢字難易度テーブル =====
+// 漢検級別データをもとに5段階で分類
+// 重複がある場合は難易度が低い方を優先
+// ★1: 漢検10〜8級（小学1〜3年相当）
+// ★2: 漢検7〜3級（小学4年〜中学卒業相当）
+// ★3: 漢検準2〜2級（高校在学〜高校卒業相当）
+// ★4: 漢検準1級 + 漢検対象外
+// ★5: 漢検1級（最高難度）
+const KANJI_STAR1 = new Set("一丁七万三上下世両中丸主乗九予事二五交京人今仕他代休会住体何作使係倍元兄先光入全八公六具内円写冬出刀分切列別前力助勉動勝化北区医十千午半協南原去友反取受口古台右号合同名向君味命和品員商問四回団図国園土地坂場声売夏夕外多夜大天太央女妹姉始委子字学守安定実客室宮家宿寒寺対小少局屋山岩岸島川州工左市帰帳平年幸広店度庫庭式弓引弟弱強当形役待後心思急息悪悲想意感戸所手才打投拾持指放教数整文新方旅族日早明昔星春昭昼時晴暑暗曜曲書月有服朝期木本村来東板林柱校根森植検業楽様横橋次歌止正歩歯死母毎毛気水氷池決汽油法波注泳洋活流海消深温港湖湯漢火炭点父牛物犬玉王球理生用田由申男町画界畑番病発登白百皮皿益目直相県真着矢知短石研礼社神祭福秋科秒究空立章童竹笛第筆等答算箱米糸紙級細終組絵緑線練羊美羽習考者耳聞肉育能自船色花苦茶草荷落葉薬虫血行表西見親角言計記詩話語読調談谷豆貝負財買赤走起足路身車転軽農近返追送通速週進遊運道遠部都配酒里重野金鉄銀長門開間院陽階集雨雪雲電青面音頭題顔風食飲館首馬駅高魚鳥鳴麦黄黒鼻");
+const KANJI_STAR2 = new Set("丈不与丘並丹久乏乙乱乳乾了争互井亡仁介仏付令以仮仰仲件任企伏伐伝伴伸伺似位低佐余佳例侍供依価侵便促俗保信修俳俵倉個倒候借倣値倹偉停健側偶傍備催債傷傾働像僧儀億優兆克免児党共兵典兼冊再冒冗冠冷凍凝凡処凶刈刊刑初判利到制刷券刺刻則削剣剤副割創劇功加劣努励労効勇勘務募勢勤勧包匠匹匿卑卒卓単博占印危即却卵卸厘厚厳参又及双収句叫召可史司各吉后吏吐否含吸吹告周呼咲哀哲唐唱啓善喚喜喫営嘆嘱器噴因困囲固圏圧在均坊坑垂型埋城域執基埼堂堅堤報塊塔塗塩境墓増墜墨墳墾壁壇壊士壱変夢夫失奇奈奉奏契奥奪奮奴好如妙妨妻姓姫姿威娘娯婆婚婦婿媛嫁嬢孔存孝季孤孫宅宇完宗官宙宝宣害宴容寂寄密富寝察審寸寿封専射将尊尋導就尺尽尾尿居屈届展属層岐岡岳峠峡峰崎崩巡巣巧巨差己巻布帆希帝師席帯常帽幅幕干幹幻幼幽幾庁床序底府座康廉廊延建弁弐弧張弾彩彫影彼往征径律徐徒従得御復微徳徴必忌志忘忙応忠快念怒怖怠性怪恋恐恒恥恨恩恵悔悟悦悩情惑惜惨愚愛慈態慌慎慕慢慣慨慮慰憂憎憩憲憶成我戒戦戯房扇払扱批承技抑抗折抜択抱抵押抽担拍拓拘招拝拠拡挙振捕捨掃授掌排掘掛採探接控推措掲描提揚換握揮援揺損搬携搾摂摘撃撮擁操擦支改攻政故敏救敗敢散敬敵敷斗料斜斤斥断施旗既旧旨旬昇易映昨是晩普景晶暇暖暦暫暮暴曇更替最朗望未末札朱机朽材束条杯松枚果枝枯架柄某染柔査栃栄株格桃案桑桜梅梨械棄棋棒極楼概構標模権樹機欄欠欧欲欺歓武歳歴殊残殖殴段殺殿毒比氏民永求汗汚沈沖没沢河治沼沿況泉泊泌泣洗派浅浜浪浮浴浸涙液淡混添清済減渡測湾湿満源準溶滅滋滑滝滞滴漁漂漏演漫潔潜潟潤潮澄激濁濃濫瀬灯灰災炉炊炎為烈無焦然焼煙照煮熊熟熱燃燥爆片版牧牲特犠犯状狂狩独狭猛猟獄獣獲玄率珍班現環甘産甲畔留畜略異畳疑疲疾痘痛療癖的皆皇盆盗盛盟監盤盾省看眠眼瞬矛砂砲破硬碑確磁礎示祈祉祖祝票禁秀私秘称移程税稚種稲稿穀穂積穏穫穴突窒窓端競笑符筋策箇管節範築篤簡簿籍粉粋粒粗粘精糖糧系紀約紅紋納純紛素紫紹紺経結絞絡給統絶絹継続維綱網綿緊総締編緩緯縁縄縛縦縫縮績繁織繕繰罪置罰署群義翌翻翼老耐耕聖聴職肝肥肩肪肺胃胆背胎胞胴胸脂脅脈脚脱脳腐腕腰腸腹膚膜膨臓臣臨至致興舌舎舗舞舟航般良芋芝芳芸芽苗若英茂茨荒菊菓菜華著葬蒸蓄蔵薄薪藩虐虚蚕蛮衆術街衛衝衣衰袋被裁裂装裏補裸製複襲要覆規視覚覧観解触訂討訓託訪設許訳訴証評詞詠試詰該詳誇誉誌認誕誘誠誤説課請論諮諸諾謀講謝謡識警議譲護豊豚象豪貧貨販貫責貯貴貸費貿賀賃資賊賛賞賢賦質贈赦赴超越趣距跡跳踊踏躍軌軍軒軸較載輝輩輪輸辛辞辱辺込迎迫述迷退逃逆透途造連逮遂遅遇過達違遣適遭遵選遺避邦邪郊郎郡郭郵郷酔酵酸釈量針鈍鉛鉱銅銭鋭鋳鋼錠錬錯録鍛鎖鎮鏡鐘鑑閉関閣閲闘阜阪防阻降限陛陣除陪陰陳陵陶陸険隆隊随隔際障隠隣隷隻雄雅雇雌雑離難零雷需震霊霧露静非革響頂項順預領頼額願類顧飛飯飼飽飾養餓香駆駐騎騒験驚骨髄髪鬼魂魅魔鮮鯨鶏鹿麗黙鼓齢");
+const KANJI_STAR3 = new Set("且丙串丼乞亀亜享亭仙伎伯但併侮侯侶俊俸俺倫偏偵偽傑傘傲僅僕僚儒償充冥冶凄准凸凹刃刹剖剛剥剰劾勃勅勲勾匂升厄叔叙叱吟呂呈呉呪咽哺唄唆唇唯唾喉喝喩喪嗅嗣嘲嚇囚坪垣培堀堆堕堪塀塁塑塚塞填塾壌壮奔奨妃妄妊妖妥妬姻娠媒嫉嫌嫡宛宜宰宵寛寡寧寮尉尚尻尼履屯岬崇崖嵐巾帥幣庶庸廃廷弄弊弔弥弦彙彰循徹忍怨恣恭悠患悼惧惰愁愉慄慶憤憧憬憾懇懐懲懸戚戴戻扉扶抄把披抹拉拐拒拙括拭拳拶拷挑挟挨挫挿捉捗捜据捻搭摩摯撤撲擬斉斎斑斬旋旦旺昆昧暁曖曹曽朕朴杉析枕枠枢柳柵柿栓核栽桁桟梗棚棟棺椅椎楷槽款殉殻毀氾汁汎江汰沃沙沸泡泥泰洞津洪浄浦涯涼淑淫渇渉渋渓渦湧溝溺漆漠漬漸潰濯煎煩爪爵爽牙狙猫献猶猿玩珠琴瑠璃璧璽瓦瓶甚畏畝畿疎疫症痕痢痩痴瘍癒盲眉眺睡督睦瞭瞳矯砕硝硫碁磨礁祥禅禍租秩稼稽窃窟窮窯竜筒箋箸籠粛粧糾紡索累紳綻緒緻繊繭缶罵罷羅羞羨翁耗肌肖肘股肢肯脇脊腎腫腺膝膳臆臭臼舶舷艇艦艶芯苛茎荘菌萎葛蓋蔑蔽薦薫藍藤藻虎虜虞虹蚊蛇蛍蜂蜜融衡衷袖裕裾褐褒襟覇訃訟診詐詔詣詮誓誰諦諧諭謁謄謎謙謹譜貌貞貢貪貼賂賄賓賜賠賭購践踪蹴軟轄辣迅迭逐逓逝逸遍遜遡遮遷還那邸酌酎酢酪酬酷醒醜醸采釜釣鈴鉢銃銘錦錮鍋鍵鎌閑閥闇附陥隅隙雰霜靴韓韻頃須頑頒頓頬頻顎顕飢餅餌駄駒騰骸鬱鶴麓麺麻");
+const KANJI_STAR4 = new Set("㵎丑丗丞个丶丿乃之乍乎乕也乢亅亊云亘亙些亠亥亦亨亮亰亳什仇从仔仭伊伍伜伶伽佃佑佼侃侠侫侭俄俠俣俱倖倦倭倶偓偲傭僊僑僣僻儖儘儲儿允兇兎兔兜兮其冂冉冐冓冖冦冨冩冫冰冲决冴况凉凋凌凖凛凧凪凰凱凵函凾刄刧剃剏剱劃劄劉劒劔劫劵勗勹勺勿匁匙匝匡匪匸卆卜卞卦卩卯卻卿厂厠厦厨厩厭厮厰厶叉叛叡叢叩只叶吃吊吋吞吠吻吾呀呆呑呱咋咒咯咳咼咾哉哘哨哩唖唳唹啄啌啐啗啝啞喋喧喬喰嗹嘉嘗嘘嘩噂噌噐噓噛噸噺嚏嚙嚢囊囎囓囗囘囮圀圃圭圷圸坐坤坦垈垉垢垪垰垳埀埓埔埖埜埠埣埴堋堙堰堵堺堽塘塙塢塰塲塵墫墸墹墺墻壕壗壥壬壷壺夂夊夐夘夙夛夷奄套奩妁妍妓妛妾姐姑姥姦姪姶娃娚娜娩娼婁媾嫂嫐嫦嬉嬬嬰孜孟孳孽宀它宋宍宏宕宥寃寅寉寓寳寵尅尓尖尢尤尭屍屏屐屑屓屡屢屮岨岱岶岷岻岼岾峅峇峨峩峯峺峻崋崕崗崘嵜嵩嵯嵳嵶嶋嶌嶐嶺巌巛巳巴巵巷巽帀帋帖幇幌幡幤并广庄庇庖庚庵廏廐廓廚廟廠廰廴廸廻廼廾廿弃弉弗弘弛弯弸弼彁彊彑彖彜彡彦彪彬彳徃徠徽忰忽怐怜怯恕恠恢恰恷悉悌悗悳悶惇惚惟惣惹愈愡愽慚慧慯慱慾憇憐憙懴戊戎或戝戞戟扈托扮抂抛抬拏按挧挺挽捌捧捩捲捷捺掠掩掬掴掵掻揃揖搆搔摑摸摺撒撚撞撫播撰撹擢擶擾攅攜攪攴攵攷攸敘敦斈斌斐斡斧斯於旒旙无旡旭昂昌昏昿晃晄晋晒晣晦晳智暃暎暢暸暼曁曄曙曝曳曵朋朔朖朷杁李杏杓杖杜杢杤杭杰杵杷枅枇枦枩柁柆柊柏柑柘柚柧柴柾栂栖栗栢栴桀桂桍桐桓桔桝档桧桶桾桿梁梍梓梛梢梦梧梯梱梳梶梹梼棆棉棊棔棡棯棲椀椋椌椙椛椡椢椣椥椦椨椪椴椶椿楊楓楕楙楚楜楞楠楢楪楯楳楴榊榎榛榠榲榿槌槍槙槝槞槫槹槻樋樌樗樟樢樫樮樵樶樺樽橘橡橢橲橸橿檀檍檎檜檪檮櫁櫑櫓櫛櫞欝欟欣欽歎此歪歹殆殕殱殳毅毓毗毘气氤汀汐汝汢汲汳汾沌沓沪沫沺泙泱洙洛洩洲洳浤浩浬涌涛涜淀淇淋淕淘淞淤淦淮淳淵渊渕渚渠渤渥渮湊湘湛湟湮湶溌溜溢溯滕滬漉漑漕漣潁潅潑潭潴潼澀澂澑澗澱濂濆濠濡濤濮濳濶瀆瀕瀘瀛瀞瀦灌灘灸灼炳烏烟烱烹焔焚焰煉煕煢煤煽熈熏熔燐燕燦燭爺爻爼爾爿牌牒牝牟牡牢牽犀犁犹狐狗狛狸狼狽猪猷獅獎玖玲玳珂珊珎珪珱珸琉琢琳琵琶琿瑚瑛瑞瑯瑳璢瓊瓜瓠瓢瓣甄甑甜甞甥甫甬甼畄畆畉畊畍畠畢畦畧畩畭畴畷疂疉疋疏疹痔癌癶皀皃皈皋皐皷皸盃盈盌盖眤眦睿瞥瞶瞹矗矧矩砥砦砧砺砿硯硲硴硼碆碇碍碓碕碗碧碩碯碵磆磐磔磯礇礦礪祁祇祐祢祷禀禄禎禦禰禱禽禾禿秡秤秦稀稔稗稘稙稜稱稾穃穆穉穎穐穣穿窄窪窰窺竃竇竈竒竣竪竸竺竿笂笄笈笋笠笥笶笹筈筏筑筝筬筺箆箔箕箙箟箪箭篇篏篠篦篭篳篶簒簔簞簟簪簸簾籀籏籐籖籘籾粁粂粃粍粐粕粟粡粥粫粭粮糊糎糘糞糟糠糢紐紗紘紬絃絋絢綛綜綟綬綮綴綾緋緕緜緬縞縢繃繋繍繡繦繫繿纂纉纎纏纒网罫罸羣羮翆翠翩翫翰耀而耒耜耶耻耽聟聡聨聯聹聾肇肋肓肱肴胡胤胼脆脉脹腔腟腿膏膓膕膤膸膿臈臥舁舉舘舛舜舩舮舵艮芍芙芥芦芭芹苅苑苒苓苔苣苧苫茄茅茖茜茸荊荏荵荻莇莓莞莫莱莵莽菅菖菟菩菰菱菷菻萄萇萊萋萌萓萠萢萩萪萱葎葡葢董葦葫葮葯葱葵葹葺蒂蒄蒋蒐蒔蒙蒜蒭蒲蒼蓉蓊蓑蓚蓬蓮蓴蔀蔆蔓蔚蔣蔦蔬蔭蕃蕈蕉蕊蕋蕎蕗蕚蕨蕩蕪薗薙薩薮薯藁藪藷蘂蘇蘓蘖蘗蘭蘯蘰虍虱虻蚋蚤蛋蛎蛙蛛蛤蛩蛭蛸蛾蜋蜎蜘蝉蝋蝕蝙蝦蝪蝱蝶蝿螺螽蟆蟐蟒蟬蟹蟻蠅蠎蠏蠣蠧衂衊衽衿袁袈袞袮袴袷裟裡裳褊褝襍襖襪襾覊覗覯觚觧訊訣註詑詫誹誼諌諏諒諛諜諞諫諺謂謌謚謬譁譛譱讃讎讚谺豁豎豬豸豹豼貅貍貔貭貮貰賁賍賎賑賤贋贏赫赱趨跨跫踈蹄蹕蹟躙躯躰軀軅軆軣輌輔輙輯輿轍轜轟轡轣辧辰辻辿迂迄迦迩迯迸迺逎逗這逢逶逹逼遁遘遥遼邃邉邑郁鄭酉酋酘醇醍醐醗醤醬醯醱釁釆釖釘釛釟釡釦釧釶釼鈎鈩鈬鈷鉐鉚鉤鉦鉾銑銚鋒鋤鋩鋪鋲鋸錆錐錘錨錫鍄鍍鍔鍖鍜鍬鍾鎔鎗鎚鎧鏑鏥鐇鐔鐙鐡鐸鑁鑒鑓鑚鑵閃閇閏閒閖閙閠閤閼阿陀陋陏陦隈隲隶隹隼雀雁雛雫霞霸靖靭靱靹鞄鞆鞍鞏鞘鞠鞭韃韆韈韜韭韮韲韵頁頗頚頴頸顚顛飃飜飴餐餝饗馨馳馴馼駁駈駕駢駲駿騨驫髞髟髭髯鬥鬲魁魯鮎鮒鮗鮪鮫鮭鯆鯉鯖鯛鯲鯵鰍鰐鰛鰡鰭鰯鰲鰹鰺鰻鱈鱒鱗鳩鳫鳬鳳鳶鴂鴇鴈鴎鴛鴦鴨鴪鴫鴬鴻鵈鵐鵙鵜鵞鵠鵡鵬鶯鷏鷗鷲鷹鷺鸚鹸鹼麁麒麟麪麴麸麹麿黍黏黛鼎鼠鼡鼹齔龝");
+const KANJI_STAR5 = new Set("丐丕丫丱乂乖乘亂于亞亟亢亶仂仄仆仍仗仞仟价伉估佇佗佚佛佝佞佩佯佰佶佻來侈侏侑侖侘俎俐俑俔俘俚俛俟俤俥俯俶俾倂倅倆倏們倔倚倡倥倨倩倪倬偃假偈偐偕偖做偬偸傀傅傚傳傴僂僉僖僞僥僭僮僵價儁儂儉儔儕儚儡儳儷儺儻儼兀兌兒兢兩兪冀册冏冑冕冢冤冪冱冽凅凊凜几凩凭刋刎刔刪刮刳剄剋剌剔剞剩剪剳剴剽剿劈劍劑劬劭劼勁勍勒勖勞勠勣勦勳勵勸匆匈匍匏匐匕匚匣匯匱匳區卅卉卍卮卷卽厖厥厲參叟叨叭叮叺吁吝吩听吭吮吶吼吽呎呏呟呰呵呶呷呻咀咄咆咎咏咐咢咤咥咨咫咬咸哂哄哇哈哢哥哦哭哮哳哽唏唔售唸啀啅啖啜啣啻啼啾喀喃喇喊喑喘喙喞喟喨單嗄嗇嗔嗚嗜嗟嗤嗷嗽嗾嘔嘖嘛嘯嘴嘶嘸噁噎噤噦噪噫噬噯嚀嚆嚊嚔嚠嚥嚬嚮嚴嚶嚼囀囁囂囃囈囑囹囿圄圈圉國圍圓圖團圜圦圻址坎坏坡坩坿垓垠垤埃埆埒堊堝堡堯塋塒塹塿墅增墟墮壅壎壑壓壘壙壜壞壟壤壯壹壻壼壽夥夬夭夲夸夾奎奐奕奘奚奠奢奧奬奸妝妣妲姆姙姚姜姨姮姸娉娑娟娥娵娶婀婉婢婪婬媚媼媽嫋嫖嫗嫣嫩嫺嫻嬋嬌嬖嬪嬲嬶嬾孀孃孅孑孒孕孚孛孥孩孰孱孵學孺孼宦宸寇寐寔寞寢寤寥實寨寫寬寰寶將專對尠尨尸尹屁屆屎屛屠屬屭屶屹岌岑岔岫峙峪峭峽崑崔崙崚崛崟崢嵋嵌嵎嵒嵬嶂嶄嶇嶝嶢嶬嶮嶷嶼嶽巉巍巒巓巖巢巫已帑帙帚帛帶帷幀幃幄幎幔幗幟幢幫幵幷幺庠廁廂廈廖廛廝廡廢廣廨廩廬廱廳弋弌弍弑弖弩弭彈彌彎彗彝彭彷彽彿徂徇很徊徑徘徙從徨徭徵德徼忖忝忤忱忸忻忿怎怏怕怙怛怡怦怩怫怱怺恁恂恃恆恊恍恙恚恟恤恪恫恬悁悃悄悅悋悍悒悖悚悛悧悴悵悸悽悾惆惓惘惠惡惱惴惶惷惺惻愀愃愆愍愎愒愕愧愨愬愴愼愾愿慂慇慊慍慓慘慙慝慟慠慥慫慳慴慵慷憊憑憔憖憚憫憮憺懃懆懈應懊懋懌懍懣懦懶懷懺懼懽懾懿戀戈戉戌戍戔戛戡截戮戰戲戳戾扁扎扛扞扠扣扨扼找抃抉抒抓抔抖抻拂拆拇拈拊拌拑拔拗拜拮拯拱拵拿挂挈挌挘挾捍捏捐捫捶掀掉掎掏掖掟掣掫掾揀揄揆揉插揣揩揭揶搏搓搖搗搜搤搦搨搴搶摎摏摧摶撈撓撕撥撩撻撼擂擅擇擊擒擔擘據擠擡擣擧擯擱擲擴擺擽攀攘攝攢攣攤攫攬收效敍敎敕敖敝敞敲數斂斃斛斟斫斷旁旃旄旆旌旛旰旱旻昃昊昜昴昵昶晁晉晏晚晝晞晟晢晤晧晨晰暄暈暉暘暝暹暾曆曉曚曠曦曩曬曰曷曼曾會朏朞朦朧朮朶朸朿杆杙杞杠杣杪杲杳杼枉枋枌枡枳枴枷枸枹柎柝柞柢柤柩柬柮柯栞栩栫栲桄框桎桙桛桴桷梃梏梔條梟梠梭梲梵梺梻棍棕棗棘棠棣棧棹椁椄椈椏椒椚椰椹椽楔楝楡楫楮楸楹楾榀榁榑榔榕榜榧榮榱榴榻榾槁槃槇槊槎槐槓槧槨槪槭槲槿樂樅樊樒樓樔樛樞樣樸橄橇橈橙橦橫檄檋檐檔檗檠檢檣檬檳檸檻櫂櫃櫚櫟櫨櫪櫱櫺櫻欅權欒欖欷欸欹歃歇歉歐歔歙歛歟歠歡步歷歸歿殀殃殄殍殘殞殤殪殫殯殲殷殼毆毋每毟毫毬毯毳氈氓氛氣汕汞汨汪沁沂沍沐沒沚沛沮沱沽沾泄泅泓泗泛泝泪泯洌洒洟洫洵洶洸洽浙浚浣浹涅涉涎涓涕涵涸淅淆淌淒淙淚淨淪淬淸淹淺渙渝渟渣渫渭渴游渺渾湃湍湎湫湲溂溏溘溟溥溪溫溲溷溽滂滄滉滌滓滔滯滲滷滸滾滿漓漱漲漾漿潘潛潦潯潸潺澁澆澎澡澣澤澪澳澹濔濕濘濛濟濬濱濺濾瀁瀉瀋瀏瀑瀚瀝瀟瀧瀨瀰瀲瀾灑灣炒炙炬炮炯炷炸烋烙烝烽焉焙焜焠煌煖煥煦煬熄熕熙熨熬熹熾燈燉燎燒燔燗營燠燧燬燮燵燹燻燼燿爍爐爛爨爬爭爰爲牀牆牋牖牘牴牾犂犇犒犖犢犧犲狀狃狄狆狎狒狠狡狢狷狹猊猋猖猗猜猝猥猩猯猴猾獏獗獨獪獮獰獵獸獺獻玫玻珀珈珞珥珮琅琥琲琺瑁瑇瑕瑙瑜瑟瑣瑤瑩瑪瑰瑶瑾璇璋璞瓏瓔瓧瓩瓮瓰瓱瓲瓷瓸甁甃甅甌甍甎甓甕甦甸畋畚畛畤畫畬當畸疆疇疊疔疚疝疣疥疱疳疵疸疼疽痂痃痊痍痒痙痞痣痰痲痳痹痺痼痾痿瘁瘉瘋瘟瘠瘡瘢瘤瘦瘧瘰瘴瘻癆癇癈癘癜癡癢癧癨癩癪癬癭癰癲癴癸發皁皎皓皖皙皚皰皴皹皺盂盍盒盜盞盡盥盧盪盻眄眇眈眛眞眥眩眷眸睇睚睛睥睨睫睹睾瞋瞎瞑瞞瞠瞰瞻瞼瞽瞿矇矍矚矜矣矮矻矼砌砒砠硅硏碌碎碚碣碪碼碾磅磊磋磑磚磧磬磴磽礑礒礙礫礬祀祓祕祗祚祟祠祺祿禊禝禧禪禮禳禹禺秉秕秣秧秬稈稍稟稠稷稻穗穡穢穩穰穹穽窈窕窖窗窘窩窶窿竄竅竊竍竏竓竕站竚竝竟竡竢竦竭竰竽笆笊笏笘笙笞笨笳笵筅筌筍筐筥筧筮筰筱筲筴筵箍箏箒箘箚箜箝箴篁篆篋篌篝篥篩篪篷簀簇簍簑簓簗簣簧簫簷簽籃籌籒籔籙籟籡籤籥籬籵粏粢粤粨粱粲粳粹粽糀糂糅糒糜糝糯糲糴糶糺紂紆紉紊紕紜紮紲紵紿絅絆絎絏絖絛絣絨絮絲絳絽綉綏經綠綢綣綦綫綯綰綵綸綺綽緇緖緘緝緞緡緣緤緲縅縉縊縋縒縕縟縡縣縱縲縵縷縹縺縻總繆繖繙繚繝繞繧繩繪繳繹繻繼繽纃纈纊續纐纓纔纖纘纛纜缸缺罅罌罍罎罐罔罕罘罟罠罧罨罩罹羂羃羆羇羈羌羔羚羝羯羲羶羸羹翅翊翔翕翡翦翳翹耄耆耋耘耙耡耦耨耿聆聊聒聘聚聢聰聲聳聶聽聿肄肅肆肚肛肬肭胄胖胙胚胛胝胥胯胱脛脣脩脯脾腆腋腑腓腠腥腦腮腱腴膀膂膃膈膊膠膣膩膰膵膺膽膾臀臂臉臍臑臘臙臚臟臠臧臺臻臾舂舅與舊舍舐舒舖舫舳舸艀艘艙艚艝艟艢艤艨艪艫艱艷艸艾芒芟芫芬芻苆苙苜苞苟苡苳苴苹苺苻范茆茉茗茘茣茫茯茱茲茴茵茹荀荅荐荳荼莅莉莊莎莖莚莟莠莢莨莪菁菎菘菠菫菲菴菽萁萃萍萬萵萸萼葆葩葭葷蒟蒡蒹蒻蒿蓁蓆蓍蓐蓖蓙蓼蓿蔔蔕蔗蔘蔟蔡蕀蕁蕕蕘蕣蕭蕷蕾薀薇薈薊薏薐薑薔薛薜薤薨薰薹薺藉藏藐藕藜藝藥藹藺藾蘆蘊蘋蘚蘢蘿虒虔處虛號虧蚌蚓蚣蚩蚪蚫蚯蚰蚶蛄蛆蛉蛔蛞蛟蛬蛯蛹蛻蜀蜃蜆蜈蜉蜊蜍蜑蜒蜓蜚蜥蜩蜴蜷蜹蜻蜿蝌蝎蝓蝗蝘蝟蝠蝣蝨蝮蝲蝴蝸螂螈螗螟螢螫螯螳螻螾蟀蟄蟇蟋蟎蟠蟪蟯蟲蟶蟷蟾蠆蠊蠍蠑蠕蠖蠡蠢蠱蠶蠹蠻衄衍衒衙衞衢衫衲衵衾袂袍袒袗袙袢袤袰袱袵袿裃裄裎裔裘裙裝裨裲裴裹裼褂褄褌褓褞褥褪褫褶褸褻襁襃襄襌襞襠襤襦襭襯襴襷覃覈覓覘覡覦覩覬覲覺覽覿觀觜觝觥觴觸訌訐訖訛訝訥訶詁詆詈詒詛詢詬詭詼誂誄誅誑誚誡誣誥誦誨諂諄諍諚諠諡諢諤諱諳諷謇謐謔謖謗謠謦謨謫謳謾證譌譎譏譖譚譟譫譬譯譴譽讀變讌讐讒讓讖讙谿豈豌豐豕豢豫豺貂貉貊貎貘貲貳貶貽賈賚賣賴賺賻賽贄贅贇贊贍贐贓贔贖赧赬赭赳趁趙趺趾跂跋跌跎跏跖跚跛跟跣跪跼跿踉踐踑踝踞踟踰踴踵蹂蹇蹈蹉蹊蹌蹐蹙蹠蹣蹤蹲蹶蹻蹼躁躄躅躇躊躋躑躓躔躡躪躬躮躱躾軈軋軛軫軻軼軾輀輅輊輒輓輕輛輜輟輦輳輹輻輾轂轅轆轉轌轎轗轢轤辜辟辨辭辮辯辷迚迢迥迪迴迹逅逋逍逑逕逖逞逡逧逵逾遉遏遐遑遒遖遙遞遨遯遲遶遽邀邁邂邇邊邏邨邯邱邵郛郞郢郤鄂鄒鄕鄙鄰鄲酊酖酣酥酩酲酳醂醉醋醢醪醫醴醵醺釀釉釋釐釵釿鈑鈔鈕鈞鈿鉅鉈鉉鉋鉗鉞銓銕銖銛銜銷銹鋏鋺錄錏錙錚錢錣錵錺錻鍊鍠鍮鍼鎬鎭鎰鎹鎺鏃鏈鏐鏖鏗鏘鏝鏤鏨鐃鐐鐓鐚鐫鐵鐶鐺鑄鑛鑞鑠鑢鑪鑰鑷鑼鑽鑾鑿钁閂閊閔閘閧閨閭閹閻閾闃闊闌闍闔闕闖關闡闢闥阡阨阮阯陂陌陜陝陞陟陬陲陷隋隍隕隗隘隧隨險隰隱隴隸雉雋雍雎雕雖雙雜雹霄霆霈霍霎霏霑霓霖霙霤霪霰霹霽霾靂靄靆靈靉靑靜靠靡靤靦靨靫靺靼鞁鞅鞋鞐鞜鞣鞦鞨鞫鞳鞴韋韞韶頌頏頡頤頷頽顆顋顏顫顬顯顰顱顳顴颪颯颱颶飄飆飩飫飭飮餃餉餒餔餘餞餠餡餤餬餮餽餾饂饅饉饋饌饐饑饒饕馗馘馥馭馮駑駘駛駝駟駭駮駱駸駻騁騅騏騙騫騭騷騾驀驂驃驅驍驎驕驗驛驟驢驤驥驩驪骭骰骼髀髏髑髓體髢髣髦髫髮髱髴髷髻鬆鬘鬚鬟鬢鬣鬧鬨鬩鬪鬮鬯鬻魃魄魍魎魏魑魘魞魬魳魴魸鮃鮇鮑鮓鮖鮟鮠鮨鮱鮲鮴鮸鮹鯀鯊鯎鯏鯐鯑鯒鯔鯡鯢鯣鯤鯰鯱鰄鰆鰈鰉鰊鰌鰒鰓鰔鰕鰘鰙鰚鰤鰥鰧鰮鰰鰾鱆鱇鱏鱓鱚鱛鱟鱠鱧鱩鱲鱶鱸鳧鳰鴃鴆鴉鴒鴕鴟鴣鴾鴿鵁鵄鵆鵇鵑鵝鵤鵥鵯鵲鵺鶄鶇鶉鶍鶎鶚鶤鶩鶪鶫鶲鶸鶺鶻鷁鷂鷄鷆鷓鷙鷦鷭鷯鷸鷽鸛鸞鹵鹹鹽麈麋麌麑麕麝麤麥麩麭麵麼麾黃黌黎黐黑黔默黜黝點黠黥黨黯黴黶黷黹黻黼黽鼇鼈鼕鼬鼯鼴鼾齊齋齎齏齒齟齠齡齣齦齧齪齬齲齶齷龍龐龕龜龠");
+
+// 漢字の難易度を返す（1〜5、未登録はデフォルト3）
+function getKanjiDifficulty(kanji) {
+  if (!kanji || kanji.length === 0) return 3;
+  const ch = kanji[0]; // 1文字目で判定
+  if (KANJI_STAR1.has(ch)) return 1;
+  if (KANJI_STAR2.has(ch)) return 2;
+  if (KANJI_STAR3.has(ch)) return 3;
+  if (KANJI_STAR4.has(ch)) return 4;
+  if (KANJI_STAR5.has(ch)) return 5;
+  return 3; // どのリストにも該当しない場合はデフォルト★3
+}
+
+// 難易度の星表示を返す
+function getKanjiDifficultyStars(kanji) {
+  const d = getKanjiDifficulty(kanji);
+  return '★'.repeat(d) + '☆'.repeat(5 - d);
+}
+
 const BGM_FILES={
   preBattle:'/audio/bgm_pre.mp3',
   inBattle:'/audio/bgm_battle.mp3',
@@ -1566,8 +1603,6 @@ const BGM_FILES={
   synthesis:'/audio/bgm_synthesis.mp3',
   quiz:'/audio/bgm_quiz.mp3',
   write:'/audio/bgm_write.mp3',
-  guild:'/assets/guild/guild_bgm.mp3',      // ギルドアニメ動画用BGM
-  guildMain:'/audio/bgm_guild_main.mp3', // 受付嬢画面用BGM
 };
 
 function getAudioCtx(){
@@ -1773,116 +1808,32 @@ const ADVENTURER_RANK_LABELS={
   C:'Cランク',B:'Bランク',A:'Aランク',S:'Sランク',SS:'SSランク'
 };
 
-// 受付嬢のセリフをテロップ風に1文字ずつ表示する
-async function showGuildSpeech(text){
-  const el=document.getElementById('guild-speech-text');
-  if(!el)return;
-  el.innerHTML='';
-  // HTMLタグ（<br>など）はそのまま挿入、それ以外は1文字ずつ順番に表示
-  const parts=text.split(/(<br>)/);
-  for(const part of parts){
-    if(part==='<br>'){el.innerHTML+='<br>';continue;}
-    for(let i=0;i<part.length;i++){
-      const span=document.createElement('span');
-      span.textContent=part[i];
-      span.style.opacity='0';
-      el.appendChild(span);
-      // 追加してからフェードインさせる
-      await sleep(50);
-      span.style.transition='opacity 0.1s';
-      span.style.opacity='1';
-    }
-  }
-}
-
 function startGuildAnimation(){
   const animScreen=document.getElementById('guild-anim-screen');
   const mainScreen=document.getElementById('guild-main-screen');
   if(!animScreen||!mainScreen)return;
-
-  // ギルドに入ったら前タブのBGMを停止する
-  stopBGM();
-
-　// アニメ画面を表示（タブバー80px分を引いた高さに補正）
+  // アニメ画面をリセットして表示
   animScreen.style.display='flex';
-  animScreen.style.position='relative';
-
-  // 2回目以降も最初から再生（動画はミュートのまま）
-  const video=document.getElementById('guild-anim-video');
-  if(video){video.currentTime=0;video.play();}
-
-// ギルド専用BGMを再生（assets/guild/guild_bgm.mp3を参照）
-  playBGM('guild');
-
-  // メイン画面は非表示にしておく
   mainScreen.style.display='none';
-
-  // メニューをトップ（ギルド入口）状態にリセット
   showGuildMenu();
-
-  // アニメ終了後の画面切り替え処理を関数化（スキップ時にも使い回す）
-  const finishAnim=()=>{
-    // タイマーが残っていればキャンセル
-    if(window._guildAnimTimer){clearTimeout(window._guildAnimTimer);window._guildAnimTimer=null;}
-    // タップイベントを解除
-    animScreen.removeEventListener('click',skipAnim);
-    // 動画を停止
-    if(video){video.pause();}
-    // 受付嬢画像をランダムで選択
-    const rndNum=Math.floor(Math.random()*19)+1;
-    const receptionistImg=document.getElementById('guild-receptionist-img');
-    if(receptionistImg){
-      // 画像読み込み完了してからメイン画面を表示
-      receptionistImg.style.opacity='0';
-      receptionistImg.src=`assets/guild/receptionist_${rndNum}.png`;
-      receptionistImg.onload=()=>{
-        // 画像読み込み完了後にメイン画面を表示してフェードイン
-        animScreen.style.display='none';
-        mainScreen.style.display='flex';
-        receptionistImg.style.transition='opacity 0.5s';
-        receptionistImg.style.opacity='1';
-        playBGM('guildMain');
-        showGuildMenu();
-      };
-      receptionistImg.onerror=()=>{
-        // 画像が読み込めなかった場合もメイン画面は表示する
-        animScreen.style.display='none';
-        mainScreen.style.display='flex';
-        playBGM('guildMain');
-        showGuildMenu();
-      };
-    }else{
-      // 要素が見つからない場合のフォールバック
-      animScreen.style.display='none';
-      mainScreen.style.display='flex';
-      playBGM('guildMain');
-      showGuildMenu();
-    }
-  };
-
-  // タップでスキップする関数
-  const skipAnim=()=>{finishAnim();};
-
-  // アニメ画面をタップしたらスキップ
-  animScreen.addEventListener('click',skipAnim);
-
-  // 8秒後に自動で切り替え
-  window._guildAnimTimer=setTimeout(finishAnim,8000);
+  // 5秒後にメイン画面へ切り替え
+  setTimeout(()=>{
+    animScreen.style.display='none';
+    mainScreen.style.display='flex';
+  },5000);
 }
 
 function showGuildMenu(){
   document.getElementById('guild-menu').style.display='block';
   document.getElementById('guild-section-register').style.display='none';
-  // テロップ風にセリフを表示
-  showGuildSpeech('いらっしゃいませ！ここは冒険者ギルド「暁の剣」へようこそ。<br>本日はどのようなご用件でしょうか？');
+  document.getElementById('guild-speech-text').innerHTML='いらっしゃいませ！ここは冒険者ギルド「暁の剣」へようこそ。<br>本日はどのようなご用件でしょうか？';
 }
 
 function showGuildSection(section){
   document.getElementById('guild-menu').style.display='none';
   if(section==='register'){
     document.getElementById('guild-section-register').style.display='block';
-    // テロップ風にセリフを表示
-    showGuildSpeech('冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。');
+    document.getElementById('guild-speech-text').innerHTML='冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。';
     renderGuildRegisterList();
   }
 }
@@ -1897,26 +1848,13 @@ function renderGuildRegisterList(){
     empty.style.display='block';
     return;
   }
-list.style.display='grid';
+  list.style.display='grid';
   empty.style.display='none';
+  const rc_map={N:'#aaa',R:'#60a5fa',SR:'#a78bfa',SSR:'#fbbf24'};
   list.innerHTML=unregistered.map(c=>{
     const rc=RARITY[c.rarity]||RARITY.N||{color:'#aaa'};
-
-    // キャラ画像の取得（Stability AI生成画像優先、なければGeminiドット絵）
-    let imgHtml='';
-    if(c.artImg){
-      // Stability AI生成画像がある場合
-      imgHtml=`<img src="${c.artImg}" style="width:100%;height:100px;object-fit:cover;object-position:top;border-radius:8px;margin-bottom:4px;">`;
-    }else if(c.charImgPath){
-      // Geminiドット絵がある場合
-      imgHtml=`<img src="${c.charImgPath}" style="width:100%;height:100px;object-fit:cover;object-position:top;border-radius:8px;margin-bottom:4px;">`;
-    }else{
-      // 画像がない場合は漢字を大きく表示
-      imgHtml=`<div style="font-size:32px;font-weight:900;color:${rc.color};text-shadow:0 0 10px ${rc.color};height:100px;display:flex;align-items:center;justify-content:center;">${c.kanji||'？'}</div>`;
-    }
-
-    return `<div onclick="openGuildRegisterModal('${c.id}')" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
-      ${imgHtml}
+    return `<div onclick="openGuildRegisterModal('${c.id}')" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;active:opacity:.7;">
+      <div style="font-size:32px;font-weight:900;color:${rc.color};text-shadow:0 0 10px ${rc.color}">${c.kanji||'？'}</div>
       <div style="font-size:10px;font-weight:700;color:${rc.color}">${c.charName||c.kanji}</div>
       <div style="font-size:9px;opacity:.5">${c.job||''} [${c.rarity}]</div>
       <div class="guild-rank-badge guild-rank-none">冒険者ランク：なし</div>
@@ -1932,10 +1870,7 @@ function openGuildRegisterModal(cardId){
   document.getElementById('guild-modal-name').textContent=card.charName||card.kanji||'';
   document.getElementById('guild-modal-job').textContent=(card.job||'')+' ['+(card.rarity||'')+']';
   const modal=document.getElementById('guild-register-modal');
-  // flexで表示してボタンを中央揃えにする
   modal.style.display='flex';
-  modal.style.alignItems='center';
-  modal.style.justifyContent='center';
 }
 
 function closeGuildRegisterModal(){
@@ -1946,16 +1881,11 @@ function closeGuildRegisterModal(){
 function confirmGuildRegister(){
   if(!guildRegisterTarget)return;
   guildRegisterTarget.adventurerRank='G';
-  saveState();
-
-  // 完了ポップアップの内容を先にセット（closeの前に行う）
+  saveData();
+  closeGuildRegisterModal();
+  // 完了ポップアップ
   document.getElementById('guild-complete-kanji').textContent=guildRegisterTarget.kanji||'？';
   document.getElementById('guild-complete-name').textContent=guildRegisterTarget.charName||guildRegisterTarget.kanji||'';
-
-  // モーダルを閉じる（この中でguildRegisterTargetがnullになる）
-  closeGuildRegisterModal();
-
-  // 完了ポップアップを表示
   document.getElementById('guild-register-complete').style.display='flex';
 }
 
@@ -2864,7 +2794,7 @@ characterカードのみ追加:
       showNewCard(char,'character');
     }else if(p.cardType==='recovery'){
       const tmpl=(RECOVERY_TEMPLATES[p.healType||'hp']||RECOVERY_TEMPLATES.hp)[p.rarity||'N']||RECOVERY_TEMPLATES.hp.N;
-      const item={id:Date.now(),cardType:'recovery',kanji:p.kanji,rarity:p.rarity||'N',name:tmpl.name,healType:p.healType||'hp',healPct:tmpl.heal,maxUses:tmpl.maxUses,usesLeft:tmpl.maxUses,bonuses:{},effectDesc:`${Math.round(tmpl.heal*100)}%回復 x${tmpl.maxUses}回`,context:p.context,lore:p.lore||''};
+      const item={id:Date.now(),cardType:'recovery',kanji:p.kanji,rarity:p.rarity||'N',name:tmpl.name,healType:p.healType||'hp',healPct:tmpl.heal,maxUses:tmpl.maxUses,usesLeft:tmpl.maxUses,bonuses:{},effectDesc:`${Math.round(tmpl.heal*100)}%回復 x${tmpl.maxUses}回`,context:p.context,lore:p.lore||'',kanjiDifficulty:getKanjiDifficulty(p.kanji||'')};
       showNewCard(item,'item');
     }else{
       // ③ スキル・魔法fallback
@@ -2902,7 +2832,7 @@ characterカードのみ追加:
         else _bon={sp:Math.floor(5+Math.random()*15)};
       }
       const _eff=p.effectDesc||(_sd?`SP${_sd.spCost} ${_sd.desc}`:_md?`MP${_md.mpCost} ${_md.desc}`:'');
-      const item={id:Date.now(),cardType:p.cardType||'item',kanji:p.kanji,rarity:p.rarity||'N',name:(p.name&&p.name!=='undefined')?p.name:p.kanji,bonuses:_bon,effectDesc:_eff,context:p.context,lore:p.lore,artImg:null,skillData:_sd,magicData:_md};
+      const item={id:Date.now(),cardType:p.cardType||'item',kanji:p.kanji,rarity:p.rarity||'N',name:(p.name&&p.name!=='undefined')?p.name:p.kanji,bonuses:_bon,effectDesc:_eff,context:p.context,lore:p.lore,artImg:null,skillData:_sd,magicData:_md,kanjiDifficulty:getKanjiDifficulty(p.kanji||'')};
       if(stabilityKey&&(item.rarity==='SR'||item.rarity==='SSR')){
         showLoading(true,'アイテム画像を生成中...','イラストを描いています');
         item.artImg=await generateItemImage(item);
@@ -2977,7 +2907,8 @@ async function buildCardFromParsed(p, isSynthesis=false){
       reading:p.reading||'',meaning:p.meaning||'',examples:p.examples||'',
       artMood:p.artMood||'',charName:p.charName,
       exp:0,artImg:null,artType:null,equippedSlots:[],
-      adventurerRank:null
+      adventurerRank:null,
+      kanjiDifficulty:getKanjiDifficulty(p.kanji||'')
     };
     if(shouldUseAPI(char.rarity)){
       char.artImg=await generateCharImage(char);
