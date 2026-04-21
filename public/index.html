@@ -1877,13 +1877,26 @@ function renderGuildRegisterList(){
     empty.style.display='block';
     return;
   }
-  list.style.display='grid';
+list.style.display='grid';
   empty.style.display='none';
-  const rc_map={N:'#aaa',R:'#60a5fa',SR:'#a78bfa',SSR:'#fbbf24'};
   list.innerHTML=unregistered.map(c=>{
     const rc=RARITY[c.rarity]||RARITY.N||{color:'#aaa'};
-    return `<div onclick="openGuildRegisterModal('${c.id}')" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;active:opacity:.7;">
-      <div style="font-size:32px;font-weight:900;color:${rc.color};text-shadow:0 0 10px ${rc.color}">${c.kanji||'？'}</div>
+
+    // キャラ画像の取得（Stability AI生成画像優先、なければGeminiドット絵）
+    let imgHtml='';
+    if(c.artImg){
+      // Stability AI生成画像がある場合
+      imgHtml=`<img src="${c.artImg}" style="width:100%;height:100px;object-fit:cover;object-position:top;border-radius:8px;margin-bottom:4px;">`;
+    }else if(c.charImgPath){
+      // Geminiドット絵がある場合
+      imgHtml=`<img src="${c.charImgPath}" style="width:100%;height:100px;object-fit:cover;object-position:top;border-radius:8px;margin-bottom:4px;">`;
+    }else{
+      // 画像がない場合は漢字を大きく表示
+      imgHtml=`<div style="font-size:32px;font-weight:900;color:${rc.color};text-shadow:0 0 10px ${rc.color};height:100px;display:flex;align-items:center;justify-content:center;">${c.kanji||'？'}</div>`;
+    }
+
+    return `<div onclick="openGuildRegisterModal('${c.id}')" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+      ${imgHtml}
       <div style="font-size:10px;font-weight:700;color:${rc.color}">${c.charName||c.kanji}</div>
       <div style="font-size:9px;opacity:.5">${c.job||''} [${c.rarity}]</div>
       <div class="guild-rank-badge guild-rank-none">冒険者ランク：なし</div>
