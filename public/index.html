@@ -357,6 +357,10 @@ body{display:flex;justify-content:center;}
 .guild-rank-A{background:rgba(220,40,40,.15);color:#e05050;border:1px solid rgba(220,40,40,.4);}
 .guild-rank-S{background:rgba(201,168,76,.2);color:#c9a84c;border:1px solid rgba(201,168,76,.5);}
 .guild-rank-SS{background:linear-gradient(135deg,rgba(201,168,76,.3),rgba(255,220,100,.2));color:#e8c97a;border:1px solid rgba(201,168,76,.7);}
+
+/* 受付嬢セリフのテロップアニメーション */
+@keyframes telop{from{opacity:0}to{opacity:1}}
+.telop-char{display:inline;opacity:0;animation:telop 0.05s forwards;}
 </style>
 </head>
 <body>
@@ -651,13 +655,7 @@ body{display:flex;justify-content:center;}
         <button onclick="showGuildMenu()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:18px;cursor:pointer;">←</button>
         <div style="font-size:11px;letter-spacing:3px;opacity:.5;text-transform:uppercase">冒険者登録</div>
       </div>
-      <!-- 受付嬢セリフ（登録用） -->
-      <div style="background:rgba(255,255,255,.06);border:1px solid rgba(201,168,76,.3);border-radius:16px;padding:14px 16px;margin-bottom:14px;">
-        <div style="font-size:9px;letter-spacing:2px;color:#c9a84c;margin-bottom:6px">受付嬢 リリア</div>
-        <div style="font-size:12px;line-height:1.9;color:rgba(255,255,255,.9)">
-          冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。<br>登録したいキャラクターを選んでください。
-        </div>
-      </div>
+      
       <!-- 未登録カード一覧 -->
       <div id="guild-register-list" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
       <div id="guild-register-empty" style="display:none;text-align:center;padding:40px 0;color:rgba(255,255,255,.3);font-size:12px;line-height:2;">
@@ -1774,6 +1772,27 @@ const ADVENTURER_RANK_LABELS={
   C:'Cランク',B:'Bランク',A:'Aランク',S:'Sランク',SS:'SSランク'
 };
 
+// 受付嬢のセリフをテロップ風に1文字ずつ表示する
+async function showGuildSpeech(text){
+  const el=document.getElementById('guild-speech-text');
+  if(!el)return;
+  el.innerHTML='';
+  // HTMLタグ（<br>など）はそのまま挿入、それ以外は1文字ずつアニメ
+  const parts=text.split(/(<br>)/);
+  for(const part of parts){
+    if(part==='<br>'){el.innerHTML+='<br>';continue;}
+    for(let i=0;i<part.length;i++){
+      const span=document.createElement('span');
+      span.className='telop-char';
+      span.style.animationDelay=(i*40)+'ms';
+      span.textContent=part[i];
+      el.appendChild(span);
+      // 1文字ごとに少し待つ
+      await sleep(40);
+    }
+  }
+}
+
 function startGuildAnimation(){
   const animScreen=document.getElementById('guild-anim-screen');
   const mainScreen=document.getElementById('guild-main-screen');
@@ -1833,14 +1852,16 @@ function startGuildAnimation(){
 function showGuildMenu(){
   document.getElementById('guild-menu').style.display='block';
   document.getElementById('guild-section-register').style.display='none';
-  document.getElementById('guild-speech-text').innerHTML='いらっしゃいませ！ここは冒険者ギルド「暁の剣」へようこそ。<br>本日はどのようなご用件でしょうか？';
+  // テロップ風にセリフを表示
+  showGuildSpeech('いらっしゃいませ！ここは冒険者ギルド「暁の剣」へようこそ。<br>本日はどのようなご用件でしょうか？');
 }
 
 function showGuildSection(section){
   document.getElementById('guild-menu').style.display='none';
   if(section==='register'){
     document.getElementById('guild-section-register').style.display='block';
-    document.getElementById('guild-speech-text').innerHTML='冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。';
+    // テロップ風にセリフを表示
+    showGuildSpeech('冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。');
     renderGuildRegisterList();
   }
 }
