@@ -1848,44 +1848,19 @@ function enterGuild(){
   animScreen.style.display='flex';
   animScreen.style.position='relative';
 
-  // 動画をリセットして再生（ユーザー操作後なので許可される）
   const video=document.getElementById('guild-anim-video');
-  if(video){
-    video.currentTime=0;
-    // 動画が十分読み込まれてから再生開始、タイマーも再生開始後にセットする
-    video.addEventListener('canplay', function onCanPlay(){
-      video.removeEventListener('canplay', onCanPlay);
-      video.play();
-      // ギルドアニメBGMを再生（動画再生開始と同時に）
-      playBGM('guild');
-      // 動画の実際の長さに合わせてタイマーをセット（最低8秒）
-      const duration = (video.duration||8)*1000;
-      window._guildAnimTimer=setTimeout(finishAnim, duration+500);
-    }, {once:true});
-    // 読み込みを開始
-    video.load();
-  }
-  // メイン画面は非表示
-  mainScreen.style.display='none';
 
-  // メニューをトップ状態にリセット
-  showGuildMenu();
-
-  // アニメ終了後の画面切り替え処理（スキップ時にも使い回す）
+  // アニメ終了後の画面切り替え処理（canplayより先に定義する）
   const finishAnim=()=>{
     if(window._guildAnimTimer){clearTimeout(window._guildAnimTimer);window._guildAnimTimer=null;}
-    // タップイベントを解除
     animScreen.removeEventListener('click',skipAnim);
-    // 動画を停止
     if(video){video.pause();}
-    // 受付嬢画像をランダムで選択して読み込み
     const rndNum=Math.floor(Math.random()*19)+1;
     const receptionistImg=document.getElementById('guild-receptionist-img');
     if(receptionistImg){
       receptionistImg.style.opacity='0';
       receptionistImg.src=`assets/guild/receptionist_${rndNum}.png`;
       receptionistImg.onload=()=>{
-        // 画像読み込み完了後にメイン画面を表示してフェードイン
         animScreen.style.display='none';
         mainScreen.style.display='flex';
         receptionistImg.style.transition='opacity 0.5s';
@@ -1894,7 +1869,6 @@ function enterGuild(){
         showGuildMenu();
       };
       receptionistImg.onerror=()=>{
-        // 画像が読み込めない場合もメイン画面は表示する
         animScreen.style.display='none';
         mainScreen.style.display='flex';
         playBGM('guildMain');
@@ -1907,6 +1881,32 @@ function enterGuild(){
       showGuildMenu();
     }
   };
+
+  // タップでスキップ（finishAnimより後に定義する）
+  const skipAnim=()=>{finishAnim();};
+  animScreen.addEventListener('click',skipAnim);
+
+  // 動画をリセットして再生
+  if(video){
+    video.currentTime=0;
+    // 動画が十分読み込まれてから再生開始
+    video.addEventListener('canplay',function onCanPlay(){
+      video.removeEventListener('canplay',onCanPlay);
+      video.play();
+      playBGM('guild');
+      // 動画の実際の長さに合わせてタイマーをセット
+      const duration=(video.duration||8)*1000;
+      window._guildAnimTimer=setTimeout(finishAnim,duration+500);
+    },{once:true});
+    video.load();
+  }
+
+  // メイン画面は非表示
+  mainScreen.style.display='none';
+
+  // メニューをトップ状態にリセット
+  showGuildMenu();
+}
 
   // タップでスキップする
   const skipAnim=()=>{finishAnim();};
