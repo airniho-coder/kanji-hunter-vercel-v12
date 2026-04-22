@@ -577,15 +577,6 @@ body{display:flex;justify-content:center;}
   <!-- ===== 冒険者ギルド ===== -->
 
   <!-- ① ギルド内アニメーション画面 -->
-  <!-- ギルド入口タップ画面：ユーザー操作を確定させてから動画・音声を再生する -->
-　<div id="guild-enter-screen" style="display:none;position:fixed;inset:0;z-index:5;background:linear-gradient(180deg,#1a0f2e 0%,#0a0810 100%);flex-direction:column;align-items:center;justify-content:center;">
-  　<div style="font-size:64px;margin-bottom:24px;animation:guildFlicker 1.5s infinite alternate">🏰</div>
-  　<div style="font-size:16px;font-weight:700;letter-spacing:4px;color:#c9a84c;margin-bottom:8px">冒険者ギルド</div>
-  　<div style="font-size:11px;letter-spacing:2px;color:rgba(255,255,255,.4);margin-bottom:48px">ADVENTURER'S GUILD</div>
-  　<button onclick="enterGuild()" style="padding:16px 40px;border-radius:14px;background:linear-gradient(135deg,#c9a84c,#e8c97a);border:none;color:#0a0a0f;font-size:14px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:3px;cursor:pointer;box-shadow:0 0 30px rgba(201,168,76,0.4);">
-    ギルドに入る →
-  　</button>
-　</div>
   <div id="guild-anim-screen" style="position:relative;width:100%;height:100vh;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#0a0810;">
     <!-- プレースホルダー背景（後でGemini生成動画/GIFに差し替え） -->
     <img id="guild-anim-img" src="assets/guild/guild_intro.gif"
@@ -1818,100 +1809,20 @@ const ADVENTURER_RANK_LABELS={
 };
 
 function startGuildAnimation(){
-  const enterScreen=document.getElementById('guild-enter-screen');
   const animScreen=document.getElementById('guild-anim-screen');
   const mainScreen=document.getElementById('guild-main-screen');
   if(!animScreen||!mainScreen)return;
-
-  // 前タブのBGMを停止
-  stopBGM();
-
-  // 入口タップ画面があれば表示、なければ直接アニメへ
-  if(enterScreen){
-    enterScreen.style.display='flex';
-    animScreen.style.display='none';
-    mainScreen.style.display='none';
-  }else{
-    enterGuild();
-  }
-}
-
-// ギルドに入るボタンをタップしたときに呼ばれる
-// ユーザー操作が確定しているので動画・音声の再生が許可される
-function enterGuild(){
-  const enterScreen=document.getElementById('guild-enter-screen');
-  const animScreen=document.getElementById('guild-anim-screen');
-  const mainScreen=document.getElementById('guild-main-screen');
-
-  // 入口画面を隠してアニメ画面を表示
-  if(enterScreen)enterScreen.style.display='none';
+  // アニメ画面をリセットして表示
   animScreen.style.display='flex';
-  animScreen.style.position='relative';
-
-  const video=document.getElementById('guild-anim-video');
-
-  // アニメ終了後の画面切り替え処理（canplayより先に定義する）
-  const finishAnim=()=>{
-    if(window._guildAnimTimer){clearTimeout(window._guildAnimTimer);window._guildAnimTimer=null;}
-    animScreen.removeEventListener('click',skipAnim);
-    if(video){video.pause();}
-    const rndNum=Math.floor(Math.random()*19)+1;
-    const receptionistImg=document.getElementById('guild-receptionist-img');
-    if(receptionistImg){
-      receptionistImg.style.opacity='0';
-      receptionistImg.src=`assets/guild/receptionist_${rndNum}.png`;
-      receptionistImg.onload=()=>{
-        animScreen.style.display='none';
-        mainScreen.style.display='flex';
-        receptionistImg.style.transition='opacity 0.5s';
-        receptionistImg.style.opacity='1';
-        playBGM('guildMain');
-        showGuildMenu();
-      };
-      receptionistImg.onerror=()=>{
-        animScreen.style.display='none';
-        mainScreen.style.display='flex';
-        playBGM('guildMain');
-        showGuildMenu();
-      };
-    }else{
-      animScreen.style.display='none';
-      mainScreen.style.display='flex';
-      playBGM('guildMain');
-      showGuildMenu();
-    }
-  };
-
-  // タップでスキップ（finishAnimより後に定義する）
-  const skipAnim=()=>{finishAnim();};
-  animScreen.addEventListener('click',skipAnim);
-
-  // 動画をリセットして再生
-  if(video){
-    video.currentTime=0;
-    // 動画が十分読み込まれてから再生開始
-    video.addEventListener('canplay',function onCanPlay(){
-      video.removeEventListener('canplay',onCanPlay);
-      video.play();
-      playBGM('guild');
-      // 動画の実際の長さに合わせてタイマーをセット
-      const duration=(video.duration||8)*1000;
-      window._guildAnimTimer=setTimeout(finishAnim,duration+500);
-    },{once:true});
-    video.load();
-  }
-
-  // メイン画面は非表示
   mainScreen.style.display='none';
-
-  // メニューをトップ状態にリセット
   showGuildMenu();
+  // 5秒後にメイン画面へ切り替え
+  setTimeout(()=>{
+    animScreen.style.display='none';
+    mainScreen.style.display='flex';
+  },5000);
 }
 
-  // タップでスキップする
-  const skipAnim=()=>{finishAnim();};
-  animScreen.addEventListener('click',skipAnim);
-  
 function showGuildMenu(){
   document.getElementById('guild-menu').style.display='block';
   document.getElementById('guild-section-register').style.display='none';
