@@ -2184,15 +2184,15 @@ function departQuest(){
     showAlert('warn','⚠️ 冒険者を1人以上選択してください。');
     return;
   }
+  // 受注完了メッセージを表示してから警告モーダルへ
+  const q=activeQuest;
+  if(q){
+    showGuildSpeech(`「${q.name}」へ出発しました！<br>武運を祈ります！`);
+    showAlert('ok',`⚔️ 「${q.name}」へ出発しました！`);
+  }
   // 警告モーダルを表示
   const modal=document.getElementById('battle-warning-modal');
   if(modal)modal.style.display='flex';
-}
-
-// 警告モーダルを閉じる
-function closeBattleWarning(){
-  const modal=document.getElementById('battle-warning-modal');
-  if(modal)modal.style.display='none';
 }
 
 // バトル開始
@@ -3117,20 +3117,6 @@ function removeFromParty(cardId){
   if(idx>=0)selectedParty.splice(idx,1);
   renderPartySlots();
   renderAdventurerList();
-}
-
-// 出発する（現時点はクエスト受注完了表示のみ、STEP4でバトルに繋げる）
-function departQuest(){
-  if(selectedParty.length===0){
-    showAlert('warn','⚠️ 冒険者を1人以上選択してください。');
-    return;
-  }
-  const q=activeQuest;
-  if(!q)return;
-  // 受注完了メッセージ
-  showGuildSpeech(`「${q.name}」へ出発しました！<br>武運を祈ります！`);
-  showAlert('ok',`⚔️ 「${q.name}」へ出発しました！バトルシステムは近日公開予定です。`);
-  // TODO: STEP4でシミュレーションRPGバトルへ遷移
 }
 
 function saveApiKey(){
