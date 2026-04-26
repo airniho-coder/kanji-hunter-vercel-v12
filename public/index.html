@@ -639,24 +639,43 @@ body{display:flex;justify-content:center;}
       <div id="guild-speech-text" style="font-size:12px;line-height:1.9;color:rgba(255,255,255,.9)">
         いらっしゃいませ！ここは冒険者ギルド「暁の剣」へようこそ。<br>本日はどのようなご用件でしょうか？
       </div>
-    </div>
+   </div>
 
-    <!-- ⑥ メニュー選択 -->
-    <div id="guild-menu" style="padding:16px;">
-      <div style="font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.3);margin-bottom:12px;text-align:center">── メニュー ──</div>
-      <button onclick="showGuildSection('register')" style="width:100%;margin-bottom:10px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.05));border:1px solid rgba(201,168,76,.4);color:#c9a84c;font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:2px;cursor:pointer;text-align:left;">
-        ⚔️　冒険者に登録する
-      </button>
-      <button disabled style="width:100%;margin-bottom:10px;padding:14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.25);font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:2px;cursor:not-allowed;text-align:left;">
-        📋　クエストを見に行く　<span style="font-size:9px;opacity:.5">（近日公開）</span>
-      </button>
-      <button disabled style="width:100%;margin-bottom:10px;padding:14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.25);font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:2px;cursor:not-allowed;text-align:left;">
-        🗺️　クエストを受ける　<span style="font-size:9px;opacity:.5">（近日公開）</span>
-      </button>
-      <button disabled style="width:100%;margin-bottom:10px;padding:14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.25);font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:2px;cursor:not-allowed;text-align:left;">
-        🏆　クエストの結果を報告し報酬をもらう　<span style="font-size:9px;opacity:.5">（近日公開）</span>
-      </button>
-    </div>
+   <!-- ⑥ メニュー選択 -->
+   <div id="guild-menu" style="padding:16px;">
+     <div style="font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.3);margin-bottom:12px;text-align:center">── メニュー ──</div>
+     <!-- 所持ゴールド表示 -->
+     <div id="guild-gold-display" style="text-align:center;margin-bottom:14px;font-size:12px;color:#c9a84c;font-weight:700;letter-spacing:2px;">
+       💰 <span id="guild-gold-amount">0</span> G
+     </div>
+     <!-- 冒険者登録ボタン -->
+     <button onclick="showGuildSection('register')" style="width:100%;margin-bottom:10px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.05));border:1px solid rgba(201,168,76,.4);color:#c9a84c;font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:2px;cursor:pointer;text-align:left;">
+       ⚔️　冒険者に登録する
+     </button>
+     <!-- クエスト一覧ボタン（有効化） -->
+     <button onclick="showGuildSection('questList')" style="width:100%;margin-bottom:10px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.05));border:1px solid rgba(201,168,76,.4);color:#c9a84c;font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:2px;cursor:pointer;text-align:left;">
+      📋　クエストを見に行く
+     </button>
+     <!-- 未実装ボタン -->
+     <button disabled style="width:100%;margin-bottom:10px;padding:14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.25);font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:2px;cursor:not-allowed;text-align:left;">
+      🗺️　クエストを受ける　<span style="font-size:9px;opacity:.5">（近日公開）</span>
+     </button>
+     <button disabled style="width:100%;margin-bottom:10px;padding:14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.25);font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:2px;cursor:not-allowed;text-align:left;">
+     🏆　クエストの結果を報告し報酬をもらう　<span style="font-size:9px;opacity:.5">（近日公開）</span>
+     </button>
+   </div>
+
+   <!-- クエスト一覧サブ画面 -->
+   <div id="guild-section-questList" style="display:none;padding:0 16px 16px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+       <button onclick="showGuildMenu()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:18px;cursor:pointer;">←</button>
+       <div style="font-size:11px;letter-spacing:3px;opacity:.5;text-transform:uppercase">クエスト一覧</div>
+      </div>
+      <!-- ランクフィルタータブ（JSで生成） -->
+      <div id="quest-rank-tabs" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:12px;scrollbar-width:none;"></div>
+      <!-- クエストカードリスト（JSで生成） -->
+      <div id="quest-card-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+   </div>
 
     <!-- ③ 冒険者登録サブ画面 -->
     <div id="guild-section-register" style="display:none;padding:0 16px 16px;">
@@ -1914,6 +1933,149 @@ function saveState(){
   }catch(e){console.warn('Guild data save error', e);}
 }
 
+// ゴールド表示を更新する
+function updateGoldDisplay(){
+  const el=document.getElementById('guild-gold-amount');
+  if(el)el.textContent=playerGold.toLocaleString();
+}
+
+// パーティ内の最高冒険者ランクを取得する
+function getPartyMaxRank(){
+  const rankOrder=ADVENTURER_RANKS; // ['G','F','E','D','C','B','A','S','SS']
+  const registered=characters.filter(c=>c.cardType==='character'&&c.adventurerRank);
+  if(registered.length===0)return null;
+  let maxIdx=0;
+  registered.forEach(c=>{
+    const idx=rankOrder.indexOf(c.adventurerRank);
+    if(idx>maxIdx)maxIdx=idx;
+  });
+  return rankOrder[maxIdx];
+}
+
+// ランクの順序比較（aがb以上かどうか）
+function isRankGte(a,b){
+  return ADVENTURER_RANKS.indexOf(a)>=ADVENTURER_RANKS.indexOf(b);
+}
+
+// クエスト一覧を描画する
+function renderQuestList(filterRank){
+  const maxRank=getPartyMaxRank();
+  const rankOrder=ADVENTURER_RANKS;
+  const tabs=document.getElementById('quest-rank-tabs');
+  const list=document.getElementById('quest-card-list');
+  if(!tabs||!list)return;
+
+  // デフォルトは最高ランク（冒険者未登録の場合はG）
+  if(!filterRank)filterRank=maxRank||'G';
+
+  // ランクフィルタータブを生成
+  const availableRanks=rankOrder.filter(r=>
+    QUEST_LIST.some(q=>q.rank===r)
+  );
+  tabs.innerHTML=availableRanks.map(r=>{
+    const canAccess=maxRank&&isRankGte(maxRank,r);
+    const isActive=r===filterRank;
+    return `<button onclick="renderQuestList('${r}')"
+      style="flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:10px;font-weight:700;
+      letter-spacing:1px;cursor:pointer;
+      border:1px solid ${isActive?'rgba(201,168,76,.7)':'rgba(255,255,255,.2)'};
+      background:${isActive?'rgba(201,168,76,.2)':'rgba(255,255,255,.03)'};
+      color:${isActive?'#c9a84c':canAccess?'rgba(255,255,255,.6)':'rgba(255,255,255,.25)'};">
+      ${r}ランク
+    </button>`;
+  }).join('');
+
+  // 冒険者未登録の場合のメッセージ
+  if(!maxRank){
+    list.innerHTML=`<div style="text-align:center;padding:40px 0;
+      color:rgba(255,255,255,.3);font-size:12px;line-height:2;">
+      まず冒険者登録を行ってください。<br>クエストを受注するには<br>登録済みの冒険者が必要です。
+    </div>`;
+    return;
+  }
+
+  // クエスト種別アイコン
+  const typeIcon={
+    [QUEST_TYPE.TUTORIAL]:'📖',
+    [QUEST_TYPE.BATTLE]:'⚔️',
+    [QUEST_TYPE.DUNGEON]:'🗺️',
+    [QUEST_TYPE.COLLECT]:'🌿',
+    [QUEST_TYPE.RECRUIT]:'👤',
+  };
+
+  // 選択ランクのクエストを表示
+  const questsInRank=QUEST_LIST.filter(q=>q.rank===filterRank);
+  const canAccess=maxRank&&isRankGte(maxRank,filterRank);
+
+  list.innerHTML=questsInRank.map(q=>{
+    const done=completedQuests.includes(q.id);
+    const locked=!canAccess;
+    const rewardText=q.reward.newChar
+      ?`${q.reward.gold.toLocaleString()}G ＋ 新キャラ生成`
+      :`${q.reward.gold.toLocaleString()}G`;
+    return `<div style="background:${done?'rgba(255,255,255,.03)':'rgba(255,255,255,.06)'};
+      border:1px solid ${done?'rgba(255,255,255,.08)':'rgba(201,168,76,.2)'};
+      border-radius:14px;padding:14px;opacity:${locked?'0.4':'1'};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div>
+          <span style="font-size:9px;letter-spacing:1px;color:rgba(255,255,255,.4);margin-right:6px">
+            ${typeIcon[q.type]||'📋'} ${q.type}
+          </span>
+          ${done?'<span style="font-size:9px;color:#6db86d;font-weight:700">✓ クリア済</span>':''}
+        </div>
+        <span style="font-size:9px;padding:2px 8px;border-radius:8px;
+          background:rgba(201,168,76,.15);color:#c9a84c;font-weight:700">
+          ${q.rank}ランク
+        </span>
+      </div>
+      <div style="font-size:13px;font-weight:700;
+        color:${done?'rgba(255,255,255,.4)':'rgba(255,255,255,.9)'};
+        margin-bottom:6px;letter-spacing:1px">${q.name}</div>
+      <div style="font-size:11px;line-height:1.8;
+        color:rgba(255,255,255,.5);margin-bottom:10px">${q.story}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:10px;color:#c9a84c">💰 ${rewardText}</div>
+        ${locked
+          ?`<span style="font-size:9px;color:rgba(255,255,255,.3)">🔒 ${q.rank}ランク以上必要</span>`
+          :done
+            ?`<span style="font-size:9px;color:#6db86d">受注可（再挑戦）</span>`
+            :`<button onclick="confirmQuestAccept('${q.id}')"
+              style="padding:8px 16px;border-radius:10px;
+              background:linear-gradient(135deg,#c9a84c,#e8c97a);
+              border:none;color:#0a0a0f;font-size:11px;font-weight:700;
+              font-family:'Noto Serif JP',serif;cursor:pointer;">
+              受注する
+            </button>`
+        }
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// クエスト受注確認ダイアログを表示する
+function confirmQuestAccept(questId){
+  const q=QUEST_LIST.find(q=>q.id===questId);
+  if(!q)return;
+  const rewardText=q.reward.newChar
+    ?`${q.reward.gold.toLocaleString()}G ＋ ${q.reward.exp}EXP ＋ 新キャラ生成`
+    :`${q.reward.gold.toLocaleString()}G ＋ ${q.reward.exp}EXP`;
+  if(confirm(`【${q.name}】\n\n${q.story}\n\n報酬：${rewardText}\n\nこのクエストを受注しますか？`)){
+    acceptQuest(questId);
+  }
+}
+
+// クエストを受注する（将来：パーティ編成画面へ遷移）
+function acceptQuest(questId){
+  const q=QUEST_LIST.find(q=>q.id===questId);
+  if(!q)return;
+  // 受注中クエストを更新して保存
+  activeQuest=q;
+  saveState();
+  showGuildSpeech(`「${q.name}」の依頼を受注しました！<br>準備を整えて出発してください。`);
+  showAlert('ok',`⚔️ クエスト「${q.name}」を受注しました！`);
+  // TODO: STEP2でパーティ編成画面へ遷移する
+}
+
 function saveApiKey(){
   const a=document.getElementById('api-key-input').value.trim();
   const s=document.getElementById('stability-key-input').value.trim();
@@ -2098,19 +2260,34 @@ async function showGuildSpeech(text){
 }
 
 function showGuildMenu(){
+  // すべてのサブ画面を非表示
+  ['register','questList'].forEach(s=>{
+    const el=document.getElementById('guild-section-'+s);
+    if(el)el.style.display='none';
+  });
   document.getElementById('guild-menu').style.display='block';
-  document.getElementById('guild-section-register').style.display='none';
+  // ゴールド表示を更新
+  updateGoldDisplay();
   // テロップ風にセリフを表示
   showGuildSpeech('いらっしゃいませ！ここは冒険者ギルド「暁の剣」へようこそ。<br>本日はどのようなご用件でしょうか？');
 }
 
 function showGuildSection(section){
   document.getElementById('guild-menu').style.display='none';
+  // すべてのサブ画面を非表示にしてから対象だけ表示
+  ['register','questList'].forEach(s=>{
+    const el=document.getElementById('guild-section-'+s);
+    if(el)el.style.display='none';
+  });
   if(section==='register'){
     document.getElementById('guild-section-register').style.display='block';
-    // テロップ風にセリフを表示
-    showGuildSpeech('冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。<br>登録したいキャラクターを選んでください。');
+    showGuildSpeech('冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。');
     renderGuildRegisterList();
+  }else if(section==='questList'){
+    // クエスト一覧サブ画面を表示してリストを描画
+    document.getElementById('guild-section-questList').style.display='block';
+    showGuildSpeech('クエスト一覧です！<br>あなたのランクに応じたクエストを受注できます。');
+    renderQuestList();
   }
 }
 
