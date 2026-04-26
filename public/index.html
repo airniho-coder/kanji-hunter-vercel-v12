@@ -2176,6 +2176,128 @@ function initBattleState(quest, partyIds){
   };
 }
 
+// ===== バトル制御関数 =====
+
+// 出発ボタン押下→警告モーダルを表示する
+function departQuest(){
+  if(selectedParty.length===0){
+    showAlert('warn','⚠️ 冒険者を1人以上選択してください。');
+    return;
+  }
+  // 警告モーダルを表示
+  const modal=document.getElementById('battle-warning-modal');
+  if(modal)modal.style.display='flex';
+}
+
+// 警告モーダルを閉じる
+function closeBattleWarning(){
+  const modal=document.getElementById('battle-warning-modal');
+  if(modal)modal.style.display='none';
+}
+
+// バトル開始
+function startBattle(){
+  closeBattleWarning();
+  if(!activeQuest||selectedParty.length===0)return;
+
+  // バトル状態を初期化
+  battleState=initBattleState(activeQuest,selectedParty);
+
+  // バトル画面を表示
+  const screen=document.getElementById('battle-srp-screen');
+  if(screen)screen.style.display='flex';
+
+  // マップを描画
+  renderSRPMap();
+  updateSRPHeader();
+  addBattleLog(`⚔️ 「${activeQuest.name}」バトル開始！`);
+}
+
+// バトル画面のヘッダーを更新する
+function updateSRPHeader(){
+  const turnEl=document.getElementById('srp-turn-display');
+  const phaseEl=document.getElementById('srp-phase-display');
+  if(turnEl)turnEl.textContent=`Turn ${battleState.turn}`;
+  if(phaseEl)phaseEl.textContent=battleState.phase==='player'?'自軍フェーズ':'敵軍フェーズ';
+}
+
+// バトルログにメッセージを追加する
+function addBattleLog(msg){
+  battleState.battleLog.push(msg);
+  const logEl=document.getElementById('srp-log-text');
+  if(logEl){
+    logEl.innerHTML=battleState.battleLog.slice(-5).join('<br>');
+    const logContainer=document.getElementById('srp-log');
+    if(logContainer)logContainer.scrollTop=logContainer.scrollHeight;
+  }
+}
+
+// マップを描画する
+function renderSRPMap(){
+  const mapEl=document.getElementById('srp-map');
+  if(!mapEl||!battleState)return;
+
+  const terrainColors=['#2d4a1e','#1a3a0f','#5a4a3a','#1a3a5a','#3a3a3a'];
+
+  mapEl.innerHTML='';
+  for(let r=0;r<MAP_ROWS;r++){
+    for(let c=0;c<MAP_COLS;c++){
+      const terrainNum=battleState.map[r][c];
+      const terrain=getTerrainByNum(terrainNum);
+      const cell=document.createElement('div');
+      cell.className='srp-cell';
+      cell.style.background=terrainColors[terrainNum]||terrainColors[0];
+      cell.dataset.row=r;
+      cell.dataset.col=c;
+      cell.onclick=()=>onCellClick(r,c);
+
+      // 移動可能・攻撃可能セルのハイライト
+      if(battleState.movableCells.some(m=>m.r===r&&m.c===c)){
+        cell.classList.add('movable');
+      }
+      if(battleState.attackableCells.some(a=>a.r===r&&a.c===c)){
+        cell.classList.add('attackable');
+      }
+
+      // ユニットを描画
+      const unit=getUnitAt(r,c);
+      if(unit&&!unit.dead){
+        const unitEl=document.createElement('div');
+        unitEl.className=`srp-unit${unit.side==='enemy'?' enemy':''}${unit.acted?' acted':''}`;
+
+        // ユニット画像またはカナ表示
+        if(unit.side==='player'&&unit.artImg){
+          unitEl.innerHTML=`<img src="${unit.artImg}" alt="${unit.name}">`;
+        }else if(unit.side==='enemy'&&unit.imgPath){
+          unitEl.innerHTML=`<img src="${unit.imgPath}" alt="${unit.name}" onerror="this.parentNode.innerHTML='${unit.isBoss?'👹':'👾'}'">`;
+        }else{
+          unitEl.innerHTML=`<span style="font-size:${unit.isBoss?'22':'18'}px">${unit.isBoss?'👹':'👾'}</span>`;
+        }
+
+        // 選択中ユニットのハイライト
+        if(battleState.selectedUnit===unit.id){
+          cell.classList.add('selected');
+        }
+
+        // HPバーを描画
+        const hpPct=Math.max(0,unit.hp/unit.maxHp*100);
+        const hpColor=hpPct>50?'#60c060':hpPct>25?'#c0c060':'#c06060';
+        unitEl.innerHTML+=`<div class="srp-hp-bar"><div class="srp-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>`;
+
+        cell.appendChild(unitEl);
+      }
+
+      mapEl.appendChild(cell);
+    }
+  }
+}
+
+// 指定座標にいるユニットを取得する
+function getUnitAt(r,c){
+  const all=[...battleState.playerUnits,...battleState.enemyUnits];
+  return all.find(u=>u.row===r&&u.col===c&&!u.dead)||null;
+}
+
 // ===== 漢字難易度テーブル =====
 // 漢検級別データをもとに5段階で分類
 // 重複がある場合は難易度が低い方を優先
