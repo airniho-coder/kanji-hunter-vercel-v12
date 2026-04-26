@@ -2036,43 +2036,37 @@ function enterGuild(){
   const enterScreen=document.getElementById('guild-enter-screen');
   const animScreen=document.getElementById('guild-anim-screen');
   const mainScreen=document.getElementById('guild-main-screen');
-  const video=document.getElementById('guild-anim-video');
 
   // 入口画面を隠してアニメ画面を表示
   if(enterScreen)enterScreen.style.display='none';
   animScreen.style.display='flex';
-
-  // メイン画面は非表示
   mainScreen.style.display='none';
 
   // メニューをトップ状態にリセット
   showGuildMenu();
 
-  // アニメ終了後の画面切り替え処理（finishAnimはcanplayより先に定義する）
+  // BGMを再生（ユーザー操作後なので許可される）
+  playBGM('guild');
+
+  // アニメ終了後の画面切り替え処理
   const finishAnim=()=>{
     if(window._guildAnimTimer){clearTimeout(window._guildAnimTimer);window._guildAnimTimer=null;}
-    // タップイベントを解除
     animScreen.removeEventListener('click',skipAnim);
-    // 動画を停止
-    if(video){video.pause();}
-    // 受付嬢画像を19枚の中からランダムで選択して表示
+    // 受付嬢画像をランダムで選択して表示
     const rndNum=Math.floor(Math.random()*19)+1;
     const receptionistImg=document.getElementById('guild-receptionist-img');
     if(receptionistImg){
       receptionistImg.style.opacity='0';
       receptionistImg.src=`assets/guild/receptionist_${rndNum}.png`;
       receptionistImg.onload=()=>{
-        // 画像読み込み完了後にメイン画面を表示してフェードイン
         animScreen.style.display='none';
         mainScreen.style.display='flex';
         receptionistImg.style.transition='opacity 0.5s';
         receptionistImg.style.opacity='1';
-        // 受付嬢画面用BGMに切り替え
         playBGM('guildMain');
         showGuildMenu();
       };
       receptionistImg.onerror=()=>{
-        // 画像が読み込めない場合もメイン画面は表示する
         animScreen.style.display='none';
         mainScreen.style.display='flex';
         playBGM('guildMain');
@@ -2086,28 +2080,12 @@ function enterGuild(){
     }
   };
 
-  // タップでスキップ（finishAnimより後に定義する）
+  // タップでスキップ
   const skipAnim=()=>{finishAnim();};
   animScreen.addEventListener('click',skipAnim);
 
-  // 動画をリセットして再生（ユーザー操作後なので許可される）
-  if(video){
-    video.currentTime=0;
-    // canplayが発火しない場合に備えて5秒のフォールバックタイマーを先にセット
-    window._guildAnimTimer=setTimeout(finishAnim,8000);
-    video.addEventListener('canplay',function onCanPlay(){
-      video.removeEventListener('canplay',onCanPlay);
-      // canplayが発火したらフォールバックタイマーをリセットして正確な長さでセット
-      if(window._guildAnimTimer){clearTimeout(window._guildAnimTimer);window._guildAnimTimer=null;}
-      video.play().catch(()=>{});
-      playBGM('guild');
-      const duration=(video.duration||8)*1000;
-      window._guildAnimTimer=setTimeout(finishAnim,duration+500);
-    },{once:true});
-    video.load();
-  }else{
-    window._guildAnimTimer=setTimeout(finishAnim,8000);
-  }
+  // 動画は使わず8秒後に自動切り替え（BGMと合わせる）
+  window._guildAnimTimer=setTimeout(finishAnim,8000);
 }
 
 // ===== クエスト関連JS =====
