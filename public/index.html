@@ -2298,6 +2298,371 @@ function getUnitAt(r,c){
   return all.find(u=>u.row===r&&u.col===c&&!u.dead)||null;
 }
 
+// セルをクリックしたときの処理
+function onCellClick(r,c){
+  if(!battleState||battleState.phase!=='player')return;
+  const unit=getUnitAt(r,c);
+
+  // 移動可能セルをクリック→移動する
+  if(battleState.movableCells.some(m=>m.r===r&&m.c===c)){
+    moveUnit(battleState.selectedUnit,r,c);
+    return;
+  }
+
+  // 攻撃可能セルをクリック→攻撃する
+  if(battleState.attackableCells.some(a=>a.r===r&&a.c===c)){
+    const attacker=battleState.playerUnits.find(u=>u.id===battleState.selectedUnit);
+    if(attacker&&unit){
+      executeAction(attacker,unit);
+    }
+    return;
+  }
+
+  // 味方ユニットをクリック→選択する
+  if(unit&&unit.side==='player'&&!unit.acted){
+    selectUnit(unit.id);
+    return;
+  }
+
+  // 何もないセルをクリック→選択解除
+  clearSelection();
+}
+
+// ユニットを選択して移動・攻撃範囲を計算する
+function selectUnit(unitId){
+  const unit=battleState.playerUnits.find(u=>u.id===unitId);
+  if(!unit||unit.acted)return;
+  battleState.selectedUnit=unitId;
+  battleState.movableCells=calcMovableCells(unit);
+  battleState.attackableCells=[];
+  renderSRPMap();
+  showUnitInfo(unit);
+}
+
+// 選択を解除する
+function clearSelection(){
+  battleState.selectedUnit=null;
+  battleState.movableCells=[];
+  battleState.attackableCells=[];
+  renderSRPMap();
+  document.getElementById('srp-unit-info').innerHTML='ユニットを選択してください';
+}
+
+// 移動可能なセルを計算する（BFS）
+function calcMovableCells(unit){
+  const movable=[];
+  const visited=new Set();
+  const queue=[{r:unit.row,c:unit.col,cost:0}];
+  visited.add(`${unit.row},${unit.col}`);
+  const allUnits=[...battleState.playerUnits,...battleState.enemyUnits].filter(u=>!u.dead);
+
+  while(queue.length>0){
+    const {r,c,cost}=queue.shift();
+    // 現在地以外を移動可能セルに追加
+    if(!(r===unit.row&&c===unit.col)){
+      // 他のユニットがいなければ移動可能
+      if(!allUnits.some(u=>u.row===r&&u.col===c&&u.id!==unit.id)){
+        movable.push({r,c});
+      }
+    }
+    // 隣接セルを探索
+    [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr,dc])=>{
+      const nr=r+dr,nc=c+dc;
+      const key=`${nr},${nc}`;
+      if(nr<0||nr>=MAP_ROWS||nc<0||nc>=MAP_COLS)return;
+      if(visited.has(key))return;
+      const terrain=getTerrainByNum(battleState.map[nr][nc]);
+      if(terrain.cost>=99)return; // 通行不可
+      const newCost=cost+terrain.cost;
+      if(newCost>unit.move)return;
+      visited.add(key);
+      queue.push({r:nr,c:nc,cost:newCost});
+    });
+  }
+  return movable;
+}
+
+// 攻撃可能なセルを計算する
+function calcAttackableCells(unit){
+  const attackable=[];
+  const enemies=unit.side==='player'
+    ?battleState.enemyUnits.filter(u=>!u.dead)
+    :battleState.playerUnits.filter(u=>!u.dead);
+
+  enemies.forEach(enemy=>{
+    const dist=Math.abs(unit.row-enemy.row)+Math.abs(unit.col-enemy.col);
+    if(unit.atkRange.includes(dist)){
+      attackable.push({r:enemy.row,c:enemy.col});
+    }
+  });
+  return attackable;
+}
+
+// ユニットを移動させる
+function moveUnit(unitId,r,c){
+  const unit=battleState.playerUnits.find(u=>u.id===unitId);
+  if(!unit)return;
+  unit.row=r;
+  unit.col=c;
+  // 移動後は攻撃可能セルを計算して表示
+  battleState.movableCells=[];
+  battleState.attackableCells=calcAttackableCells(unit);
+  renderSRPMap();
+  showUnitInfo(unit);
+}
+
+// アクション（攻撃・回復・バフ）を実行する
+function executeAction(actor,target){
+  if(actor.atkType==='heal'){
+    // 僧侶：味方を回復する
+    const healAmt=Math.floor(actor.int*1.5+20);
+    target.hp=Math.min(target.maxHp,target.hp+healAmt);
+    addBattleLog(`💚 ${actor.name}が${target.name}を${healAmt}回復！`);
+    showPopup(target,'heal',`+${healAmt}`);
+  }else if(actor.atkType==='buff'){
+    // 吟遊詩人：ATK上昇またはHP回復
+    const action=Math.random()<0.5?'atk':'hp';
+    if(action==='atk'){
+      target.atk=Math.floor(target.atk*1.2);
+      addBattleLog(`🎵 ${actor.name}が${target.name}のATKを上昇！`);
+      showPopup(target,'heal','ATK↑');
+    }else{
+      const healAmt=Math.floor(actor.int+10);
+      target.hp=Math.min(target.maxHp,target.hp+healAmt);
+      addBattleLog(`🎵 ${actor.name}が${target.name}を${healAmt}回復！`);
+      showPopup(target,'heal',`+${healAmt}`);
+    }
+  }else{
+    // 通常攻撃・魔法攻撃
+    const atkStat=actor.atkType==='magic'?actor.int:actor.atk;
+    const isCrit=Math.random()*100<(actor.crit||0);
+    let dmg=Math.max(1,Math.floor(atkStat-target.def*0.5));
+    if(isCrit)dmg=Math.floor(dmg*1.5);
+    // 地形防御補正
+    const terrain=getTerrainByNum(battleState.map[target.row][target.col]);
+    dmg=Math.max(1,Math.floor(dmg*(1-terrain.defBonus/100)));
+    target.hp=Math.max(0,target.hp-dmg);
+    const critText=isCrit?' 会心の一撃！':'';
+    addBattleLog(`⚔️ ${actor.name}→${target.name} ${dmg}ダメージ${critText}`);
+    showPopup(target,'damage',`-${dmg}`);
+  }
+
+  // 行動済みにする
+  actor.acted=true;
+  clearSelection();
+
+  // 戦闘不能チェック
+  checkDead();
+
+  // 勝敗チェック
+  checkBattleEnd();
+}
+
+// ダメージ・回復ポップアップを表示する
+function showPopup(unit,type,text){
+  const mapEl=document.getElementById('srp-map');
+  if(!mapEl)return;
+  const cellIdx=unit.row*MAP_COLS+unit.col;
+  const cell=mapEl.children[cellIdx];
+  if(!cell)return;
+  const popup=document.createElement('div');
+  popup.className=type==='damage'?'srp-damage-popup':'srp-heal-popup';
+  popup.textContent=text;
+  cell.appendChild(popup);
+  setTimeout(()=>popup.remove(),900);
+  renderSRPMap();
+}
+
+// 戦闘不能チェック
+function checkDead(){
+  [...battleState.playerUnits,...battleState.enemyUnits].forEach(u=>{
+    if(u.hp<=0&&!u.dead){
+      u.dead=true;
+      addBattleLog(`💀 ${u.name}が戦闘不能になった！`);
+    }
+  });
+}
+
+// ユニット情報パネルを表示する
+function showUnitInfo(unit){
+  const el=document.getElementById('srp-unit-info');
+  if(!el)return;
+  const hpPct=Math.floor(unit.hp/unit.maxHp*100);
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <span style="font-size:12px;font-weight:700;color:${unit.side==='player'?'#c9a84c':'#e05050'}">${unit.name}</span>
+        <span style="font-size:9px;opacity:.5;margin-left:6px">${unit.job}</span>
+      </div>
+      <div style="font-size:10px;color:rgba(255,255,255,.6)">
+        HP: <span style="color:${hpPct>50?'#60c060':hpPct>25?'#c0c060':'#e05050'};font-weight:700">${unit.hp}</span>/${unit.maxHp}
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:6px;font-size:10px;color:rgba(255,255,255,.5);">
+      <span>ATK:${unit.atk}</span>
+      <span>DEF:${unit.def}</span>
+      <span>SPD:${unit.spd}</span>
+      <span>移動:${unit.move}</span>
+    </div>`;
+}
+
+// プレイヤーフェーズ終了
+function endPlayerPhase(){
+  // 全味方ユニットの行動済みフラグをリセット
+  battleState.playerUnits.forEach(u=>u.acted=false);
+  battleState.phase='enemy';
+  clearSelection();
+  updateSRPHeader();
+  addBattleLog('── 敵軍フェーズ ──');
+  // 少し待ってから敵AIを実行
+  setTimeout(runEnemyPhase,500);
+}
+
+// 敵AIフェーズを実行する
+async function runEnemyPhase(){
+  const enemies=battleState.enemyUnits.filter(u=>!u.dead);
+  for(const enemy of enemies){
+    if(battleState.state!=='playing')break;
+    await sleep(400);
+    // 最も近い味方を探す
+    const players=battleState.playerUnits.filter(u=>!u.dead);
+    if(players.length===0)break;
+    const target=players.reduce((closest,p)=>{
+      const d=Math.abs(enemy.row-p.row)+Math.abs(enemy.col-p.col);
+      const cd=Math.abs(enemy.row-closest.row)+Math.abs(enemy.col-closest.col);
+      return d<cd?p:closest;
+    });
+    // 攻撃範囲内なら攻撃、そうでなければ移動
+    const dist=Math.abs(enemy.row-target.row)+Math.abs(enemy.col-target.col);
+    if(enemy.atkRange.includes(dist)){
+      // 攻撃
+      executeAction(enemy,target);
+    }else{
+      // 移動して攻撃を試みる
+      const movable=calcMovableCells(enemy);
+      if(movable.length>0){
+        // ターゲットに最も近いセルへ移動
+        const best=movable.reduce((b,m)=>{
+          const d=Math.abs(m.r-target.row)+Math.abs(m.c-target.col);
+          const bd=Math.abs(b.r-target.row)+Math.abs(b.c-target.col);
+          return d<bd?m:b;
+        });
+        enemy.row=best.r;
+        enemy.col=best.c;
+        renderSRPMap();
+        // 移動後に攻撃範囲内なら攻撃
+        const newDist=Math.abs(enemy.row-target.row)+Math.abs(enemy.col-target.col);
+        if(enemy.atkRange.includes(newDist)){
+          await sleep(300);
+          executeAction(enemy,target);
+        }
+      }
+    }
+    if(battleState.state!=='playing')break;
+  }
+  // 敵フェーズ終了→プレイヤーフェーズへ
+  if(battleState.state==='playing'){
+    battleState.phase='player';
+    battleState.turn++;
+    battleState.enemyUnits.forEach(u=>u.acted=false);
+    updateSRPHeader();
+    addBattleLog(`── Turn ${battleState.turn} 自軍フェーズ ──`);
+    renderSRPMap();
+  }
+}
+
+// 退却確認
+function confirmRetreat(){
+  if(confirm('退却しますか？\n退却は敗北扱いになります。戦闘不能になったキャラのカードは消滅します。')){
+    endBattle('retreated');
+  }
+}
+
+// 勝敗チェック
+function checkBattleEnd(){
+  const enemiesAlive=battleState.enemyUnits.filter(u=>!u.dead).length;
+  const playersAlive=battleState.playerUnits.filter(u=>!u.dead).length;
+  if(enemiesAlive===0){
+    endBattle('won');
+  }else if(playersAlive===0){
+    endBattle('lost');
+  }
+}
+
+// バトル終了処理
+function endBattle(result){
+  battleState.state=result;
+
+  if(result==='won'){
+    // 勝利：報酬を付与してカードを保全
+    const q=battleState.quest;
+    playerGold+=q.reward.gold;
+    // パーティ全員に経験値を付与してランクアップ確認
+    battleState.playerUnits.forEach(u=>{
+      if(!u.dead&&u.cardRef){
+        // カードの経験値を加算（将来実装）
+      }
+    });
+    // クリア済みリストに追加
+    if(!completedQuests.includes(q.id))completedQuests.push(q.id);
+    saveState();
+    showBattleResult('won',q);
+  }else{
+    // 敗北・退却：戦闘不能キャラのカードを消滅させる
+    const deadCards=battleState.playerUnits.filter(u=>u.dead&&u.cardRef);
+    deadCards.forEach(u=>{
+      // キャラクターリストから削除
+      const idx=characters.findIndex(c=>String(c.id)===String(u.cardRef.id));
+      if(idx>=0)characters.splice(idx,1);
+    });
+    saveState();
+    showBattleResult(result,battleState.quest,deadCards);
+  }
+}
+
+// バトル結果モーダルを表示する
+function showBattleResult(result,quest,deadCards=[]){
+  const modal=document.getElementById('srp-result-modal');
+  const icon=document.getElementById('srp-result-icon');
+  const title=document.getElementById('srp-result-title');
+  const detail=document.getElementById('srp-result-detail');
+  if(!modal||!icon||!title||!detail)return;
+
+  if(result==='won'){
+    icon.textContent='🏆';
+    title.textContent='勝利！';
+    title.style.color='#c9a84c';
+    detail.innerHTML=`「${quest.name}」をクリアしました！<br>
+      💰 ${quest.reward.gold.toLocaleString()}G を獲得！<br>
+      ${quest.reward.newChar?'🎉 新キャラクター生成の権利を獲得！':''}`;
+  }else if(result==='lost'){
+    icon.textContent='💀';
+    title.textContent='敗北...';
+    title.style.color='#e05050';
+    detail.innerHTML=`「${quest.name}」に敗北しました。<br>
+      ${deadCards.length>0?`💀 ${deadCards.map(u=>u.name).join('、')}のカードが消滅しました。`:''}`;
+  }else{
+    icon.textContent='🏃';
+    title.textContent='退却';
+    title.style.color='rgba(255,255,255,.6)';
+    detail.innerHTML=`「${quest.name}」から退却しました。<br>
+      ${deadCards.length>0?`💀 ${deadCards.map(u=>u.name).join('、')}のカードが消滅しました。`:''}`;
+  }
+  modal.style.display='flex';
+}
+
+// バトル結果モーダルを閉じてギルドに戻る
+function closeBattleResult(){
+  document.getElementById('srp-result-modal').style.display='none';
+  document.getElementById('battle-srp-screen').style.display='none';
+  activeQuest=null;
+  battleState=null;
+  selectedParty=[];
+  saveState();
+  // ギルドメニューに戻る
+  showGuildMenu();
+}
+
 // ===== 漢字難易度テーブル =====
 // 漢検級別データをもとに5段階で分類
 // 重複がある場合は難易度が低い方を優先
