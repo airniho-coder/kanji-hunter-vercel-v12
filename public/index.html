@@ -824,7 +824,7 @@ body{display:flex;justify-content:center;}
     </div>
     <div style="display:flex;gap:10px;">
       <button onclick="closeBattleWarning()" style="flex:1;padding:12px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.6);font-size:12px;font-family:'Noto Serif JP',serif;cursor:pointer;">戻る</button>
-      <button onclick="startBattle()" style="flex:1;padding:12px;border-radius:10px;background:linear-gradient(135deg,#e05050,#c03030);border:none;color:#fff;font-size:12px;font-weight:700;font-family:'Noto Serif JP',serif;cursor:pointer;letter-spacing:1px;">出発する ⚔️</button>
+      <button onclick="startSRPBattle()" style="flex:1;padding:12px;border-radius:10px;background:linear-gradient(135deg,#e05050,#c03030);border:none;color:#fff;font-size:12px;font-weight:700;font-family:'Noto Serif JP',serif;cursor:pointer;letter-spacing:1px;">出発する ⚔️</button>
     </div>
   </div>
 </div>
@@ -2201,8 +2201,8 @@ function closeBattleWarning(){
   if(modal)modal.style.display='none';
 }
 
-// バトル開始
-function startBattle(){
+// シミュレーションRPGバトル開始
+function startSRPBattle(){
   closeBattleWarning();
   if(!activeQuest||selectedParty.length===0)return;
 
