@@ -665,6 +665,33 @@ body{display:flex;justify-content:center;}
      </button>
    </div>
 
+   <!-- パーティ編成サブ画面 -->
+   <div id="guild-section-party" style="display:none;padding:0 16px 16px;">
+     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <button onclick="showGuildSection('questList')" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:18px;cursor:pointer;">←</button>
+      <div style="font-size:11px;letter-spacing:3px;opacity:.5;text-transform:uppercase">パーティ編成</div>
+     </div>
+     <!-- クエスト情報 -->
+     <div id="party-quest-info" style="background:rgba(255,255,255,.05);border:1px solid rgba(201,168,76,.2);border-radius:12px;padding:12px;margin-bottom:14px;">
+      <div id="party-quest-name" style="font-size:13px;font-weight:700;color:#c9a84c;margin-bottom:4px;letter-spacing:1px"></div>
+      <div id="party-quest-story" style="font-size:11px;color:rgba(255,255,255,.5);line-height:1.8"></div>
+     </div>
+     <!-- 選択中パーティ枠（最大4人） -->
+     <div style="font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.3);margin-bottom:8px">── 選択中のパーティ（最大4人）──</div>
+     <div id="party-selected-slots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">
+      <!-- JSで生成 -->
+     </div>
+     <!-- 登録済み冒険者一覧 -->
+     <div style="font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.3);margin-bottom:8px">── 冒険者を選択 ──</div>
+     <div id="party-adventurer-list" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <!-- JSで生成 -->
+     </div>
+     <!-- 出発ボタン -->
+     <button id="party-depart-btn" onclick="departQuest()" style="width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,#c9a84c,#e8c97a);border:none;color:#0a0a0f;font-size:14px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:3px;cursor:pointer;">
+       ⚔️　出発する
+     </button>
+   </div>
+
    <!-- クエスト一覧サブ画面 -->
    <div id="guild-section-questList" style="display:none;padding:0 16px 16px;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
@@ -2064,16 +2091,148 @@ function confirmQuestAccept(questId){
   }
 }
 
-// クエストを受注する（将来：パーティ編成画面へ遷移）
+// クエストを受注してパーティ編成画面へ遷移する
 function acceptQuest(questId){
   const q=QUEST_LIST.find(q=>q.id===questId);
   if(!q)return;
   // 受注中クエストを更新して保存
   activeQuest=q;
   saveState();
-  showGuildSpeech(`「${q.name}」の依頼を受注しました！<br>準備を整えて出発してください。`);
-  showAlert('ok',`⚔️ クエスト「${q.name}」を受注しました！`);
-  // TODO: STEP2でパーティ編成画面へ遷移する
+  // パーティ編成画面へ遷移
+  showGuildSection('party');
+}
+
+// パーティ編成画面を描画する
+let selectedParty=[]; // 選択中のパーティメンバーIDリスト
+
+function renderPartyScreen(){
+  // クエスト情報を表示
+  const q=activeQuest;
+  if(!q)return;
+  document.getElementById('party-quest-name').textContent=q.name;
+  document.getElementById('party-quest-story').textContent=q.story;
+
+  // パーティ選択をリセット
+  selectedParty=[];
+  renderPartySlots();
+  renderAdventurerList();
+}
+
+// 選択中パーティ枠を描画する
+function renderPartySlots(){
+  const slots=document.getElementById('party-selected-slots');
+  if(!slots)return;
+  // 4枠分描画（選択済みは顔、空きはプラスボタン）
+  slots.innerHTML=Array.from({length:4},(_,i)=>{
+    const memberId=selectedParty[i];
+    const member=memberId?characters.find(c=>String(c.id)===String(memberId)):null;
+    const rc=member?(RARITY[member.rarity]||RARITY.N||{color:'#aaa'}):{color:'#aaa'};
+    if(member){
+      // 選択済みスロット：タップで外せる
+      let imgHtml='';
+      if(member.artImg){
+        imgHtml=`<img src="${member.artImg}" style="width:100%;height:60px;object-fit:cover;object-position:top;border-radius:6px;margin-bottom:4px;">`;
+      }else{
+        imgHtml=`<div style="font-size:20px;font-weight:900;color:${rc.color};height:60px;display:flex;align-items:center;justify-content:center;">${member.kanji||'？'}</div>`;
+      }
+      return `<div onclick="removeFromParty('${member.id}')"
+        style="background:rgba(255,255,255,.08);border:1px solid ${rc.color};
+        border-radius:10px;padding:6px;text-align:center;cursor:pointer;position:relative;">
+        ${imgHtml}
+        <div style="font-size:8px;color:${rc.color};font-weight:700;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${member.charName||member.kanji}</div>
+        <div style="font-size:8px;color:rgba(255,255,255,.3)">${member.adventurerRank}ランク</div>
+        <!-- タップで外すアイコン -->
+        <div style="position:absolute;top:2px;right:4px;font-size:10px;color:rgba(255,100,100,.7)">✕</div>
+      </div>`;
+    }else{
+      // 空きスロット
+      return `<div style="background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.1);
+        border-radius:10px;padding:6px;text-align:center;min-height:90px;
+        display:flex;align-items:center;justify-content:center;">
+        <div style="font-size:20px;color:rgba(255,255,255,.15)">＋</div>
+      </div>`;
+    }
+  }).join('');
+
+  // 出発ボタンの有効・無効を切り替える
+  const btn=document.getElementById('party-depart-btn');
+  if(btn)btn.disabled=selectedParty.length===0;
+}
+
+// 登録済み冒険者一覧を描画する
+function renderAdventurerList(){
+  const list=document.getElementById('party-adventurer-list');
+  if(!list)return;
+  // 登録済みキャラのみ表示
+  const adventurers=characters.filter(c=>c.cardType==='character'&&c.adventurerRank);
+  if(adventurers.length===0){
+    list.innerHTML=`<div style="grid-column:span 2;text-align:center;padding:20px;
+      color:rgba(255,255,255,.3);font-size:12px;">
+      登録済みの冒険者がいません
+    </div>`;
+    return;
+  }
+  list.innerHTML=adventurers.map(c=>{
+    const rc=RARITY[c.rarity]||RARITY.N||{color:'#aaa'};
+    const inParty=selectedParty.includes(String(c.id));
+    let imgHtml='';
+    if(c.artImg){
+      imgHtml=`<img src="${c.artImg}" style="width:100%;height:80px;object-fit:cover;object-position:top;border-radius:8px;margin-bottom:4px;">`;
+    }else{
+      imgHtml=`<div style="font-size:28px;font-weight:900;color:${rc.color};height:80px;display:flex;align-items:center;justify-content:center;">${c.kanji||'？'}</div>`;
+    }
+    return `<div onclick="togglePartyMember('${c.id}')"
+      style="background:${inParty?'rgba(201,168,76,.15)':'rgba(255,255,255,.05)'};
+      border:1px solid ${inParty?'rgba(201,168,76,.6)':'rgba(255,255,255,.1)'};
+      border-radius:12px;padding:10px;cursor:pointer;text-align:center;position:relative;">
+      ${inParty?'<div style="position:absolute;top:6px;right:6px;font-size:10px;color:#c9a84c;font-weight:700">✓</div>':''}
+      ${imgHtml}
+      <div style="font-size:10px;font-weight:700;color:${rc.color}">${c.charName||c.kanji}</div>
+      <div style="font-size:9px;opacity:.5">${c.job||''}</div>
+      <div style="font-size:9px;color:#c9a84c;margin-top:2px">${c.adventurerRank}ランク</div>
+    </div>`;
+  }).join('');
+}
+
+// パーティメンバーを追加・解除するトグル
+function togglePartyMember(cardId){
+  const idx=selectedParty.indexOf(String(cardId));
+  if(idx>=0){
+    // すでに選択済みなら外す
+    selectedParty.splice(idx,1);
+  }else{
+    // 未選択なら追加（最大4人まで）
+    if(selectedParty.length>=4){
+      showAlert('warn','⚠️ パーティは最大4人までです。');
+      return;
+    }
+    selectedParty.push(String(cardId));
+  }
+  // スロットと一覧を再描画
+  renderPartySlots();
+  renderAdventurerList();
+}
+
+// パーティスロットから外す
+function removeFromParty(cardId){
+  const idx=selectedParty.indexOf(String(cardId));
+  if(idx>=0)selectedParty.splice(idx,1);
+  renderPartySlots();
+  renderAdventurerList();
+}
+
+// 出発する（現時点はクエスト受注完了表示のみ、STEP4でバトルに繋げる）
+function departQuest(){
+  if(selectedParty.length===0){
+    showAlert('warn','⚠️ 冒険者を1人以上選択してください。');
+    return;
+  }
+  const q=activeQuest;
+  if(!q)return;
+  // 受注完了メッセージ
+  showGuildSpeech(`「${q.name}」へ出発しました！<br>武運を祈ります！`);
+  showAlert('ok',`⚔️ 「${q.name}」へ出発しました！バトルシステムは近日公開予定です。`);
+  // TODO: STEP4でシミュレーションRPGバトルへ遷移
 }
 
 function saveApiKey(){
@@ -2260,8 +2419,8 @@ async function showGuildSpeech(text){
 }
 
 function showGuildMenu(){
-  // すべてのサブ画面を非表示
-  ['register','questList'].forEach(s=>{
+  // すべてのサブ画面を非表示（registerとquestListとpartyを対象にする）
+  ['register','questList','party'].forEach(s=>{
     const el=document.getElementById('guild-section-'+s);
     if(el)el.style.display='none';
   });
@@ -2274,8 +2433,8 @@ function showGuildMenu(){
 
 function showGuildSection(section){
   document.getElementById('guild-menu').style.display='none';
-  // すべてのサブ画面を非表示にしてから対象だけ表示
-  ['register','questList'].forEach(s=>{
+  // すべてのサブ画面を非表示（registerとquestListとpartyを対象にする）
+  ['register','questList','party'].forEach(s=>{
     const el=document.getElementById('guild-section-'+s);
     if(el)el.style.display='none';
   });
@@ -2284,10 +2443,14 @@ function showGuildSection(section){
     showGuildSpeech('冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。');
     renderGuildRegisterList();
   }else if(section==='questList'){
-    // クエスト一覧サブ画面を表示してリストを描画
     document.getElementById('guild-section-questList').style.display='block';
     showGuildSpeech('クエスト一覧です！<br>あなたのランクに応じたクエストを受注できます。');
     renderQuestList();
+  }else if(section==='party'){
+    // パーティ編成画面を表示
+    document.getElementById('guild-section-party').style.display='block';
+    showGuildSpeech('パーティを編成してください！<br>1人以上選択したら出発できます。');
+    renderPartyScreen();
   }
 }
 
