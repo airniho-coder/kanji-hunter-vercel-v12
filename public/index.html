@@ -2195,6 +2195,12 @@ function departQuest(){
   if(modal)modal.style.display='flex';
 }
 
+// 警告モーダルを閉じる
+function closeBattleWarning(){
+  const modal=document.getElementById('battle-warning-modal');
+  if(modal)modal.style.display='none';
+}
+
 // バトル開始
 function startBattle(){
   closeBattleWarning();
