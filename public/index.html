@@ -346,9 +346,6 @@ body{display:flex;justify-content:center;}
 @keyframes guildFade{0%{opacity:.4}100%{opacity:1}}
 @keyframes guildDot{0%{opacity:.2;transform:translateY(0)}100%{opacity:1;transform:translateY(-6px)}}
 @keyframes guildFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-/* 受付嬢セリフのテロップアニメーション */
-@keyframes telop{from{opacity:0}to{opacity:1}}
-.telop-char{display:inline;opacity:0;animation:telop 0.05s forwards;}
 .guild-rank-badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:9px;font-weight:700;letter-spacing:2px;}
 .guild-rank-none{background:rgba(255,255,255,.08);color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1);}
 .guild-rank-G{background:rgba(150,150,150,.2);color:#aaa;border:1px solid rgba(150,150,150,.4);}
@@ -579,26 +576,13 @@ body{display:flex;justify-content:center;}
 <div class="page" id="page-guild">
   <!-- ===== 冒険者ギルド ===== -->
 
-  <!-- ギルド入口タップ画面：ユーザー操作を確定させてから動画・音声を再生する -->
-  <div id="guild-enter-screen" style="display:none;position:fixed;inset:0;z-index:5;background:linear-gradient(180deg,#1a0f2e 0%,#0a0810 100%);flex-direction:column;align-items:center;justify-content:center;">
-    <div style="font-size:64px;margin-bottom:24px;animation:guildFlicker 1.5s infinite alternate">🏰</div>
-    <div style="font-size:16px;font-weight:700;letter-spacing:4px;color:#c9a84c;margin-bottom:8px">冒険者ギルド</div>
-    <div style="font-size:11px;letter-spacing:2px;color:rgba(255,255,255,.4);margin-bottom:48px">ADVENTURER'S GUILD</div>
-    <button onclick="enterGuild()" style="padding:16px 40px;border-radius:14px;background:linear-gradient(135deg,#c9a84c,#e8c97a);border:none;color:#0a0a0f;font-size:14px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:3px;cursor:pointer;box-shadow:0 0 30px rgba(201,168,76,0.4);">
-      ギルドに入る →
-    </button>
-  </div>
-
   <!-- ① ギルド内アニメーション画面 -->
-  <!-- aspect-ratio:16/9 で動画サイズに合わせてアスペクト比固定 -->
-  <div id="guild-anim-screen" style="position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;display:none;align-items:center;justify-content:center;background:#0a0810;">
-    <!-- ミュートのままにして音声はJS側で制御する -->
-    <video id="guild-anim-video" src="assets/guild/guild_intro.mp4"
-      muted playsinline
-      style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;"
-      onerror="this.style.display='none';document.getElementById('guild-anim-fallback').style.display='flex'">
-    </video>
-    <!-- 動画が読み込めない場合のフォールバック（CSSアニメ） -->
+  <div id="guild-anim-screen" style="position:relative;width:100%;height:100vh;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#0a0810;">
+    <!-- プレースホルダー背景（後でGemini生成動画/GIFに差し替え） -->
+    <img id="guild-anim-img" src="assets/guild/guild_intro.gif"
+      onerror="this.style.display='none';document.getElementById('guild-anim-fallback').style.display='flex'"
+      style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;">
+    <!-- 画像が存在しない場合のフォールバック（CSSアニメ） -->
     <div id="guild-anim-fallback" style="display:none;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;position:absolute;inset:0;background:linear-gradient(180deg,#1a0f2e 0%,#0d1a2e 60%,#0a0810 100%);">
       <div style="font-size:48px;animation:guildFlicker 1.5s infinite alternate">🏰</div>
       <div style="font-size:13px;letter-spacing:4px;color:#c9a84c;margin-top:16px;animation:guildFade 2s ease-in-out infinite alternate">冒険者ギルド</div>
@@ -608,9 +592,9 @@ body{display:flex;justify-content:center;}
         <div style="width:6px;height:6px;border-radius:50%;background:#c9a84c;animation:guildDot 1.2s 0.8s infinite alternate"></div>
       </div>
     </div>
-    <!-- タップでスキップ案内 -->
-    <div style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);text-align:center;z-index:2;">
-      <div style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.3)">タップでスキップ</div>
+    <!-- オーバーレイテキスト -->
+    <div style="position:absolute;bottom:80px;left:50%;transform:translateX(-50%);text-align:center;z-index:2;">
+      <div style="font-size:11px;letter-spacing:3px;color:rgba(255,255,255,.4)">ADVENTURER'S GUILD</div>
     </div>
   </div>
 
@@ -619,15 +603,15 @@ body{display:flex;justify-content:center;}
 
     <!-- 受付嬢エリア -->
     <div id="guild-receptionist-area" style="position:relative;width:100%;min-height:280px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;background:linear-gradient(180deg,#0f0820 0%,#1a1030 100%);">
-      <!-- 背景（Gemini生成画像） -->
+      <!-- 背景（後でGemini生成画像に差し替え） -->
       <img src="assets/guild/guild_bg.png"
         onerror="this.style.display='none'"
         style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.4;">
-      <!-- 受付嬢キャラ（19枚からランダム表示、JS側で差し替え） -->
+      <!-- 受付嬢キャラ（後でGemini生成画像に差し替え） -->
       <div style="position:relative;z-index:2;text-align:center;padding-bottom:16px;">
-        <img id="guild-receptionist-img" src="assets/guild/receptionist_1.png"
+        <img id="guild-receptionist-img" src="assets/guild/receptionist.png"
           onerror="this.style.display='none';document.getElementById('guild-receptionist-fallback').style.display='block'"
-          style="height:300px;object-fit:contain;filter:drop-shadow(0 0 20px rgba(201,168,76,0.4));">
+          style="height:200px;object-fit:contain;filter:drop-shadow(0 0 20px rgba(201,168,76,0.4));">
         <!-- 画像がない場合のフォールバック -->
         <div id="guild-receptionist-fallback" style="display:none;font-size:80px;line-height:1">👩‍💼</div>
       </div>
@@ -644,11 +628,15 @@ body{display:flex;justify-content:center;}
     <!-- ⑥ メニュー選択 -->
     <div id="guild-menu" style="padding:16px;">
       <div style="font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.3);margin-bottom:12px;text-align:center">── メニュー ──</div>
+      <!-- 所持ゴールド表示 -->
+      <div id="guild-gold-display" style="text-align:center;margin-bottom:14px;font-size:12px;color:#c9a84c;font-weight:700;letter-spacing:2px;">
+        💰 <span id="guild-gold-amount">0</span> G
+      </div>
       <button onclick="showGuildSection('register')" style="width:100%;margin-bottom:10px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.05));border:1px solid rgba(201,168,76,.4);color:#c9a84c;font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:2px;cursor:pointer;text-align:left;">
         ⚔️　冒険者に登録する
       </button>
-      <button disabled style="width:100%;margin-bottom:10px;padding:14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.25);font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:2px;cursor:not-allowed;text-align:left;">
-        📋　クエストを見に行く　<span style="font-size:9px;opacity:.5">（近日公開）</span>
+      <button onclick="showGuildSection('questList')" style="width:100%;margin-bottom:10px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.05));border:1px solid rgba(201,168,76,.4);color:#c9a84c;font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:2px;cursor:pointer;text-align:left;">
+        📋　クエストを見に行く
       </button>
       <button disabled style="width:100%;margin-bottom:10px;padding:14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.25);font-size:13px;font-weight:700;font-family:'Noto Serif JP',serif;letter-spacing:2px;cursor:not-allowed;text-align:left;">
         🗺️　クエストを受ける　<span style="font-size:9px;opacity:.5">（近日公開）</span>
@@ -658,13 +646,35 @@ body{display:flex;justify-content:center;}
       </button>
     </div>
 
+    <!-- クエスト一覧サブ画面 -->
+    <div id="guild-section-questList" style="display:none;padding:0 16px 16px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <button onclick="showGuildMenu()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:18px;cursor:pointer;">←</button>
+        <div style="font-size:11px;letter-spacing:3px;opacity:.5;text-transform:uppercase">クエスト一覧</div>
+      </div>
+      <!-- ランクフィルタータブ -->
+      <div id="quest-rank-tabs" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:12px;scrollbar-width:none;">
+        <!-- JSで生成 -->
+      </div>
+      <!-- クエストカードリスト -->
+      <div id="quest-card-list" style="display:flex;flex-direction:column;gap:10px;">
+        <!-- JSで生成 -->
+      </div>
+    </div>
+
     <!-- ③ 冒険者登録サブ画面 -->
     <div id="guild-section-register" style="display:none;padding:0 16px 16px;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
         <button onclick="showGuildMenu()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:18px;cursor:pointer;">←</button>
-        <div style="font-size:11px;letter-spacing:3px;opacity:.5;text-transform:uppercase">メニューに戻る</div>
+        <div style="font-size:11px;letter-spacing:3px;opacity:.5;text-transform:uppercase">冒険者登録</div>
       </div>
-      
+      <!-- 受付嬢セリフ（登録用） -->
+      <div style="background:rgba(255,255,255,.06);border:1px solid rgba(201,168,76,.3);border-radius:16px;padding:14px 16px;margin-bottom:14px;">
+        <div style="font-size:9px;letter-spacing:2px;color:#c9a84c;margin-bottom:6px">受付嬢 リリア</div>
+        <div style="font-size:12px;line-height:1.9;color:rgba(255,255,255,.9)">
+          冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。<br>登録したいキャラクターを選んでください。
+        </div>
+      </div>
       <!-- 未登録カード一覧 -->
       <div id="guild-register-list" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
       <div id="guild-register-empty" style="display:none;text-align:center;padding:40px 0;color:rgba(255,255,255,.3);font-size:12px;line-height:2;">
@@ -840,6 +850,12 @@ let itemCards=[];  // all non-character cards
 let battlePair=[null,null];
 let battleResult=null;
 let battleMode='manual';
+
+// ===== ギルドプレイヤーデータ =====
+let playerGold=0;       // 所持ゴールド
+let playerGuildExp=0;   // ギルド全体経験値（将来用）
+let activeQuest=null;   // 現在受注中のクエスト（クエストオブジェクト）
+let completedQuests=[]; // クリア済みクエストIDリスト
 let manualResolve=null;
 let battleLogs=[];
 let lastLogA='';  // most recent log for player char
@@ -1511,6 +1527,12 @@ window.onload=async()=>{
     const it=await idbGet('kh_items');
     characters=ch||JSON.parse(localStorage.getItem('kh_chars')||'[]');
     itemCards=it||JSON.parse(localStorage.getItem('kh_items')||'[]');
+    // ギルドプレイヤーデータをlocalStorageからロード
+    const guildData=JSON.parse(localStorage.getItem('kh_guild')||'{}');
+    playerGold=guildData.gold||0;
+    playerGuildExp=guildData.guildExp||0;
+    activeQuest=guildData.activeQuest||null;
+    completedQuests=guildData.completedQuests||[];
     // 既存カードに adventurerRank が無い場合は null（未登録）で補完
     characters.forEach(c=>{
       if(c.adventurerRank===undefined)c.adventurerRank=null;
@@ -1581,6 +1603,155 @@ let soundEnabled=true;
 // ★3: 漢検準2〜2級（高校在学〜高校卒業相当）
 // ★4: 漢検準1級 + 漢検対象外
 // ★5: 漢検1級（最高難度）
+
+// ===== クエスト定数テーブル =====
+// 難易度ランクに応じたゴールド・経験値報酬
+const QUEST_RANK_REWARD={
+  G:{gold:100,  exp:10},
+  F:{gold:200,  exp:20},
+  E:{gold:400,  exp:40},
+  D:{gold:800,  exp:80},
+  C:{gold:1500, exp:150},
+  B:{gold:3000, exp:300},
+  A:{gold:6000, exp:600},
+  S:{gold:12000,exp:1200},
+  SS:{gold:30000,exp:3000},
+};
+
+// 冒険者ランクアップに必要な経験値
+const RANK_UP_EXP={
+  G:100, F:200, E:400, D:800, C:1500, B:3000, A:6000, S:12000
+};
+
+// クエスト種別定数
+const QUEST_TYPE={
+  TUTORIAL:'チュートリアル',
+  BATTLE:'討伐',
+  DUNGEON:'ダンジョン',
+  COLLECT:'収集',
+  RECRUIT:'人材探索',
+};
+
+// 固定クエストリスト（30件）
+// id: 一意のクエストID
+// rank: クエスト難易度（受注可能な最低冒険者ランク）
+// type: クエスト種別
+// name: クエスト名
+// story: クエストの背景ストーリー
+// reward: {gold, exp, newChar} newChar=trueで新キャラ生成
+const QUEST_LIST=[
+  // ===== Gランク（4件）=====
+  {id:'G01',rank:'G',type:QUEST_TYPE.TUTORIAL, name:'冒険者への第一歩',
+   story:'ギルド近くの森にスライムが出没している。まずは実戦経験を積め。',
+   reward:{gold:100,exp:10}},
+  {id:'G02',rank:'G',type:QUEST_TYPE.TUTORIAL, name:'薬草を集めよ',
+   story:'薬師のマリアが薬草不足で困っている。近郊の草原で薬草を10本集めてほしい。',
+   reward:{gold:100,exp:10}},
+  {id:'G03',rank:'G',type:QUEST_TYPE.TUTORIAL, name:'廃坑の調査',
+   story:'村外れの廃坑から不気味な音がすると住民が訴えている。調査して報告せよ。',
+   reward:{gold:100,exp:10}},
+  {id:'G04',rank:'G',type:QUEST_TYPE.RECRUIT, name:'噂の剣士を探せ',
+   story:'街の酒場で伝説の剣技を持つ剣士の噂を聞いた。勧誘して仲間にせよ。',
+   reward:{gold:100,exp:10,newChar:true}},
+
+  // ===== Fランク（4件）=====
+  {id:'F01',rank:'F',type:QUEST_TYPE.DUNGEON, name:'古い坑道の秘密',
+   story:'閉鎖された坑道に財宝が眠るという。危険を覚悟で探索し財宝を確保せよ。',
+   reward:{gold:200,exp:20}},
+  {id:'F02',rank:'F',type:QUEST_TYPE.BATTLE, name:'山賊団の壊滅',
+   story:'峠道に山賊団が居座り旅人を襲っている。アジトを突き止め壊滅させよ。',
+   reward:{gold:200,exp:20}},
+  {id:'F03',rank:'F',type:QUEST_TYPE.COLLECT, name:'遺跡の封印石',
+   story:'古代遺跡から封印石が盗まれた。3個すべてを取り戻してほしい。',
+   reward:{gold:200,exp:20}},
+  {id:'F04',rank:'F',type:QUEST_TYPE.RECRUIT, name:'森の弓使いを探せ',
+   story:'深森に潜む弓の名手がいるという。見つけ出し、仲間に引き入れよ。',
+   reward:{gold:200,exp:20,newChar:true}},
+
+  // ===== Eランク（4件）=====
+  {id:'E01',rank:'E',type:QUEST_TYPE.BATTLE, name:'オークの族長討伐',
+   story:'オーク族が集落を繰り返し襲っている。族長を倒せば族は退散するはずだ。',
+   reward:{gold:400,exp:40}},
+  {id:'E02',rank:'E',type:QUEST_TYPE.DUNGEON, name:'呪われた遺跡',
+   story:'ベテラン冒険者が消えた遺跡がある。真相を暴き、生存者がいれば救出せよ。',
+   reward:{gold:400,exp:40}},
+  {id:'E03',rank:'E',type:QUEST_TYPE.COLLECT, name:'幻の霊薬の材料',
+   story:'不治の病を癒す霊薬を作るため、深山に咲く霊花が5輪必要だ。',
+   reward:{gold:400,exp:40}},
+  {id:'E04',rank:'E',type:QUEST_TYPE.RECRUIT, name:'遺跡の魔術師を探せ',
+   story:'古代遺跡に籠る変わり者の魔術師がいる。交渉して仲間にせよ。',
+   reward:{gold:400,exp:40,newChar:true}},
+
+  // ===== Dランク（4件）=====
+  {id:'D01',rank:'D',type:QUEST_TYPE.BATTLE, name:'竜の落とし子討伐',
+   story:'山岳地帯に幼竜が現れ村を焼いている。今のうちに討伐しなければならない。',
+   reward:{gold:800,exp:80}},
+  {id:'D02',rank:'D',type:QUEST_TYPE.DUNGEON, name:'魔将軍の地下牢',
+   story:'魔将軍が支配する地下牢に囚われた貴族の子息を救い出せ。',
+   reward:{gold:800,exp:80}},
+  {id:'D03',rank:'D',type:QUEST_TYPE.COLLECT, name:'失われた財宝',
+   story:'盗賊に奪われた商人の財宝を取り戻せ。相手は手練れの盗賊団だ。',
+   reward:{gold:800,exp:80}},
+  {id:'D04',rank:'D',type:QUEST_TYPE.RECRUIT, name:'伝説の傭兵を探せ',
+   story:'行方不明になった伝説的傭兵の足跡を追え。各地に手がかりが残っているはずだ。',
+   reward:{gold:800,exp:80,newChar:true}},
+
+  // ===== Cランク（4件）=====
+  {id:'C01',rank:'C',type:QUEST_TYPE.BATTLE, name:'魔獣グリフォン討伐',
+   story:'港町上空を飛び回るグリフォンが船を沈めている。討伐して港を守れ。',
+   reward:{gold:1500,exp:150}},
+  {id:'C02',rank:'C',type:QUEST_TYPE.COLLECT, name:'失われた王家の宝',
+   story:'盗賊団に奪われた王家の秘宝を取り戻せ。国家の威信がかかっている。',
+   reward:{gold:1500,exp:150}},
+  {id:'C03',rank:'C',type:QUEST_TYPE.DUNGEON, name:'魔境の迷宮',
+   story:'深山に現れた迷宮は魔力で満ちている。踏破した者はいまだにいない。',
+   reward:{gold:1500,exp:150}},
+  {id:'C04',rank:'C',type:QUEST_TYPE.RECRUIT, name:'神域の勇者を探せ',
+   story:'神に選ばれし勇者候補がいるという。各地を巡り、その者を探し出せ。',
+   reward:{gold:1500,exp:150,newChar:true}},
+
+  // ===== Bランク（4件）=====
+  {id:'B01',rank:'B',type:QUEST_TYPE.BATTLE, name:'古竜ヴァルガス討伐',
+   story:'眠りから覚めた古竜ヴァルガスが暴れている。最高の実力者だけが挑める。',
+   reward:{gold:3000,exp:300}},
+  {id:'B02',rank:'B',type:QUEST_TYPE.DUNGEON, name:'深淵の迷宮',
+   story:'地底深くに続く100階の迷宮。踏破した者は歴史上ただの一人もいない。',
+   reward:{gold:3000,exp:300}},
+  {id:'B03',rank:'B',type:QUEST_TYPE.COLLECT, name:'封印された遺産',
+   story:'古の魔法使いが残した封印の書を回収せよ。悪用されれば世界が滅ぶ。',
+   reward:{gold:3000,exp:300}},
+  {id:'B04',rank:'B',type:QUEST_TYPE.RECRUIT, name:'魔王軍の離反者を探せ',
+   story:'魔王軍から離反した強者がいるという。見つけ出し、こちらの仲間にせよ。',
+   reward:{gold:3000,exp:300,newChar:true}},
+
+  // ===== Aランク（3件）=====
+  {id:'A01',rank:'A',type:QUEST_TYPE.BATTLE, name:'魔王の右腕討伐',
+   story:'魔王軍四天王の一角が王都に向けて進軍中だ。迎撃して食い止めよ。',
+   reward:{gold:6000,exp:600}},
+  {id:'A02',rank:'A',type:QUEST_TYPE.DUNGEON, name:'神域への道',
+   story:'神が作りし試練の塔の入口が開いた。踏破すれば神の加護が得られるという。',
+   reward:{gold:6000,exp:600}},
+  {id:'A03',rank:'A',type:QUEST_TYPE.RECRUIT, name:'古の英雄を目覚めさせよ',
+   story:'封印された古の英雄が眠る場所を突き止め、復活の儀式を行え。',
+   reward:{gold:6000,exp:600,newChar:true}},
+
+  // ===== Sランク（2件）=====
+  {id:'S01',rank:'S',type:QUEST_TYPE.DUNGEON, name:'神域の試練',
+   story:'神が作りし究極の試練の塔。ここを踏破できる者こそが真の英雄だ。',
+   reward:{gold:12000,exp:1200}},
+  {id:'S02',rank:'S',type:QUEST_TYPE.RECRUIT, name:'神の使徒を探せ',
+   story:'神界から降り立った使徒が地上のどこかにいるという。探し出して仲間にせよ。',
+   reward:{gold:12000,exp:1200,newChar:true}},
+
+  // ===== SSランク（2件）=====
+  {id:'SS01',rank:'SS',type:QUEST_TYPE.BATTLE, name:'魔王討伐',
+   story:'世界を脅かす魔王の城へ乗り込め。これが最後の戦いとなるだろう。',
+   reward:{gold:30000,exp:3000}},
+  {id:'SS02',rank:'SS',type:QUEST_TYPE.RECRUIT, name:'伝説の魔王の末裔を探せ',
+   story:'魔王の血を引く者が辺境に潜んでいる。説得して仲間に引き入れよ。',
+   reward:{gold:30000,exp:3000,newChar:true}},
+];
+
 const KANJI_STAR1 = new Set("一丁七万三上下世両中丸主乗九予事二五交京人今仕他代休会住体何作使係倍元兄先光入全八公六具内円写冬出刀分切列別前力助勉動勝化北区医十千午半協南原去友反取受口古台右号合同名向君味命和品員商問四回団図国園土地坂場声売夏夕外多夜大天太央女妹姉始委子字学守安定実客室宮家宿寒寺対小少局屋山岩岸島川州工左市帰帳平年幸広店度庫庭式弓引弟弱強当形役待後心思急息悪悲想意感戸所手才打投拾持指放教数整文新方旅族日早明昔星春昭昼時晴暑暗曜曲書月有服朝期木本村来東板林柱校根森植検業楽様横橋次歌止正歩歯死母毎毛気水氷池決汽油法波注泳洋活流海消深温港湖湯漢火炭点父牛物犬玉王球理生用田由申男町画界畑番病発登白百皮皿益目直相県真着矢知短石研礼社神祭福秋科秒究空立章童竹笛第筆等答算箱米糸紙級細終組絵緑線練羊美羽習考者耳聞肉育能自船色花苦茶草荷落葉薬虫血行表西見親角言計記詩話語読調談谷豆貝負財買赤走起足路身車転軽農近返追送通速週進遊運道遠部都配酒里重野金鉄銀長門開間院陽階集雨雪雲電青面音頭題顔風食飲館首馬駅高魚鳥鳴麦黄黒鼻");
 const KANJI_STAR2 = new Set("丈不与丘並丹久乏乙乱乳乾了争互井亡仁介仏付令以仮仰仲件任企伏伐伝伴伸伺似位低佐余佳例侍供依価侵便促俗保信修俳俵倉個倒候借倣値倹偉停健側偶傍備催債傷傾働像僧儀億優兆克免児党共兵典兼冊再冒冗冠冷凍凝凡処凶刈刊刑初判利到制刷券刺刻則削剣剤副割創劇功加劣努励労効勇勘務募勢勤勧包匠匹匿卑卒卓単博占印危即却卵卸厘厚厳参又及双収句叫召可史司各吉后吏吐否含吸吹告周呼咲哀哲唐唱啓善喚喜喫営嘆嘱器噴因困囲固圏圧在均坊坑垂型埋城域執基埼堂堅堤報塊塔塗塩境墓増墜墨墳墾壁壇壊士壱変夢夫失奇奈奉奏契奥奪奮奴好如妙妨妻姓姫姿威娘娯婆婚婦婿媛嫁嬢孔存孝季孤孫宅宇完宗官宙宝宣害宴容寂寄密富寝察審寸寿封専射将尊尋導就尺尽尾尿居屈届展属層岐岡岳峠峡峰崎崩巡巣巧巨差己巻布帆希帝師席帯常帽幅幕干幹幻幼幽幾庁床序底府座康廉廊延建弁弐弧張弾彩彫影彼往征径律徐徒従得御復微徳徴必忌志忘忙応忠快念怒怖怠性怪恋恐恒恥恨恩恵悔悟悦悩情惑惜惨愚愛慈態慌慎慕慢慣慨慮慰憂憎憩憲憶成我戒戦戯房扇払扱批承技抑抗折抜択抱抵押抽担拍拓拘招拝拠拡挙振捕捨掃授掌排掘掛採探接控推措掲描提揚換握揮援揺損搬携搾摂摘撃撮擁操擦支改攻政故敏救敗敢散敬敵敷斗料斜斤斥断施旗既旧旨旬昇易映昨是晩普景晶暇暖暦暫暮暴曇更替最朗望未末札朱机朽材束条杯松枚果枝枯架柄某染柔査栃栄株格桃案桑桜梅梨械棄棋棒極楼概構標模権樹機欄欠欧欲欺歓武歳歴殊残殖殴段殺殿毒比氏民永求汗汚沈沖没沢河治沼沿況泉泊泌泣洗派浅浜浪浮浴浸涙液淡混添清済減渡測湾湿満源準溶滅滋滑滝滞滴漁漂漏演漫潔潜潟潤潮澄激濁濃濫瀬灯灰災炉炊炎為烈無焦然焼煙照煮熊熟熱燃燥爆片版牧牲特犠犯状狂狩独狭猛猟獄獣獲玄率珍班現環甘産甲畔留畜略異畳疑疲疾痘痛療癖的皆皇盆盗盛盟監盤盾省看眠眼瞬矛砂砲破硬碑確磁礎示祈祉祖祝票禁秀私秘称移程税稚種稲稿穀穂積穏穫穴突窒窓端競笑符筋策箇管節範築篤簡簿籍粉粋粒粗粘精糖糧系紀約紅紋納純紛素紫紹紺経結絞絡給統絶絹継続維綱網綿緊総締編緩緯縁縄縛縦縫縮績繁織繕繰罪置罰署群義翌翻翼老耐耕聖聴職肝肥肩肪肺胃胆背胎胞胴胸脂脅脈脚脱脳腐腕腰腸腹膚膜膨臓臣臨至致興舌舎舗舞舟航般良芋芝芳芸芽苗若英茂茨荒菊菓菜華著葬蒸蓄蔵薄薪藩虐虚蚕蛮衆術街衛衝衣衰袋被裁裂装裏補裸製複襲要覆規視覚覧観解触訂討訓託訪設許訳訴証評詞詠試詰該詳誇誉誌認誕誘誠誤説課請論諮諸諾謀講謝謡識警議譲護豊豚象豪貧貨販貫責貯貴貸費貿賀賃資賊賛賞賢賦質贈赦赴超越趣距跡跳踊踏躍軌軍軒軸較載輝輩輪輸辛辞辱辺込迎迫述迷退逃逆透途造連逮遂遅遇過達違遣適遭遵選遺避邦邪郊郎郡郭郵郷酔酵酸釈量針鈍鉛鉱銅銭鋭鋳鋼錠錬錯録鍛鎖鎮鏡鐘鑑閉関閣閲闘阜阪防阻降限陛陣除陪陰陳陵陶陸険隆隊随隔際障隠隣隷隻雄雅雇雌雑離難零雷需震霊霧露静非革響頂項順預領頼額願類顧飛飯飼飽飾養餓香駆駐騎騒験驚骨髄髪鬼魂魅魔鮮鯨鶏鹿麗黙鼓齢");
 const KANJI_STAR3 = new Set("且丙串丼乞亀亜享亭仙伎伯但併侮侯侶俊俸俺倫偏偵偽傑傘傲僅僕僚儒償充冥冶凄准凸凹刃刹剖剛剥剰劾勃勅勲勾匂升厄叔叙叱吟呂呈呉呪咽哺唄唆唇唯唾喉喝喩喪嗅嗣嘲嚇囚坪垣培堀堆堕堪塀塁塑塚塞填塾壌壮奔奨妃妄妊妖妥妬姻娠媒嫉嫌嫡宛宜宰宵寛寡寧寮尉尚尻尼履屯岬崇崖嵐巾帥幣庶庸廃廷弄弊弔弥弦彙彰循徹忍怨恣恭悠患悼惧惰愁愉慄慶憤憧憬憾懇懐懲懸戚戴戻扉扶抄把披抹拉拐拒拙括拭拳拶拷挑挟挨挫挿捉捗捜据捻搭摩摯撤撲擬斉斎斑斬旋旦旺昆昧暁曖曹曽朕朴杉析枕枠枢柳柵柿栓核栽桁桟梗棚棟棺椅椎楷槽款殉殻毀氾汁汎江汰沃沙沸泡泥泰洞津洪浄浦涯涼淑淫渇渉渋渓渦湧溝溺漆漠漬漸潰濯煎煩爪爵爽牙狙猫献猶猿玩珠琴瑠璃璧璽瓦瓶甚畏畝畿疎疫症痕痢痩痴瘍癒盲眉眺睡督睦瞭瞳矯砕硝硫碁磨礁祥禅禍租秩稼稽窃窟窮窯竜筒箋箸籠粛粧糾紡索累紳綻緒緻繊繭缶罵罷羅羞羨翁耗肌肖肘股肢肯脇脊腎腫腺膝膳臆臭臼舶舷艇艦艶芯苛茎荘菌萎葛蓋蔑蔽薦薫藍藤藻虎虜虞虹蚊蛇蛍蜂蜜融衡衷袖裕裾褐褒襟覇訃訟診詐詔詣詮誓誰諦諧諭謁謄謎謙謹譜貌貞貢貪貼賂賄賓賜賠賭購践踪蹴軟轄辣迅迭逐逓逝逸遍遜遡遮遷還那邸酌酎酢酪酬酷醒醜醸采釜釣鈴鉢銃銘錦錮鍋鍵鎌閑閥闇附陥隅隙雰霜靴韓韻頃須頑頒頓頬頻顎顕飢餅餌駄駒騰骸鬱鶴麓麺麻");
@@ -1613,8 +1784,6 @@ const BGM_FILES={
   synthesis:'/audio/bgm_synthesis.mp3',
   quiz:'/audio/bgm_quiz.mp3',
   write:'/audio/bgm_write.mp3',
-  guild:'/assets/guild/guild_bgm.mp3',      // ギルドアニメ動画用BGM
-  guildMain:'/audio/bgm_guild_main.mp3',    // 受付嬢画面用BGM
 };
 
 function getAudioCtx(){
@@ -1757,6 +1926,15 @@ function saveState(){
   });
   // itemCardsも並行してIDBに保存
   idbSet('kh_items', itemCards).catch(e => console.warn('IDB items save error', e));
+  // ギルドプレイヤーデータをlocalStorageに保存
+  try{
+    localStorage.setItem('kh_guild', JSON.stringify({
+      gold:playerGold,
+      guildExp:playerGuildExp,
+      activeQuest:activeQuest,
+      completedQuests:completedQuests,
+    }));
+  }catch(e){console.warn('Guild data save error', e);}
 }
 
 function saveApiKey(){
@@ -1821,141 +1999,187 @@ const ADVENTURER_RANK_LABELS={
 };
 
 function startGuildAnimation(){
-  const enterScreen=document.getElementById('guild-enter-screen');
   const animScreen=document.getElementById('guild-anim-screen');
   const mainScreen=document.getElementById('guild-main-screen');
   if(!animScreen||!mainScreen)return;
-
-  // 前タブのBGMを停止
-  stopBGM();
-
-  // 入口タップ画面を表示してユーザー操作を待つ
-  if(enterScreen){
-    enterScreen.style.display='flex';
+  // アニメ画面をリセットして表示
+  animScreen.style.display='flex';
+  mainScreen.style.display='none';
+  showGuildMenu();
+  // 5秒後にメイン画面へ切り替え
+  setTimeout(()=>{
     animScreen.style.display='none';
-    mainScreen.style.display='none';
-  }else{
-    // 入口画面がない場合は直接アニメへ
-    enterGuild();
-  }
+    mainScreen.style.display='flex';
+  },5000);
 }
 
-// ギルドに入るボタンをタップしたときに呼ばれる
-// ユーザー操作が確定しているので動画・音声の再生が許可される
-function enterGuild(){
-  const enterScreen=document.getElementById('guild-enter-screen');
-  const animScreen=document.getElementById('guild-anim-screen');
-  const mainScreen=document.getElementById('guild-main-screen');
-  const video=document.getElementById('guild-anim-video');
+// ===== クエスト関連JS =====
 
-  // 入口画面を隠してアニメ画面を表示
-  if(enterScreen)enterScreen.style.display='none';
-  animScreen.style.display='flex';
+// パーティ内の最高冒険者ランクを取得する
+function getPartyMaxRank(){
+  const rankOrder=ADVENTURER_RANKS; // ['G','F','E','D','C','B','A','S','SS']
+  const registered=characters.filter(c=>c.cardType==='character'&&c.adventurerRank);
+  if(registered.length===0)return null;
+  let maxIdx=0;
+  registered.forEach(c=>{
+    const idx=rankOrder.indexOf(c.adventurerRank);
+    if(idx>maxIdx)maxIdx=idx;
+  });
+  return rankOrder[maxIdx];
+}
 
-  // メイン画面は非表示
-  mainScreen.style.display='none';
+// ランクの順序比較（aがb以上かどうか）
+function isRankGte(a,b){
+  return ADVENTURER_RANKS.indexOf(a)>=ADVENTURER_RANKS.indexOf(b);
+}
 
-  // メニューをトップ状態にリセット
-  showGuildMenu();
+// ゴールド表示を更新する
+function updateGoldDisplay(){
+  const el=document.getElementById('guild-gold-amount');
+  if(el)el.textContent=playerGold.toLocaleString();
+}
 
-  // アニメ終了後の画面切り替え処理（finishAnimはcanplayより先に定義する）
-  const finishAnim=()=>{
-    if(window._guildAnimTimer){clearTimeout(window._guildAnimTimer);window._guildAnimTimer=null;}
-    // タップイベントを解除
-    animScreen.removeEventListener('click',skipAnim);
-    // 動画を停止
-    if(video){video.pause();}
-    // 受付嬢画像を19枚の中からランダムで選択して表示
-    const rndNum=Math.floor(Math.random()*19)+1;
-    const receptionistImg=document.getElementById('guild-receptionist-img');
-    if(receptionistImg){
-      receptionistImg.style.opacity='0';
-      receptionistImg.src=`assets/guild/receptionist_${rndNum}.png`;
-      receptionistImg.onload=()=>{
-        // 画像読み込み完了後にメイン画面を表示してフェードイン
-        animScreen.style.display='none';
-        mainScreen.style.display='flex';
-        receptionistImg.style.transition='opacity 0.5s';
-        receptionistImg.style.opacity='1';
-        // 受付嬢画面用BGMに切り替え
-        playBGM('guildMain');
-        showGuildMenu();
-      };
-      receptionistImg.onerror=()=>{
-        // 画像が読み込めない場合もメイン画面は表示する
-        animScreen.style.display='none';
-        mainScreen.style.display='flex';
-        playBGM('guildMain');
-        showGuildMenu();
-      };
-    }else{
-      animScreen.style.display='none';
-      mainScreen.style.display='flex';
-      playBGM('guildMain');
-      showGuildMenu();
-    }
+// クエスト一覧を描画する
+function renderQuestList(filterRank){
+  const maxRank=getPartyMaxRank();
+  const rankOrder=ADVENTURER_RANKS;
+  const tabs=document.getElementById('quest-rank-tabs');
+  const list=document.getElementById('quest-card-list');
+  if(!tabs||!list)return;
+
+  // ランクフィルタータブを生成（冒険者が存在するランクのみ表示）
+  const availableRanks=rankOrder.filter(r=>
+    QUEST_LIST.some(q=>q.rank===r)
+  );
+  // デフォルトは最高ランク
+  if(!filterRank)filterRank=maxRank||'G';
+
+  tabs.innerHTML=availableRanks.map(r=>{
+    const canAccess=maxRank&&isRankGte(maxRank,r);
+    const isActive=r===filterRank;
+    return `<button onclick="renderQuestList('${r}')"
+      style="flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:10px;font-weight:700;
+      letter-spacing:1px;cursor:pointer;border:1px solid ${isActive?'rgba(201,168,76,.7)':'rgba(255,255,255,.2)'};
+      background:${isActive?'rgba(201,168,76,.2)':'rgba(255,255,255,.03)'};
+      color:${isActive?'#c9a84c':canAccess?'rgba(255,255,255,.6)':'rgba(255,255,255,.25)'};">
+      ${r}ランク
+    </button>`;
+  }).join('');
+
+  // 選択ランクのクエストを表示
+  const questsInRank=QUEST_LIST.filter(q=>q.rank===filterRank);
+  const canAccess=maxRank&&isRankGte(maxRank,filterRank);
+
+  // クエスト種別アイコン
+  const typeIcon={
+    [QUEST_TYPE.TUTORIAL]:'📖',
+    [QUEST_TYPE.BATTLE]:'⚔️',
+    [QUEST_TYPE.DUNGEON]:'🗺️',
+    [QUEST_TYPE.COLLECT]:'🌿',
+    [QUEST_TYPE.RECRUIT]:'👤',
   };
 
-  // タップでスキップ（finishAnimより後に定義する）
-  const skipAnim=()=>{finishAnim();};
-  animScreen.addEventListener('click',skipAnim);
+  list.innerHTML=questsInRank.map(q=>{
+    const done=completedQuests.includes(q.id);
+    const locked=!canAccess;
+    const rewardText=q.reward.newChar
+      ?`${q.reward.gold.toLocaleString()}G ＋ 新キャラ生成`
+      :`${q.reward.gold.toLocaleString()}G`;
+    return `<div style="background:${done?'rgba(255,255,255,.03)':'rgba(255,255,255,.06)'};
+      border:1px solid ${done?'rgba(255,255,255,.08)':'rgba(201,168,76,.2)'};
+      border-radius:14px;padding:14px;opacity:${locked?'0.4':'1'};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div>
+          <span style="font-size:9px;letter-spacing:1px;color:rgba(255,255,255,.4);margin-right:6px">
+            ${typeIcon[q.type]||'📋'} ${q.type}
+          </span>
+          ${done?'<span style="font-size:9px;color:#6db86d;font-weight:700">✓ クリア済</span>':''}
+        </div>
+        <span style="font-size:9px;padding:2px 8px;border-radius:8px;
+          background:rgba(201,168,76,.15);color:#c9a84c;font-weight:700">
+          ${q.rank}ランク
+        </span>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:${done?'rgba(255,255,255,.4)':'rgba(255,255,255,.9)'};
+        margin-bottom:6px;letter-spacing:1px">${q.name}</div>
+      <div style="font-size:11px;line-height:1.8;color:rgba(255,255,255,.5);margin-bottom:10px">${q.story}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:10px;color:#c9a84c">💰 ${rewardText}</div>
+        ${locked
+          ?`<span style="font-size:9px;color:rgba(255,255,255,.3)">🔒 ${q.rank}ランク以上必要</span>`
+          :done
+            ?`<span style="font-size:9px;color:#6db86d">受注可（再挑戦）</span>`
+            :`<button onclick="confirmQuestAccept('${q.id}')"
+              style="padding:8px 16px;border-radius:10px;
+              background:linear-gradient(135deg,#c9a84c,#e8c97a);
+              border:none;color:#0a0a0f;font-size:11px;font-weight:700;
+              font-family:'Noto Serif JP',serif;cursor:pointer;">
+              受注する
+            </button>`
+        }
+      </div>
+    </div>`;
+  }).join('');
 
-  // 動画をリセットして再生（ユーザー操作後なので許可される）
-  if(video){
-    video.currentTime=0;
-    // 動画が十分読み込まれてから再生開始
-    video.addEventListener('canplay',function onCanPlay(){
-      video.removeEventListener('canplay',onCanPlay);
-      video.play();
-      // ギルドアニメBGMを再生（動画再生開始と同時に）
-      playBGM('guild');
-      // 動画の実際の長さに合わせてタイマーをセット
-      const duration=(video.duration||8)*1000;
-      window._guildAnimTimer=setTimeout(finishAnim,duration+500);
-    },{once:true});
-    video.load();
-  }else{
-    // 動画要素がない場合は8秒後に切り替え
-    window._guildAnimTimer=setTimeout(finishAnim,8000);
+  // 冒険者が未登録の場合のメッセージ
+  if(!maxRank){
+    list.innerHTML=`<div style="text-align:center;padding:40px 0;color:rgba(255,255,255,.3);font-size:12px;line-height:2;">
+      まず冒険者登録を行ってください。<br>クエストを受注するには<br>登録済みの冒険者が必要です。
+    </div>`;
   }
 }
 
-// 受付嬢のセリフをテロップ風に1文字ずつ表示する
-async function showGuildSpeech(text){
-  const el=document.getElementById('guild-speech-text');
-  if(!el)return;
-  el.innerHTML='';
-  // HTMLタグ（<br>など）はそのまま挿入、それ以外は1文字ずつ順番に表示
-  const parts=text.split(/(<br>)/);
-  for(const part of parts){
-    if(part==='<br>'){el.innerHTML+='<br>';continue;}
-    for(let i=0;i<part.length;i++){
-      const span=document.createElement('span');
-      span.textContent=part[i];
-      span.style.opacity='0';
-      el.appendChild(span);
-      // 1文字ずつ確実に待ってから次の文字を表示
-      await sleep(50);
-      span.style.transition='opacity 0.1s';
-      span.style.opacity='1';
-    }
+// クエスト受注確認モーダルを表示する
+function confirmQuestAccept(questId){
+  const q=QUEST_LIST.find(q=>q.id===questId);
+  if(!q)return;
+  const rewardText=q.reward.newChar
+    ?`${q.reward.gold.toLocaleString()}G ＋ ${q.reward.exp}EXP ＋ 新キャラ生成`
+    :`${q.reward.gold.toLocaleString()}G ＋ ${q.reward.exp}EXP`;
+  if(confirm(`【${q.name}】\n\n${q.story}\n\n報酬：${rewardText}\n\nこのクエストを受注しますか？`)){
+    acceptQuest(questId);
   }
+}
+
+// クエストを受注する（将来：パーティ編成画面へ遷移）
+function acceptQuest(questId){
+  const q=QUEST_LIST.find(q=>q.id===questId);
+  if(!q)return;
+  activeQuest=q;
+  saveState();
+  showGuildSpeech(`「${q.name}」の依頼を受注しました！<br>準備を整えて出発してください。`);
+  // TODO: パーティ編成画面へ遷移（STEP2で実装）
+  showAlert('ok',`⚔️ クエスト「${q.name}」を受注しました！`);
 }
 
 function showGuildMenu(){
+  // すべてのサブ画面を非表示
+  ['register','questList'].forEach(s=>{
+    const el=document.getElementById('guild-section-'+s);
+    if(el)el.style.display='none';
+  });
   document.getElementById('guild-menu').style.display='block';
-  document.getElementById('guild-section-register').style.display='none';
+  // ゴールド表示を更新
+  updateGoldDisplay();
   // テロップ風にセリフを表示
   showGuildSpeech('いらっしゃいませ！ここは冒険者ギルド「暁の剣」へようこそ。<br>本日はどのようなご用件でしょうか？');
 }
 
 function showGuildSection(section){
   document.getElementById('guild-menu').style.display='none';
+  // すべてのサブ画面を非表示にしてから対象だけ表示
+  ['register','questList'].forEach(s=>{
+    const el=document.getElementById('guild-section-'+s);
+    if(el)el.style.display='none';
+  });
   if(section==='register'){
     document.getElementById('guild-section-register').style.display='block';
-    // テロップ風にセリフを表示
-    showGuildSpeech('冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。<br>登録したいキャラクターを選んでください。');
+    showGuildSpeech('冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。');
     renderGuildRegisterList();
+  }else if(section==='questList'){
+    document.getElementById('guild-section-questList').style.display='block';
+    showGuildSpeech('クエスト一覧です！<br>あなたのランクに応じたクエストを受注できます。');
+    renderQuestList();
   }
 }
 
@@ -1971,24 +2195,11 @@ function renderGuildRegisterList(){
   }
   list.style.display='grid';
   empty.style.display='none';
+  const rc_map={N:'#aaa',R:'#60a5fa',SR:'#a78bfa',SSR:'#fbbf24'};
   list.innerHTML=unregistered.map(c=>{
     const rc=RARITY[c.rarity]||RARITY.N||{color:'#aaa'};
-
-    // キャラ画像の取得（Stability AI生成画像優先、なければGeminiドット絵）
-    let imgHtml='';
-    if(c.artImg){
-      // Stability AI生成画像がある場合
-      imgHtml=`<img src="${c.artImg}" style="width:100%;height:100px;object-fit:cover;object-position:top;border-radius:8px;margin-bottom:4px;">`;
-    }else if(c.charImgPath){
-      // Geminiドット絵がある場合
-      imgHtml=`<img src="${c.charImgPath}" style="width:100%;height:100px;object-fit:cover;object-position:top;border-radius:8px;margin-bottom:4px;">`;
-    }else{
-      // 画像がない場合は漢字を大きく表示
-      imgHtml=`<div style="font-size:32px;font-weight:900;color:${rc.color};text-shadow:0 0 10px ${rc.color};height:100px;display:flex;align-items:center;justify-content:center;">${c.kanji||'？'}</div>`;
-    }
-
-    return `<div onclick="openGuildRegisterModal('${c.id}')" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
-      ${imgHtml}
+    return `<div onclick="openGuildRegisterModal('${c.id}')" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;active:opacity:.7;">
+      <div style="font-size:32px;font-weight:900;color:${rc.color};text-shadow:0 0 10px ${rc.color}">${c.kanji||'？'}</div>
       <div style="font-size:10px;font-weight:700;color:${rc.color}">${c.charName||c.kanji}</div>
       <div style="font-size:9px;opacity:.5">${c.job||''} [${c.rarity}]</div>
       <div class="guild-rank-badge guild-rank-none">冒険者ランク：なし</div>
@@ -2015,18 +2226,11 @@ function closeGuildRegisterModal(){
 function confirmGuildRegister(){
   if(!guildRegisterTarget)return;
   guildRegisterTarget.adventurerRank='G';
-
-  // 完了ポップアップの内容を先にセット（closeGuildRegisterModalの前に行う）
+  saveData();
+  closeGuildRegisterModal();
+  // 完了ポップアップ
   document.getElementById('guild-complete-kanji').textContent=guildRegisterTarget.kanji||'？';
   document.getElementById('guild-complete-name').textContent=guildRegisterTarget.charName||guildRegisterTarget.kanji||'';
-
-  // モーダルを閉じる（この中でguildRegisterTargetがnullになる）
-  closeGuildRegisterModal();
-
-  // データを保存
-  saveState();
-
-  // 完了ポップアップを表示
   document.getElementById('guild-register-complete').style.display='flex';
 }
 
