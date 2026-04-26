@@ -2093,19 +2093,19 @@ function enterGuild(){
   // 動画をリセットして再生（ユーザー操作後なので許可される）
   if(video){
     video.currentTime=0;
-    // 動画が十分読み込まれてから再生開始
+    // canplayが発火しない場合に備えて5秒のフォールバックタイマーを先にセット
+    window._guildAnimTimer=setTimeout(finishAnim,8000);
     video.addEventListener('canplay',function onCanPlay(){
       video.removeEventListener('canplay',onCanPlay);
-      video.play();
-      // ギルドアニメBGMを再生（動画再生開始と同時に）
+      // canplayが発火したらフォールバックタイマーをリセットして正確な長さでセット
+      if(window._guildAnimTimer){clearTimeout(window._guildAnimTimer);window._guildAnimTimer=null;}
+      video.play().catch(()=>{});
       playBGM('guild');
-      // 動画の実際の長さに合わせてタイマーをセット
       const duration=(video.duration||8)*1000;
       window._guildAnimTimer=setTimeout(finishAnim,duration+500);
     },{once:true});
     video.load();
   }else{
-    // 動画要素がない場合は8秒後に切り替え
     window._guildAnimTimer=setTimeout(finishAnim,8000);
   }
 }
