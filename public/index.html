@@ -1933,6 +1933,126 @@ function getTerrainByNum(num){
   return map[num]||TERRAIN.grass;
 }
 
+// ===== バトル状態管理 =====
+let battleState=null; // 現在のバトル状態オブジェクト
+
+// バトル状態の初期化
+function initBattleState(quest, partyIds){
+  const mapData=getMapData(quest.id);
+  const enemyCount=QUEST_ENEMY_COUNT[quest.rank]||{normal:3,boss:0};
+
+  // 味方ユニットを生成
+  const playerUnits=partyIds.map((id,i)=>{
+    const card=characters.find(c=>String(c.id)===String(id));
+    if(!card)return null;
+    const params=JOB_BATTLE_PARAMS[card.job]||JOB_BATTLE_PARAMS['default'];
+    return {
+      id:String(card.id),
+      cardRef:card,           // 元のカードへの参照
+      name:card.charName||card.kanji,
+      kanji:card.kanji,
+      job:card.job,
+      side:'player',          // 味方
+      hp:card.hp,
+      maxHp:card.hp,
+      mp:card.mp||0,
+      maxMp:card.mp||0,
+      atk:card.atk,
+      def:card.def,
+      spd:card.spd,
+      int:card.int||0,
+      lck:card.lck||0,
+      crit:card.crit||0,
+      move:params.move,
+      atkRange:params.atkRange,
+      atkType:params.atkType,
+      artImg:card.artImg||null,
+      rarity:card.rarity,
+      // マップ上の位置（初期配置は左端に縦並び）
+      col:0,
+      row:i*2+1,
+      acted:false,            // このターンに行動済みか
+      dead:false,             // 戦闘不能か
+    };
+  }).filter(Boolean);
+
+  // 敵ユニットを生成
+  const enemyUnits=[];
+  const monsterImgs=[...MONSTER_IMAGES];
+
+  // 雑魚敵を生成
+  for(let i=0;i<enemyCount.normal;i++){
+    const imgName=monsterImgs[i%monsterImgs.length];
+    const baseAtk=Math.floor(50*(1+ADVENTURER_RANKS.indexOf(quest.rank)*0.3));
+    const baseDef=Math.floor(30*(1+ADVENTURER_RANKS.indexOf(quest.rank)*0.2));
+    const baseHp=Math.floor(100*(1+ADVENTURER_RANKS.indexOf(quest.rank)*0.5));
+    enemyUnits.push({
+      id:`enemy_${i}`,
+      name:imgName.replace('モンスター_',''),
+      kanji:'敵',
+      job:'モンスター',
+      side:'enemy',           // 敵
+      hp:baseHp,
+      maxHp:baseHp,
+      atk:baseAtk,
+      def:baseDef,
+      spd:Math.floor(50+Math.random()*30),
+      move:3,
+      atkRange:[1],
+      atkType:'melee',
+      imgPath:`char/${imgName}.png`,
+      // マップ上の位置（初期配置は右端に縦並び）
+      col:MAP_COLS-1,
+      row:i%(MAP_ROWS-2)+1,
+      acted:false,
+      dead:false,
+      isBoss:false,
+    });
+  }
+
+  // ボスを生成
+  for(let i=0;i<enemyCount.boss;i++){
+    const baseAtk=Math.floor(100*(1+ADVENTURER_RANKS.indexOf(quest.rank)*0.4));
+    const baseDef=Math.floor(60*(1+ADVENTURER_RANKS.indexOf(quest.rank)*0.3));
+    const baseHp=Math.floor(300*(1+ADVENTURER_RANKS.indexOf(quest.rank)*0.6));
+    enemyUnits.push({
+      id:`boss_${i}`,
+      name:`${quest.name}のボス`,
+      kanji:'魔',
+      job:'ボス',
+      side:'enemy',
+      hp:baseHp,
+      maxHp:baseHp,
+      atk:baseAtk,
+      def:baseDef,
+      spd:Math.floor(40+Math.random()*20),
+      move:2,
+      atkRange:[1,2],
+      atkType:'melee',
+      imgPath:null,           // Stability AIで後日生成
+      col:MAP_COLS-2,
+      row:Math.floor(MAP_ROWS/2),
+      acted:false,
+      dead:false,
+      isBoss:true,
+    });
+  }
+
+  return {
+    quest:quest,
+    map:mapData,
+    playerUnits:playerUnits,
+    enemyUnits:enemyUnits,
+    turn:1,                   // 現在のターン数
+    phase:'player',           // 現在のフェーズ（player/enemy）
+    selectedUnit:null,        // 選択中のユニットID
+    movableCells:[],          // 移動可能なセルのリスト
+    attackableCells:[],       // 攻撃可能なセルのリスト
+    battleLog:[],             // バトルログ
+    state:'playing',          // playing/won/lost/retreated
+  };
+}
+
 // ===== 漢字難易度テーブル =====
 // 漢検級別データをもとに5段階で分類
 // 重複がある場合は難易度が低い方を優先
