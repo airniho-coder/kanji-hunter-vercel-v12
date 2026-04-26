@@ -664,13 +664,7 @@ body{display:flex;justify-content:center;}
         <button onclick="showGuildMenu()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:18px;cursor:pointer;">←</button>
         <div style="font-size:11px;letter-spacing:3px;opacity:.5;text-transform:uppercase">冒険者登録</div>
       </div>
-      <!-- 受付嬢セリフ（登録用） -->
-      <div style="background:rgba(255,255,255,.06);border:1px solid rgba(201,168,76,.3);border-radius:16px;padding:14px 16px;margin-bottom:14px;">
-        <div style="font-size:9px;letter-spacing:2px;color:#c9a84c;margin-bottom:6px">受付嬢 リリア</div>
-        <div style="font-size:12px;line-height:1.9;color:rgba(255,255,255,.9)">
-          冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。<br>登録したいキャラクターを選んでください。
-        </div>
-      </div>
+      
       <!-- 未登録カード一覧 -->
       <div id="guild-register-list" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
       <div id="guild-register-empty" style="display:none;text-align:center;padding:40px 0;color:rgba(255,255,255,.3);font-size:12px;line-height:2;">
@@ -1960,7 +1954,7 @@ function showGuildSection(section){
   if(section==='register'){
     document.getElementById('guild-section-register').style.display='block';
     // テロップ風にセリフを表示
-    showGuildSpeech('冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。');
+    showGuildSpeech('冒険者登録をご希望ですね！<br>登録すると、Gランクの冒険者として活動を始めることができます。<br>登録したいキャラクターを選んでください。');
     renderGuildRegisterList();
   }
 }
