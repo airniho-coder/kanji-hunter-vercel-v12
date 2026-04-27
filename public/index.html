@@ -2526,9 +2526,12 @@ function endPlayerPhase(){
 
 // 敵AIフェーズを実行する
 async function runEnemyPhase(){
+  // フェーズ開始時点の生存敵リストを取得（ループ中に死んだ敵はスキップ）
   const enemies=battleState.enemyUnits.filter(u=>!u.dead);
   for(const enemy of enemies){
+    // バトル終了済み、または既に死亡している場合はスキップ
     if(battleState.state!=='playing')break;
+    if(enemy.dead)continue;
     await sleep(400);
     // 最も近い味方を探す
     const players=battleState.playerUnits.filter(u=>!u.dead);
@@ -2969,13 +2972,13 @@ function renderQuestList(filterRank){
         ${locked
           ?`<span style="font-size:9px;color:rgba(255,255,255,.3)">🔒 ${q.rank}ランク以上必要</span>`
           :done
-            ?`<span style="font-size:9px;color:#6db86d">受注可（再挑戦）</span>`
-            :`<button onclick="confirmQuestAccept('${q.id}')"
+            ?`<button onclick="confirmQuestAccept('${q.id}')"
               style="padding:8px 16px;border-radius:10px;
-              background:linear-gradient(135deg,#c9a84c,#e8c97a);
-              border:none;color:#0a0a0f;font-size:11px;font-weight:700;
+              background:rgba(100,180,100,.2);
+              border:1px solid rgba(100,180,100,.4);
+              color:#6db86d;font-size:11px;font-weight:700;
               font-family:'Noto Serif JP',serif;cursor:pointer;">
-              受注する
+              再挑戦する
             </button>`
         }
       </div>
