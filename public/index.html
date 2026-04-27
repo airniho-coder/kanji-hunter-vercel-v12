@@ -2615,7 +2615,7 @@ function endBattle(result){
     // クリア済みリストに追加
     if(!completedQuests.includes(q.id))completedQuests.push(q.id);
     saveState();
-    showBattleResult('won',q);
+    showSRPBattleResult('won',q);
   }else{
     // 敗北・退却：戦闘不能キャラのカードを消滅させる
     const deadCards=battleState.playerUnits.filter(u=>u.dead&&u.cardRef);
@@ -2625,12 +2625,12 @@ function endBattle(result){
       if(idx>=0)characters.splice(idx,1);
     });
     saveState();
-    showBattleResult(result,battleState.quest,deadCards);
+    showBattleSRPResult(result,battleState.quest,deadCards);
   }
 }
 
-// バトル結果モーダルを表示する
-function showBattleResult(result,quest,deadCards=[]){
+// シミュレーションRPGバトル結果モーダルを表示する
+function showSRPBattleResult(result,quest,deadCards=[]){
   const modal=document.getElementById('srp-result-modal');
   const icon=document.getElementById('srp-result-icon');
   const title=document.getElementById('srp-result-title');
