@@ -2606,6 +2606,8 @@ async function runEnemyPhase(){
     battleState.phase='player';
     battleState.turn++;
     battleState.enemyUnits.forEach(u=>u.acted=false);
+     // 味方のacted・movedフラグも新ターン開始時にリセットする
+    battleState.playerUnits.forEach(u=>{u.acted=false;u.moved=false;});
     updateSRPHeader();
     addBattleLog(`── Turn ${battleState.turn} 自軍フェーズ ──`);
     renderSRPMap();
