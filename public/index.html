@@ -2291,7 +2291,8 @@ function renderSRPMap(){
         if(unit.side==='player'&&unit.artImg){
           unitEl.innerHTML=`<img src="${unit.artImg}" alt="${unit.name}">`;
         }else if(unit.side==='enemy'&&unit.imgPath){
-          unitEl.innerHTML=`<img src="${unit.imgPath}" alt="${unit.name}" onerror="this.parentNode.innerHTML='${unit.isBoss?'👹':'👾'}'">`;
+          // onerror内でのinnerHTML操作をシンプルなtextContentに変更
+          unitEl.innerHTML=`<img src="${unit.imgPath}" alt="${unit.name}" onerror="this.style.display='none';this.parentNode.textContent='${unit.isBoss?'👹':'👾'}'">`;
         }else{
           unitEl.innerHTML=`<span style="font-size:${unit.isBoss?'22':'18'}px">${unit.isBoss?'👹':'👾'}</span>`;
         }
@@ -2352,6 +2353,7 @@ function onCellClick(r,c){
 
 function selectUnit(unitId){
   const unit=battleState.playerUnits.find(u=>u.id===unitId);
+  console.log('selectUnit:', unitId, 'acted:', unit?.acted, 'moved:', unit?.moved);
   if(!unit||unit.acted)return;
   // 移動済みの場合は攻撃のみ可能（移動不可）
   if(unit.moved){
