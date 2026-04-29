@@ -2367,10 +2367,11 @@ function selectUnit(unitId){
     showUnitInfo(unit);
     return;
   }
-  // 通常選択：移動・攻撃範囲を計算する
+  // 通常選択：移動範囲と攻撃範囲を同時に計算する
   battleState.selectedUnit=unitId;
   battleState.movableCells=calcMovableCells(unit);
-  battleState.attackableCells=[];
+  // 現在地から攻撃可能な敵も同時に表示する
+  battleState.attackableCells=calcAttackableCells(unit);
   renderSRPMap();
   showUnitInfo(unit);
 }
