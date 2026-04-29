@@ -2481,8 +2481,9 @@ function executeAction(actor,target){
     showPopup(target,'damage',`-${dmg}`);
   }
 
-  // 行動済みにする
+  // 行動済み・移動済みにする（攻撃後は移動も攻撃も不可）
   actor.acted=true;
+  actor.moved=true;
   clearSelection();
 
   // 戦闘不能チェック
@@ -2515,6 +2516,8 @@ function checkDead(){
       addBattleLog(`💀 ${u.name}が戦闘不能になった！`);
     }
   });
+  // 戦闘不能確定後にマップを再描画してアイコンを即座に消す
+  renderSRPMap();
 }
 
 // ユニット情報パネルを表示する
