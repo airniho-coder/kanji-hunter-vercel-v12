@@ -2350,16 +2350,18 @@ function onCellClick(r,c){
   clearSelection();
 }
 
-// ユニットを選択して移動・攻撃範囲を計算する
 function selectUnit(unitId){
   const unit=battleState.playerUnits.find(u=>u.id===unitId);
   if(!unit||unit.acted)return;
-  battleState.selectedUnit=unitId;
-  battleState.movableCells=calcMovableCells(unit);
-  battleState.attackableCells=[];
-  renderSRPMap();
-  showUnitInfo(unit);
-}
+  // 移動済みの場合は攻撃のみ可能（移動不可）
+  if(unit.moved){
+    battleState.selectedUnit=unitId;
+    battleState.movableCells=[];
+    battleState.attackableCells=calcAttackableCells(unit);
+    renderSRPMap();
+    showUnitInfo(unit);
+    return;
+  }
 
 // 選択を解除する
 function clearSelection(){
@@ -2426,6 +2428,8 @@ function moveUnit(unitId,r,c){
   if(!unit)return;
   unit.row=r;
   unit.col=c;
+  // 移動済みフラグを立てて再移動を防ぐ
+  unit.moved=true;
   // 移動後は攻撃可能セルを計算して表示
   battleState.movableCells=[];
   battleState.attackableCells=calcAttackableCells(unit);
@@ -2531,7 +2535,8 @@ function showUnitInfo(unit){
 // プレイヤーフェーズ終了
 function endPlayerPhase(){
   // 全味方ユニットの行動済みフラグをリセット
-  battleState.playerUnits.forEach(u=>u.acted=false);
+  // ターン終了時に行動済み・移動済みフラグをリセット
+  battleState.playerUnits.forEach(u=>{u.acted=false;u.moved=false;});
   battleState.phase='enemy';
   clearSelection();
   updateSRPHeader();
