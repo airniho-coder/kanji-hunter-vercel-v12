@@ -866,6 +866,22 @@ body{display:flex;justify-content:center;}
   </div>
 </div>
 
+<!-- 退却確認モーダル -->
+<div id="srp-retreat-modal" style="display:none;position:fixed;inset:0;z-index:340;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:20px;">
+  <div style="max-width:360px;width:100%;background:#13131a;border:1px solid rgba(220,50,50,.3);border-radius:20px;padding:24px;text-align:center;">
+    <div style="font-size:36px;margin-bottom:12px">🏃</div>
+    <div style="font-size:14px;font-weight:700;color:#e05050;letter-spacing:2px;margin-bottom:12px">退却しますか？</div>
+    <div style="font-size:11px;line-height:2;color:rgba(255,255,255,.6);margin-bottom:20px;">
+      退却は敗北扱いになります。<br>
+      <span style="color:#e05050;font-weight:700">戦闘不能のキャラのカードは消滅します。</span>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeRetreatModal()" style="flex:1;padding:12px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.6);font-size:12px;font-family:'Noto Serif JP',serif;cursor:pointer;">戻る</button>
+      <button onclick="executeRetreat()" style="flex:1;padding:12px;border-radius:10px;background:linear-gradient(135deg,#e05050,#c03030);border:none;color:#fff;font-size:12px;font-weight:700;font-family:'Noto Serif JP',serif;cursor:pointer;">退却する</button>
+    </div>
+  </div>
+</div>
+
 <!-- バトル結果モーダル -->
 <div id="srp-result-modal" style="display:none;position:fixed;inset:0;z-index:330;background:rgba(0,0,0,.9);align-items:center;justify-content:center;padding:20px;">
   <div style="max-width:360px;width:100%;background:#13131a;border-radius:20px;padding:24px;text-align:center;">
@@ -2580,11 +2596,22 @@ async function runEnemyPhase(){
   }
 }
 
-// 退却確認
+// 退却確認モーダルを表示する
 function confirmRetreat(){
-  if(confirm('退却しますか？\n退却は敗北扱いになります。戦闘不能になったキャラのカードは消滅します。')){
-    endBattle('retreated');
-  }
+  const modal=document.getElementById('srp-retreat-modal');
+  if(modal)modal.style.display='flex';
+}
+
+// 退却確認モーダルを閉じる
+function closeRetreatModal(){
+  const modal=document.getElementById('srp-retreat-modal');
+  if(modal)modal.style.display='none';
+}
+
+// 退却を実行する
+function executeRetreat(){
+  closeRetreatModal();
+  endBattle('retreated');
 }
 
 // 勝敗チェック
