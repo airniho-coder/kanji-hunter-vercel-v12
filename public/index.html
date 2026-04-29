@@ -2610,8 +2610,11 @@ function closeRetreatModal(){
 
 // 退却を実行する
 function executeRetreat(){
-  closeRetreatModal();
-  endBattle('retreated');
+  // 先にモーダルを閉じてからバトル終了処理を実行
+  const retreatModal=document.getElementById('srp-retreat-modal');
+  if(retreatModal)retreatModal.style.display='none';
+  // 少し待ってから結果モーダルを表示（モーダルの重なり回避）
+  setTimeout(()=>{endBattle('retreated');},100);
 }
 
 // 勝敗チェック
