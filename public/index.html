@@ -2290,12 +2290,18 @@ function renderSRPMap(){
         // ユニット画像またはカナ表示
         if(unit.side==='player'&&unit.artImg){
           unitEl.innerHTML=`<img src="${unit.artImg}" alt="${unit.name}">`;
-        }else if(unit.side==='enemy'&&unit.imgPath){
-          // onerrorではフォールバック絵文字をdatasetに保存して安全に表示する
+        }else if(unit.side==='enemy'){
+          // 画像パスがあれば試みるが、失敗時は絵文字にフォールバック
           const fallback=unit.isBoss?'👹':'👾';
-          unitEl.innerHTML=`<img src="${unit.imgPath}" alt="${unit.name}" data-fallback="${fallback}" onerror="this.style.display='none';">`;
-          // 画像読み込み失敗時のフォールバックをspanで追加
-          unitEl.innerHTML+=`<span class="srp-enemy-fallback" style="font-size:${unit.isBoss?'22':'18'}px;display:none">${fallback}</span>`;
+          if(unit.imgPath){
+            unitEl.innerHTML=`<span style="font-size:${unit.isBoss?'22':'18'}px">${fallback}</span>`;
+            // 画像は非同期で差し替える（エラー時はそのまま絵文字）
+            const img=new Image();
+            img.onload=()=>{unitEl.innerHTML=`<img src="${unit.imgPath}" style="width:30px;height:30px;object-fit:cover;border-radius:50%;border:2px solid #e05050;">`;}
+            img.src=unit.imgPath;
+          }else{
+            unitEl.innerHTML=`<span style="font-size:${unit.isBoss?'22':'18'}px">${fallback}</span>`;
+          }
         }
 
         // 選択中ユニットのハイライト
