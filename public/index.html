@@ -385,8 +385,8 @@ body{display:flex;justify-content:center;}
   justify-content:center;font-size:20px;z-index:2;
 }
 .srp-unit img{
-  width:30px;height:30px;object-fit:cover;object-position:top;
-  border-radius:50%;border:2px solid #c9a84c;
+  /* サイズはJS側でcellSizeに合わせて動的に設定するため固定値は持たない */
+  object-fit:cover;object-position:top;
 }
 .srp-unit.enemy img{
   border-color:#e05050;
@@ -2844,23 +2844,51 @@ function renderSRPMap(){
         const unitEl=document.createElement('div');
         unitEl.className=`srp-unit${unit.side==='enemy'?' enemy':''}${unit.acted?' acted':''}`;
 
-        // ユニット画像またはアイコン表示
+        // セルサイズに合わせた画像サイズ（マス全体に表示）
+        const imgSize=Math.floor(cellSize*0.92);
+        const fontSize=Math.floor(cellSize*0.5);
+
         if(unit.side==='player'&&unit.artImg){
-          unitEl.innerHTML=`<img src="${unit.artImg}" alt="${unit.name}">`;
+          // Stability AI生成画像：マス全体に表示
+          unitEl.innerHTML=`<img src="${unit.artImg}" alt="${unit.name}"
+            style="width:${imgSize}px;height:${imgSize}px;
+            object-fit:cover;object-position:top;
+            border-radius:4px;border:2px solid #c9a84c;">`;
+        }else if(unit.side==='player'&&unit.kanji){
+          // 画像なしの味方：漢字を大きく表示
+          unitEl.innerHTML=`<div style="width:${imgSize}px;height:${imgSize}px;
+            display:flex;align-items:center;justify-content:center;
+            background:rgba(201,168,76,.2);border:2px solid #c9a84c;
+            border-radius:4px;font-size:${fontSize}px;font-weight:900;
+            color:#c9a84c;">${unit.kanji}</div>`;
         }else if(unit.side==='enemy'){
+          // 敵ユニット
           const fallback=unit.isBoss?'👹':'👾';
+          const bossSize=Math.floor(cellSize*0.95);
           if(unit.imgPath){
-            unitEl.innerHTML=`<span style="font-size:${unit.isBoss?'22':'18'}px">${fallback}</span>`;
+            // まず絵文字で表示してから画像差し替え
+            unitEl.innerHTML=`<div style="width:${imgSize}px;height:${imgSize}px;
+              display:flex;align-items:center;justify-content:center;
+              background:rgba(220,50,50,.2);border:2px solid #e05050;
+              border-radius:4px;font-size:${fontSize}px;">${fallback}</div>`;
             const img=new Image();
             img.onload=()=>{
-              unitEl.innerHTML=`<img src="${unit.imgPath}" style="width:${Math.floor(cellSize*0.8)}px;height:${Math.floor(cellSize*0.8)}px;object-fit:cover;border-radius:50%;border:2px solid #e05050;">`;
+              unitEl.innerHTML=`<img src="${img.src}"
+                style="width:${imgSize}px;height:${imgSize}px;
+                object-fit:cover;object-position:top;
+                border-radius:4px;border:2px solid #e05050;">`;
             };
             img.src=unit.imgPath;
           }else{
-            unitEl.innerHTML=`<span style="font-size:${unit.isBoss?'22':'18'}px">${fallback}</span>`;
+            unitEl.innerHTML=`<div style="width:${unit.isBoss?bossSize:imgSize}px;
+              height:${unit.isBoss?bossSize:imgSize}px;
+              display:flex;align-items:center;justify-content:center;
+              background:rgba(220,50,50,.2);border:2px solid #e05050;
+              border-radius:4px;font-size:${unit.isBoss?Math.floor(cellSize*0.6):fontSize}px;">
+              ${fallback}</div>`;
           }
         }else{
-          unitEl.innerHTML=`<span style="font-size:20px">${unit.kanji||'？'}</span>`;
+          unitEl.innerHTML=`<div style="font-size:${fontSize}px">${unit.kanji||'？'}</div>`;
         }
 
         // 選択中ユニットのハイライト
