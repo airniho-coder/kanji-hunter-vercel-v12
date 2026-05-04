@@ -876,9 +876,12 @@ body{display:flex;justify-content:center;}
     <button onclick="confirmRetreat()" style="padding:4px 10px;border-radius:8px;background:rgba(220,50,50,.2);border:1px solid rgba(220,50,50,.4);color:#e05050;font-size:10px;cursor:pointer;">退却</button>
   </div>
 
-  <!-- マップエリア -->
-  <div style="flex:1;overflow:auto;position:relative;">
-    <div id="srp-map" style="display:grid;grid-template-columns:repeat(12,36px);grid-template-rows:repeat(10,36px);gap:1px;padding:8px;width:fit-content;min-width:100%;">
+  <!-- マップエリア：ホイールズーム・ピンチズーム対応 -->
+  <div id="srp-map-container" style="flex:1;overflow:auto;position:relative;"
+    onwheel="onMapWheel(event)"
+    ontouchstart="onMapTouchStart(event)"
+    ontouchmove="onMapTouchMove(event)">
+  <div id="srp-map" style="display:grid;gap:1px;padding:8px;width:fit-content;">
       <!-- JSで生成 -->
     </div>
   </div>
