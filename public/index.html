@@ -809,6 +809,43 @@ body{display:flex;justify-content:center;}
     </div>
   </div>
 
+  <!-- 味方初期配置画面 -->
+<div id="srp-placement-screen" style="display:none;position:fixed;inset:0;z-index:310;background:#0a0810;flex-direction:column;overflow:hidden;">
+
+  <!-- ヘッダー -->
+  <div style="padding:10px 12px;background:rgba(0,0,0,.7);border-bottom:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;align-items:center;">
+    <div style="font-size:11px;font-weight:700;color:#c9a84c;letter-spacing:2px">⚔️ 初期配置</div>
+    <div style="font-size:10px;color:rgba(255,255,255,.4)">味方陣地左半分に配置してください</div>
+  </div>
+
+  <!-- マップエリア -->
+  <div style="flex:1;overflow:auto;position:relative;">
+    <div id="srp-placement-map" style="display:grid;grid-template-columns:repeat(12,54px);grid-template-rows:repeat(10,54px);gap:1px;padding:8px;width:fit-content;">
+      <!-- JSで生成 -->
+    </div>
+  </div>
+
+  <!-- 配置するキャラ選択エリア -->
+  <div style="background:rgba(0,0,0,.8);border-top:1px solid rgba(255,255,255,.1);padding:10px 12px;">
+    <div style="font-size:9px;letter-spacing:2px;color:rgba(255,255,255,.3);margin-bottom:8px">── 配置するキャラクターを選択 ──</div>
+    <div id="srp-placement-party" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;">
+      <!-- JSで生成 -->
+    </div>
+  </div>
+
+  <!-- バトル開始ボタン -->
+  <div style="padding:8px 12px;background:rgba(0,0,0,.7);">
+    <button id="srp-placement-start-btn" disabled onclick="startBattleFromPlacement()"
+      style="width:100%;padding:12px;border-radius:10px;
+      background:linear-gradient(135deg,rgba(201,168,76,.3),rgba(201,168,76,.1));
+      border:1px solid rgba(201,168,76,.3);
+      color:rgba(201,168,76,.5);font-size:13px;font-weight:700;
+      font-family:'Noto Serif JP',serif;letter-spacing:2px;cursor:not-allowed;">
+      全員配置してからバトル開始 ⚔️
+    </button>
+  </div>
+</div>
+
   <!-- バトル警告モーダル -->
 <div id="battle-warning-modal" style="display:none;position:fixed;inset:0;z-index:320;background:rgba(0,0,0,.9);align-items:center;justify-content:center;padding:20px;">
   <div style="max-width:360px;width:100%;background:#13131a;border:1px solid rgba(220,50,50,.4);border-radius:20px;padding:24px;">
@@ -2130,8 +2167,227 @@ function getTerrainByNum(num){
 
 // ===== バトル状態管理 =====
 let battleState=null; // 現在のバトル状態オブジェクト
+// ===== マップズーム・スクロール管理 =====
+let mapScale=1.5;        // 現在のズーム倍率（初期値1.5倍＝54px/マス）
+const MAP_SCALE_MIN=0.8; // 最小倍率
+const MAP_SCALE_MAX=3.0; // 最大倍率
+const MAP_CELL_BASE=36;  // 基本マスサイズ(px)
+
+// ピンチズーム用
+let pinchStartDist=0;
+let pinchStartScale=1;
 
 // バトル状態の初期化
+// ===== 初期配置画面 =====
+let placementState=null; // 配置画面の状態管理
+
+// 配置画面を開く
+function openPlacementScreen(quest, partyIds){
+  // 配置状態を初期化
+  placementState={
+    quest:quest,
+    partyIds:partyIds,
+    // 配置済みメンバー：{cardId, row, col} の配列
+    placed:[],
+    // 現在選択中のカードID
+    selectedCardId:null,
+  };
+
+  // 配置画面を表示
+  const screen=document.getElementById('srp-placement-screen');
+  if(screen)screen.style.display='flex';
+
+  renderPlacementMap();
+  renderPlacementParty();
+}
+
+// 配置マップを描画する
+function renderPlacementMap(){
+  const mapEl=document.getElementById('srp-placement-map');
+  if(!mapEl||!placementState)return;
+
+  const terrainColors=['#2d4a1e','#1a3a0f','#5a4a3a','#1a3a5a','#3a3a3a'];
+  // 味方配置可能エリア：左1/4（COL 0〜2）
+  const placeable_max_col=Math.floor(MAP_COLS/4)-1;
+
+  mapEl.innerHTML='';
+  for(let r=0;r<MAP_ROWS;r++){
+    for(let c=0;c<MAP_COLS;c++){
+      const terrainNum=placementState.quest
+        ?getMapData(placementState.quest.id)[r][c]
+        :0;
+      const terrain=getTerrainByNum(terrainNum);
+      const cell=document.createElement('div');
+      cell.className='srp-cell';
+      cell.style.width='54px';
+      cell.style.height='54px';
+      cell.style.background=terrainColors[terrainNum]||terrainColors[0];
+      cell.dataset.row=r;
+      cell.dataset.col=c;
+
+      // 配置可能エリアをハイライト
+      const isPlaceable=c<=placeable_max_col&&terrain.cost<99;
+      if(isPlaceable){
+        cell.style.border='1px solid rgba(100,180,255,.5)';
+        cell.style.background=`${terrainColors[terrainNum]||terrainColors[0]}`;
+        cell.style.boxShadow='inset 0 0 8px rgba(100,180,255,.3)';
+        cell.onclick=()=>onPlacementCellClick(r,c);
+      }else if(c>Math.floor(MAP_COLS/2)){
+        // 敵陣地は霧で隠す
+        cell.style.background='#0a0a0a';
+        cell.style.border='1px solid rgba(255,255,255,.03)';
+        cell.innerHTML='<div style="width:100%;height:100%;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;font-size:16px;opacity:.3">🌫️</div>';
+      }
+
+      // 配置済みキャラを表示
+      const placed=placementState.placed.find(p=>p.row===r&&p.col===c);
+      if(placed){
+        const card=characters.find(c=>String(c.id)===String(placed.cardId));
+        if(card){
+          const rc=RARITY[card.rarity]||RARITY.N||{color:'#aaa'};
+          const imgHtml=card.artImg
+            ?`<img src="${card.artImg}" style="width:40px;height:40px;object-fit:cover;object-position:top;border-radius:50%;border:2px solid ${rc.color};">`
+            :`<div style="font-size:22px;font-weight:900;color:${rc.color}">${card.kanji||'？'}</div>`;
+          cell.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;cursor:pointer;" onclick="removePlacement('${placed.cardId}')">
+            ${imgHtml}
+          </div>`;
+        }
+      }
+
+      mapEl.appendChild(cell);
+    }
+  }
+}
+
+// 配置するキャラ選択エリアを描画する
+function renderPlacementParty(){
+  const partyEl=document.getElementById('srp-placement-party');
+  if(!partyEl||!placementState)return;
+
+  partyEl.innerHTML=placementState.partyIds.map(id=>{
+    const card=characters.find(c=>String(c.id)===String(id));
+    if(!card)return '';
+    const rc=RARITY[card.rarity]||RARITY.N||{color:'#aaa'};
+    const isPlaced=placementState.placed.some(p=>String(p.cardId)===String(id));
+    const isSelected=String(placementState.selectedCardId)===String(id);
+
+    const imgHtml=card.artImg
+      ?`<img src="${card.artImg}" style="width:44px;height:44px;object-fit:cover;object-position:top;border-radius:50%;">`
+      :`<div style="font-size:24px;font-weight:900;color:${rc.color}">${card.kanji||'？'}</div>`;
+
+    return `<div onclick="selectPlacementCard('${id}')"
+      style="flex-shrink:0;text-align:center;cursor:pointer;padding:6px;border-radius:10px;
+      border:2px solid ${isSelected?'#c9a84c':isPlaced?'#6db86d':'rgba(255,255,255,.2)'};
+      background:${isSelected?'rgba(201,168,76,.15)':isPlaced?'rgba(100,180,100,.1)':'rgba(255,255,255,.05)'};
+      opacity:${isPlaced?'0.5':'1'};">
+      ${imgHtml}
+      <div style="font-size:8px;color:${rc.color};margin-top:2px">${card.charName||card.kanji}</div>
+      <div style="font-size:8px;color:${isPlaced?'#6db86d':'rgba(255,255,255,.3)'};">${isPlaced?'配置済':'未配置'}</div>
+    </div>`;
+  }).join('');
+}
+
+// キャラを選択する
+function selectPlacementCard(cardId){
+  // 配置済みの場合はクリックで配置解除
+  const placed=placementState.placed.find(p=>String(p.cardId)===String(cardId));
+  if(placed){
+    removePlacement(cardId);
+    return;
+  }
+  placementState.selectedCardId=String(cardId);
+  renderPlacementParty();
+}
+
+// セルをクリックして配置する
+function onPlacementCellClick(r,c){
+  if(!placementState||!placementState.selectedCardId)return;
+  const terrain=getTerrainByNum(getMapData(placementState.quest.id)[r][c]);
+  if(terrain.cost>=99)return; // 通行不可地形には配置不可
+
+  // すでに他のキャラが配置されているセルには配置不可
+  if(placementState.placed.some(p=>p.row===r&&p.col===c))return;
+
+  // 配置する
+  placementState.placed.push({
+    cardId:placementState.selectedCardId,
+    row:r,
+    col:c,
+  });
+  placementState.selectedCardId=null;
+
+  // 全員配置済みならバトル開始ボタンを有効化
+  updatePlacementStartBtn();
+  renderPlacementMap();
+  renderPlacementParty();
+}
+
+// 配置を解除する
+function removePlacement(cardId){
+  placementState.placed=placementState.placed.filter(p=>String(p.cardId)!==String(cardId));
+  placementState.selectedCardId=null;
+  updatePlacementStartBtn();
+  renderPlacementMap();
+  renderPlacementParty();
+}
+
+// バトル開始ボタンの有効・無効を切り替える
+function updatePlacementStartBtn(){
+  const btn=document.getElementById('srp-placement-start-btn');
+  if(!btn||!placementState)return;
+  const allPlaced=placementState.partyIds.length===placementState.placed.length;
+  if(allPlaced){
+    btn.disabled=false;
+    btn.style.background='linear-gradient(135deg,#c9a84c,#e8c97a)';
+    btn.style.color='#0a0a0f';
+    btn.style.cursor='pointer';
+    btn.style.borderColor='rgba(201,168,76,.7)';
+    btn.textContent='バトル開始 ⚔️';
+  }else{
+    btn.disabled=true;
+    btn.style.background='linear-gradient(135deg,rgba(201,168,76,.3),rgba(201,168,76,.1))';
+    btn.style.color='rgba(201,168,76,.5)';
+    btn.style.cursor='not-allowed';
+    btn.style.borderColor='rgba(201,168,76,.3)';
+    btn.textContent='全員配置してからバトル開始 ⚔️';
+  }
+}
+
+// 配置画面からバトルを開始する
+function startBattleFromPlacement(){
+  if(!placementState)return;
+  const allPlaced=placementState.partyIds.length===placementState.placed.length;
+  if(!allPlaced)return;
+
+  // 配置画面を閉じる
+  const screen=document.getElementById('srp-placement-screen');
+  if(screen)screen.style.display='none';
+
+  // バトル状態を初期化
+  battleState=initBattleState(placementState.quest, placementState.partyIds);
+
+  // 配置情報をプレイヤーユニットの初期位置に反映する
+  placementState.placed.forEach(p=>{
+    const unit=battleState.playerUnits.find(u=>String(u.id)===String(p.cardId));
+    if(unit){
+      unit.row=p.row;
+      unit.col=p.col;
+    }
+  });
+
+  // バトル画面を表示
+  const battleScreen=document.getElementById('battle-srp-screen');
+  if(battleScreen)battleScreen.style.display='flex';
+
+  // BGMをバトル用に切り替え
+  playBGM('srpBattle');
+
+  // マップを描画
+  renderSRPMap();
+  updateSRPHeader();
+  addBattleLog(`⚔️ 「battleState.quest.name」バトル開始！`);
+}
+
 function initBattleState(quest, partyIds){
   const mapData=getMapData(quest.id);
   const enemyCount=QUEST_ENEMY_COUNT[quest.rank]||{normal:3,boss:0};
@@ -2197,8 +2453,9 @@ function initBattleState(quest, partyIds){
       atkType:'melee',
       imgPath:`char/${imgName}.png`,
       // マップ上の位置（初期配置は右端に縦並び）
-      col:MAP_COLS-1,
-      row:i%(MAP_ROWS-2)+1,
+      // 敵初期位置：右3/4エリアのさらに右半分にランダム配置
+      col:Math.floor(MAP_COLS*3/4)+Math.floor(Math.random()*(MAP_COLS/4)),
+      row:Math.floor(Math.random()*(MAP_ROWS-2))+1,
       acted:false,
       dead:false,
       isBoss:false,
@@ -2225,8 +2482,9 @@ function initBattleState(quest, partyIds){
       atkRange:[1,2],
       atkType:'melee',
       imgPath:null,           // Stability AIで後日生成
-      col:MAP_COLS-2,
-      row:Math.floor(MAP_ROWS/2),
+      // ボス初期位置：右端エリアにランダム配置
+      col:MAP_COLS-1-Math.floor(Math.random()*2),
+      row:Math.floor(Math.random()*(MAP_ROWS-2))+1,
       acted:false,
       dead:false,
       isBoss:true,
