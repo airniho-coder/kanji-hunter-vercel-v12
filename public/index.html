@@ -2531,25 +2531,13 @@ function closeBattleWarning(){
   if(modal)modal.style.display='none';
 }
 
-// シミュレーションRPGバトル開始
+// シミュレーションRPGバトル開始（警告モーダルから呼ばれる）
 function startSRPBattle(){
   closeBattleWarning();
   if(!activeQuest||selectedParty.length===0)return;
-  
-  // バトル専用BGMを再生
-  playBGM('srpBattle');
 
-  // バトル状態を初期化
-  battleState=initBattleState(activeQuest,selectedParty);
-
-  // バトル画面を表示
-  const screen=document.getElementById('battle-srp-screen');
-  if(screen)screen.style.display='flex';
-
-  // マップを描画
-  renderSRPMap();
-  updateSRPHeader();
-  addBattleLog(`⚔️ 「${activeQuest.name}」バトル開始！`);
+  // バトル開始前に初期配置画面を表示する
+  openPlacementScreen(activeQuest, selectedParty);
 }
 
 // バトル画面のヘッダーを更新する
