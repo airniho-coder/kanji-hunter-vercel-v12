@@ -870,11 +870,32 @@ body{display:flex;justify-content:center;}
 <div id="battle-srp-screen" style="display:none;position:fixed;inset:0;z-index:300;background:#0a0810;flex-direction:column;overflow:hidden;">
 
   <!-- バトルヘッダー -->
-  <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(0,0,0,.6);border-bottom:1px solid rgba(255,255,255,.1);">
+  <div style="background:rgba(0,0,0,.6);border-bottom:1px solid rgba(255,255,255,.1);padding:8px 12px;">
+  <!-- 1行目：ターン・フェーズ・退却 -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
     <div id="srp-turn-display" style="font-size:11px;font-weight:700;color:#c9a84c;letter-spacing:2px">Turn 1</div>
     <div id="srp-phase-display" style="font-size:11px;letter-spacing:2px;color:rgba(255,255,255,.6)">自軍フェーズ</div>
     <button onclick="confirmRetreat()" style="padding:4px 10px;border-radius:8px;background:rgba(220,50,50,.2);border:1px solid rgba(220,50,50,.4);color:#e05050;font-size:10px;cursor:pointer;">退却</button>
   </div>
+  <!-- 2行目：士気ゲージ -->
+  <div style="display:flex;gap:8px;align-items:center;">
+    <!-- 味方士気 -->
+    <div style="flex:1;">
+      <div id="srp-player-morale-text" style="font-size:8px;color:#60c060;margin-bottom:2px;letter-spacing:1px">味方士気 100</div>
+      <div style="height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;">
+        <div id="srp-player-morale-fill" style="height:100%;width:100%;background:#60c060;border-radius:3px;transition:width .3s;"></div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:rgba(255,255,255,.3)">VS</div>
+    <!-- 敵士気 -->
+    <div style="flex:1;">
+      <div id="srp-enemy-morale-text" style="font-size:8px;color:#e05050;margin-bottom:2px;letter-spacing:1px;text-align:right">敵士気 100</div>
+      <div style="height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;">
+        <div id="srp-enemy-morale-fill" style="height:100%;width:100%;background:#e05050;border-radius:3px;transition:width .3s;"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
   <!-- マップエリア：ホイールズーム・ピンチズーム対応 -->
   <div id="srp-map-container" style="flex:1;overflow:auto;position:relative;"
@@ -2715,6 +2736,31 @@ function renderSRPMap(){
         cell.classList.add('attackable');
       }
 
+      // 陣地の色をオーバーレイ表示する
+      const terrOwner=getTerritoryOwner(r,c);
+      if(terrOwner==='player'){
+        cell.style.boxShadow='inset 0 0 8px rgba(100,150,255,.4)';
+        cell.style.borderColor='rgba(100,150,255,.3)';
+      }else if(terrOwner==='enemy'){
+        cell.style.boxShadow='inset 0 0 8px rgba(255,100,100,.4)';
+        cell.style.borderColor='rgba(255,100,100,.3)';
+      }
+
+      // 陣地アイコンを描画（旗・砦・本陣）
+      const territory=battleState.territories.find(t=>t.row===r&&t.col===c);
+      if(territory){
+        const terrIcon={
+          [TERRITORY_TYPE.FLAG]:territory.side==='player'?'🚩':'🏴',
+          [TERRITORY_TYPE.FORT]:territory.side==='player'?'🏰':'🏚️',
+          [TERRITORY_TYPE.HQ]:territory.side==='player'?'⭐':'💀',
+        };
+        const iconEl=document.createElement('div');
+        iconEl.style.cssText=`position:absolute;top:1px;left:1px;font-size:12px;z-index:3;
+          ${territory.occupied?'filter:grayscale(1);opacity:0.5':''}`;
+        iconEl.textContent=terrIcon[territory.type]||'🚩';
+        cell.appendChild(iconEl);
+      }
+
       // ユニットを描画
       const unit=getUnitAt(r,c);
       if(unit&&!unit.dead){
@@ -3148,13 +3194,19 @@ function executeAction(actor,target){
     }
   }else{
     // 通常攻撃・魔法攻撃
-    const atkStat=actor.atkType==='magic'?actor.int:actor.atk;
+    // 士気・陣地補正を含めた実効攻撃力・防御力を取得
+    const effAtk=getEffectiveAtk(actor);
+    const effDef=getEffectiveDef(target);
     const isCrit=Math.random()*100<(actor.crit||0);
-    let dmg=Math.max(1,Math.floor(atkStat-target.def*0.5));
+
+    // 一対一ダメージ減衰係数0.4を適用（大きくHPが減らないように）
+    let dmg=Math.max(1,Math.floor((effAtk-effDef*0.5)*0.4));
     if(isCrit)dmg=Math.floor(dmg*1.5);
+
     // 地形防御補正
     const terrain=getTerrainByNum(battleState.map[target.row][target.col]);
     dmg=Math.max(1,Math.floor(dmg*(1-terrain.defBonus/100)));
+
     target.hp=Math.max(0,target.hp-dmg);
     const critText=isCrit?' 会心の一撃！':'';
     addBattleLog(`⚔️ ${actor.name}→${target.name} ${dmg}ダメージ${critText}`);
@@ -3195,33 +3247,69 @@ function checkDead(){
     if(u.hp<=0&&!u.dead){
       u.dead=true;
       addBattleLog(`💀 ${u.name}が戦闘不能になった！`);
+      // 戦闘不能になったら士気を下げる
+      changeMorale(u.side,-MORALE_LOSS.unitDead);
     }
   });
   // 戦闘不能確定後にマップを再描画してアイコンを即座に消す
   renderSRPMap();
 }
 
-// ユニット情報パネルを表示する
+// ユニット情報パネルと行動メニューを表示する
 function showUnitInfo(unit){
   const el=document.getElementById('srp-unit-info');
   if(!el)return;
   const hpPct=Math.floor(unit.hp/unit.maxHp*100);
+
+  // 隣接する味方の旗があるか確認（砦強化用）
+  const hasAdjacentFlag=battleState.territories.some(t=>
+    t.type===TERRITORY_TYPE.FLAG&&
+    t.side===unit.side&&
+    Math.abs(t.row-unit.row)+Math.abs(t.col-unit.col)<=1
+  );
+
+  // 現在地に陣地がないか確認（旗設置用）
+  const canPlantFlag=!battleState.territories.some(t=>
+    t.row===unit.row&&t.col===unit.col
+  );
+
+  // プレイヤーユニットのみアクションメニューを表示
+  const actionBtns=unit.side==='player'&&!unit.acted?`
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+      ${canPlantFlag?`<button onclick="plantFlag(battleState.playerUnits.find(u=>u.id==='${unit.id}'))"
+        style="padding:4px 10px;border-radius:8px;background:rgba(100,200,100,.2);
+        border:1px solid rgba(100,200,100,.4);color:#6dc86d;font-size:10px;cursor:pointer;">
+        🚩 旗を立てる
+      </button>`:''}
+      ${hasAdjacentFlag&&!unit.fortifying?`<button onclick="startFortify(battleState.playerUnits.find(u=>u.id==='${unit.id}'))"
+        style="padding:4px 10px;border-radius:8px;background:rgba(200,150,50,.2);
+        border:1px solid rgba(200,150,50,.4);color:#c9a84c;font-size:10px;cursor:pointer;">
+        🔨 砦を強化
+      </button>`:''}
+      ${unit.fortifying?`<span style="font-size:10px;color:#c9a84c;">🔨 砦強化中...</span>`:''}
+    </div>`:'';
+
   el.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <div>
-        <span style="font-size:12px;font-weight:700;color:${unit.side==='player'?'#c9a84c':'#e05050'}">${unit.name}</span>
+        <span style="font-size:12px;font-weight:700;
+          color:${unit.side==='player'?'#c9a84c':'#e05050'}">${unit.name}</span>
         <span style="font-size:9px;opacity:.5;margin-left:6px">${unit.job}</span>
+        ${unit.fortifying?'<span style="font-size:9px;color:#c9a84c;margin-left:6px">🔨強化中</span>':''}
       </div>
       <div style="font-size:10px;color:rgba(255,255,255,.6)">
-        HP: <span style="color:${hpPct>50?'#60c060':hpPct>25?'#c0c060':'#e05050'};font-weight:700">${unit.hp}</span>/${unit.maxHp}
+        HP:<span style="color:${hpPct>50?'#60c060':hpPct>25?'#c0c060':'#e05050'};
+          font-weight:700">${unit.hp}</span>/${unit.maxHp}
       </div>
     </div>
-    <div style="display:flex;gap:12px;margin-top:6px;font-size:10px;color:rgba(255,255,255,.5);">
+    <div style="display:flex;gap:12px;margin-top:4px;font-size:10px;color:rgba(255,255,255,.5);">
       <span>ATK:${unit.atk}</span>
       <span>DEF:${unit.def}</span>
       <span>SPD:${unit.spd}</span>
       <span>移動:${unit.move}</span>
-    </div>`;
+      <span>陣地:${getTerritoryOwner(unit.row,unit.col)==='player'?'🟦自陣':getTerritoryOwner(unit.row,unit.col)==='enemy'?'🟥敵陣':'⬜中立'}</span>
+    </div>
+    ${actionBtns}`;
 }
 
 // プレイヤーフェーズ終了
@@ -3231,9 +3319,11 @@ function endPlayerPhase(){
   battleState.playerUnits.forEach(u=>{u.acted=false;u.moved=false;u.attacked=false;u.prevRow=undefined;u.prevCol=undefined;});
   battleState.phase='enemy';
   clearSelection();
+  // ターン開始時に陣地の占領・引き抜き・破壊を自動判定する
+  checkTerritoryCapture();
   updateSRPHeader();
+  updateMoraleDisplay();
   addBattleLog('── 敵軍フェーズ ──');
-  // 少し待ってから敵AIを実行
   setTimeout(runEnemyPhase,500);
 }
 
@@ -3254,6 +3344,24 @@ async function runEnemyPhase(){
       const cd=Math.abs(enemy.row-closest.row)+Math.abs(enemy.col-closest.col);
       return d<cd?p:closest;
     });
+    // 砦強化中の敵はスキップ
+    if(enemy.fortifying){
+      enemy.fortifyTurns=(enemy.fortifyTurns||0)+1;
+      if(enemy.fortifyTurns>=2){
+        const flag=battleState.territories.find(t=>
+          t.type===TERRITORY_TYPE.FLAG&&t.side==='enemy'&&
+          Math.abs(t.row-enemy.row)+Math.abs(t.col-enemy.col)<=1
+        );
+        if(flag){
+          flag.type=TERRITORY_TYPE.FORT;
+          addBattleLog(`🏰 ${enemy.name}が砦を完成させた！`);
+        }
+        enemy.fortifying=false;
+        enemy.fortifyTurns=0;
+      }
+      continue;
+    }
+
     // 攻撃範囲内なら攻撃、そうでなければ移動
     const dist=Math.abs(enemy.row-target.row)+Math.abs(enemy.col-target.col);
     if(enemy.atkRange.includes(dist)){
@@ -3263,7 +3371,6 @@ async function runEnemyPhase(){
       // 移動して攻撃を試みる
       const movable=calcMovableCells(enemy);
       if(movable.length>0){
-        // ターゲットに最も近いセルへ移動
         const best=movable.reduce((b,m)=>{
           const d=Math.abs(m.r-target.row)+Math.abs(m.c-target.col);
           const bd=Math.abs(b.r-target.row)+Math.abs(b.c-target.col);
@@ -3272,11 +3379,29 @@ async function runEnemyPhase(){
         enemy.row=best.r;
         enemy.col=best.c;
         renderSRPMap();
-        // 移動後に攻撃範囲内なら攻撃
         const newDist=Math.abs(enemy.row-target.row)+Math.abs(enemy.col-target.col);
         if(enemy.atkRange.includes(newDist)){
           await sleep(300);
           executeAction(enemy,target);
+        }else{
+          // 移動後に攻撃できない場合、積極的に旗を立てる
+          const hasFlag=battleState.territories.some(t=>t.row===enemy.row&&t.col===enemy.col);
+          if(!hasFlag&&Math.random()<0.4){
+            // 40%の確率で旗を立てる
+            plantFlag(enemy);
+          }else{
+            // 隣接する味方の旗があれば砦を強化する
+            const adjFlag=battleState.territories.find(t=>
+              t.type===TERRITORY_TYPE.FLAG&&t.side==='enemy'&&
+              Math.abs(t.row-enemy.row)+Math.abs(t.col-enemy.col)<=1
+            );
+            if(adjFlag&&Math.random()<0.5){
+              enemy.fortifying=true;
+              enemy.fortifyTurns=0;
+              enemy.acted=true;
+              addBattleLog(`🔨 ${enemy.name}が砦の強化を開始した！`);
+            }
+          }
         }
       }
     }
@@ -3287,9 +3412,11 @@ async function runEnemyPhase(){
     battleState.phase='player';
     battleState.turn++;
     battleState.enemyUnits.forEach(u=>u.acted=false);
-     // 味方のacted・movedフラグも新ターン開始時にリセットする
     battleState.playerUnits.forEach(u=>{u.acted=false;u.moved=false;u.attacked=false;u.prevRow=undefined;u.prevCol=undefined;});
+    // ターン開始時に陣地の占領・引き抜き・破壊を自動判定する
+    checkTerritoryCapture();
     updateSRPHeader();
+    updateMoraleDisplay();
     addBattleLog(`── Turn ${battleState.turn} 自軍フェーズ ──`);
     renderSRPMap();
   }
