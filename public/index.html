@@ -2559,6 +2559,45 @@ function addBattleLog(msg){
   }
 }
 
+// ===== ズーム・スクロール機能 =====
+
+// マップのズーム倍率を変更して再描画する
+function setMapScale(newScale){
+  mapScale=Math.min(MAP_SCALE_MAX,Math.max(MAP_SCALE_MIN,newScale));
+  renderSRPMap();
+}
+
+// マウスホイールでズームする
+function onMapWheel(e){
+  e.preventDefault();
+  const delta=e.deltaY>0?-0.1:0.1;
+  setMapScale(mapScale+delta);
+}
+
+// ピンチズームの開始
+function onMapTouchStart(e){
+  if(e.touches.length===2){
+    pinchStartDist=Math.hypot(
+      e.touches[0].clientX-e.touches[1].clientX,
+      e.touches[0].clientY-e.touches[1].clientY
+    );
+    pinchStartScale=mapScale;
+  }
+}
+
+// ピンチズームの実行
+function onMapTouchMove(e){
+  if(e.touches.length===2){
+    e.preventDefault();
+    const dist=Math.hypot(
+      e.touches[0].clientX-e.touches[1].clientX,
+      e.touches[0].clientY-e.touches[1].clientY
+    );
+    const newScale=pinchStartScale*(dist/pinchStartDist);
+    setMapScale(newScale);
+  }
+}
+
 // マップを描画する（視認範囲・ズーム対応）
 function renderSRPMap(){
   const mapEl=document.getElementById('srp-map');
