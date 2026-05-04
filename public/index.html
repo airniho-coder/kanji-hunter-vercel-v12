@@ -2561,6 +2561,18 @@ function initBattleState(quest, partyIds){
     attackableCells:[],       // 攻撃可能なセルのリスト
     battleLog:[],             // バトルログ
     state:'playing',          // playing/won/lost/retreated
+  // 士気ゲージ（0になったら敗北）
+    playerMorale:MORALE_INIT,
+    enemyMorale:MORALE_INIT,
+    // 陣地リスト（旗・砦・本陣）
+    territories:[
+      // 味方本陣（左端中央）
+      {id:'player_hq',type:TERRITORY_TYPE.HQ,side:'player',
+       row:Math.floor(MAP_ROWS/2),col:0,fortifyTurns:0},
+      // 敵本陣（右端中央）
+      {id:'enemy_hq',type:TERRITORY_TYPE.HQ,side:'enemy',
+       row:Math.floor(MAP_ROWS/2),col:MAP_COLS-1,fortifyTurns:0},
+    ],
   };
 }
 
@@ -2750,6 +2762,209 @@ function renderSRPMap(){
 function getUnitAt(r,c){
   const all=[...battleState.playerUnits,...battleState.enemyUnits];
   return all.find(u=>u.row===r&&u.col===c&&!u.dead)||null;
+}
+
+// ===== 陣地・士気関連関数 =====
+
+// 指定座標がどちらの陣地に属するか返す（'player'/'enemy'/'neutral'）
+function getTerritoryOwner(r,c){
+  // 陣地を範囲の広い順に確認（砦→本陣→旗の順）
+  const order=['fort','hq','flag'];
+  for(const ttype of order){
+    const terrs=battleState.territories.filter(t=>t.type===ttype);
+    for(const t of terrs){
+      const range=TERRITORY_RANGE[t.type];
+      const dist=Math.abs(t.row-r)+Math.abs(t.col-c);
+      if(dist<=range)return t.side;
+    }
+  }
+  return 'neutral';
+}
+
+// ユニットの陣地補正を取得する
+function getTerritoryBonus(unit){
+  const owner=getTerritoryOwner(unit.row,unit.col);
+  if(owner===unit.side)return TERRITORY_BONUS.own;
+  if(owner==='neutral')return TERRITORY_BONUS.neutral;
+  return TERRITORY_BONUS.enemy;
+}
+
+// 士気による補正を含めた実効攻撃力を返す
+function getEffectiveAtk(unit){
+  const morale=unit.side==='player'
+    ?battleState.playerMorale
+    :battleState.enemyMorale;
+  const moraleMulti=getMoraleMultiplier(morale);
+  const terrBonus=getTerritoryBonus(unit);
+  const base=unit.atkType==='magic'?unit.int:unit.atk;
+  return Math.floor(base*moraleMulti*terrBonus.atk);
+}
+
+// 士気による補正を含めた実効防御力を返す
+function getEffectiveDef(unit){
+  const morale=unit.side==='player'
+    ?battleState.playerMorale
+    :battleState.enemyMorale;
+  const moraleMulti=getMoraleMultiplier(morale);
+  const terrBonus=getTerritoryBonus(unit);
+  return Math.floor(unit.def*moraleMulti*terrBonus.def);
+}
+
+// 士気を変更してゼロになったら敗北判定する
+function changeMorale(side,amount){
+  if(side==='player'){
+    battleState.playerMorale=Math.max(0,Math.min(100,battleState.playerMorale+amount));
+    if(battleState.playerMorale<=0){
+      addBattleLog('💔 味方の士気がゼロになった！敗北...');
+      endBattle('lost');
+    }
+  }else{
+    battleState.enemyMorale=Math.max(0,Math.min(100,battleState.enemyMorale+amount));
+    if(battleState.enemyMorale<=0){
+      addBattleLog('💔 敵の士気がゼロになった！勝利！');
+      endBattle('won');
+    }
+  }
+  // 士気ゲージUIを更新
+  updateMoraleDisplay();
+}
+
+// 士気ゲージ表示を更新する
+function updateMoraleDisplay(){
+  const playerEl=document.getElementById('srp-player-morale-fill');
+  const enemyEl=document.getElementById('srp-enemy-morale-fill');
+  const playerTxt=document.getElementById('srp-player-morale-text');
+  const enemyTxt=document.getElementById('srp-enemy-morale-text');
+  if(playerEl){
+    playerEl.style.width=`${battleState.playerMorale}%`;
+    playerEl.style.background=battleState.playerMorale>50?'#60c060':battleState.playerMorale>25?'#c0c060':'#c06060';
+  }
+  if(enemyEl){
+    enemyEl.style.width=`${battleState.enemyMorale}%`;
+    enemyEl.style.background=battleState.enemyMorale>50?'#e05050':battleState.enemyMorale>25?'#c0a040':'#c06060';
+  }
+  if(playerTxt)playerTxt.textContent=`味方士気 ${battleState.playerMorale}`;
+  if(enemyTxt)enemyTxt.textContent=`敵士気 ${battleState.enemyMorale}`;
+}
+
+// ターン開始時の陣地自動判定（占領・引き抜き・破壊）
+function checkTerritoryCapture(){
+  const allUnits=[...battleState.playerUnits,...battleState.enemyUnits].filter(u=>!u.dead);
+
+  battleState.territories.forEach(t=>{
+    // 隣接する敵ユニット数を数える
+    const adjacentEnemies=allUnits.filter(u=>{
+      if(u.side===t.side)return false;
+      return Math.abs(u.row-t.row)+Math.abs(u.col-t.col)<=1;
+    });
+
+    if(adjacentEnemies.length>=TERRITORY_CAPTURE_THRESHOLD){
+      if(t.type===TERRITORY_TYPE.FLAG){
+        // 旗を引き抜く
+        addBattleLog(`🚩 ${t.side==='player'?'味方':'敵'}の旗が引き抜かれた！`);
+        changeMorale(t.side,-MORALE_LOSS.flagCaptured);
+        battleState.territories=battleState.territories.filter(tr=>tr.id!==t.id);
+      }else if(t.type===TERRITORY_TYPE.FORT){
+        // 砦を破壊→旗に戻す
+        addBattleLog(`🏚️ ${t.side==='player'?'味方':'敵'}の砦が破壊された！旗に戻った。`);
+        changeMorale(t.side,-MORALE_LOSS.fortDestroyed);
+        t.type=TERRITORY_TYPE.FLAG;
+        t.fortifyTurns=0;
+      }else if(t.type===TERRITORY_TYPE.HQ){
+        // 本陣を占領
+        addBattleLog(`⚡ ${t.side==='player'?'味方':'敵'}の本陣が占領された！`);
+        changeMorale(t.side,-MORALE_LOSS.hqCaptured);
+        t.occupied=true;
+      }
+    }else{
+      // 占領解除
+      if(t.type===TERRITORY_TYPE.HQ&&t.occupied){
+        // 解放側の味方が3人以上戻っていれば占領解除
+        const liberators=allUnits.filter(u=>{
+          if(u.side!==t.side)return false;
+          return Math.abs(u.row-t.row)+Math.abs(u.col-t.col)<=1;
+        });
+        if(liberators.length>=TERRITORY_CAPTURE_THRESHOLD){
+          t.occupied=false;
+          addBattleLog(`🏰 ${t.side==='player'?'味方':'敵'}の本陣が奪還された！`);
+        }
+      }
+    }
+  });
+
+  // 占領中の本陣：毎ターン士気を下げる
+  battleState.territories
+    .filter(t=>t.type===TERRITORY_TYPE.HQ&&t.occupied)
+    .forEach(t=>{
+      changeMorale(t.side,-MORALE_LOSS.hqOccupied);
+      addBattleLog(`⚠️ ${t.side==='player'?'味方':'敵'}本陣占領中：士気-${MORALE_LOSS.hqOccupied}`);
+    });
+
+  // 砦強化中のユニットのターン数を進める
+  battleState.playerUnits.concat(battleState.enemyUnits).forEach(u=>{
+    if(u.fortifying){
+      u.fortifyTurns=(u.fortifyTurns||0)+1;
+      if(u.fortifyTurns>=2){
+        // 2ターン経過で砦に強化
+        const flag=battleState.territories.find(t=>
+          t.type===TERRITORY_TYPE.FLAG&&t.side===u.side&&
+          Math.abs(t.row-u.row)+Math.abs(t.col-u.col)<=1
+        );
+        if(flag){
+          flag.type=TERRITORY_TYPE.FORT;
+          addBattleLog(`🏰 ${u.name}が砦を完成させた！`);
+        }
+        u.fortifying=false;
+        u.fortifyTurns=0;
+        u.acted=true;
+      }
+    }
+  });
+}
+
+// 旗を立てるアクション
+function plantFlag(unit){
+  // すでに同じ場所に陣地がないか確認
+  const existing=battleState.territories.find(t=>t.row===unit.row&&t.col===unit.col);
+  if(existing){
+    showAlert('warn','⚠️ すでにここには陣地があります。');
+    return;
+  }
+  const flagId=`flag_${unit.side}_${Date.now()}`;
+  battleState.territories.push({
+    id:flagId,
+    type:TERRITORY_TYPE.FLAG,
+    side:unit.side,
+    row:unit.row,
+    col:unit.col,
+    fortifyTurns:0,
+    occupied:false,
+  });
+  unit.acted=true;
+  unit.moved=true;
+  addBattleLog(`🚩 ${unit.name}が旗を立てた！`);
+  clearSelection();
+  renderSRPMap();
+}
+
+// 砦強化アクション（隣接する旗を砦に強化開始）
+function startFortify(unit){
+  const adjacentFlag=battleState.territories.find(t=>
+    t.type===TERRITORY_TYPE.FLAG&&
+    t.side===unit.side&&
+    Math.abs(t.row-unit.row)+Math.abs(t.col-unit.col)<=1
+  );
+  if(!adjacentFlag){
+    showAlert('warn','⚠️ 隣接する旗がありません。');
+    return;
+  }
+  unit.fortifying=true;
+  unit.fortifyTurns=0;
+  unit.acted=true;
+  unit.moved=true;
+  addBattleLog(`🔨 ${unit.name}が砦の強化を開始した！（あと2ターン）`);
+  clearSelection();
+  renderSRPMap();
 }
 
 // セルをクリックしたときの処理
