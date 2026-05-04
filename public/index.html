@@ -851,6 +851,12 @@ body{display:flex;justify-content:center;}
     <div id="srp-unit-info" style="font-size:11px;color:rgba(255,255,255,.5);text-align:center;">
       ユニットを選択してください
     </div>
+    <!-- キャンセルボタン（移動選択中のみ有効） -->
+    <div style="text-align:right;margin-top:6px;">
+      <button id="srp-cancel-btn" onclick="cancelUnitAction()" style="display:none;padding:4px 12px;border-radius:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);font-size:10px;cursor:pointer;">
+    キャンセル
+      </button>
+    </div>
   </div>
 
   <!-- バトルログ -->
@@ -2221,6 +2227,9 @@ function closeBattleWarning(){
 function startSRPBattle(){
   closeBattleWarning();
   if(!activeQuest||selectedParty.length===0)return;
+  
+  // バトル専用BGMを再生
+  playBGM('srpBattle');
 
   // バトル状態を初期化
   battleState=initBattleState(activeQuest,selectedParty);
@@ -2369,6 +2378,9 @@ function selectUnit(unitId){
     battleState.selectedUnit=unitId;
     battleState.movableCells=[];
     battleState.attackableCells=calcAttackableCells(unit);
+    // キャンセルボタンを表示する
+    const cancelBtn=document.getElementById('srp-cancel-btn');
+    if(cancelBtn)cancelBtn.style.display='inline-block';
     renderSRPMap();
     showUnitInfo(unit);
     return;
@@ -2382,7 +2394,6 @@ function selectUnit(unitId){
   showUnitInfo(unit);
 }
 
-
 // 選択を解除する
 function clearSelection(){
   battleState.selectedUnit=null;
@@ -2390,6 +2401,30 @@ function clearSelection(){
   battleState.attackableCells=[];
   renderSRPMap();
   document.getElementById('srp-unit-info').innerHTML='ユニットを選択してください';
+  // キャンセルボタンを非表示にする
+  const cancelBtn=document.getElementById('srp-cancel-btn');
+  if(cancelBtn)cancelBtn.style.display='none';
+}
+
+// ユニットの行動をキャンセルする
+function cancelUnitAction(){
+  const unit=battleState.playerUnits.find(u=>u.id===battleState.selectedUnit);
+  if(!unit)return;
+  // 攻撃済みの場合はキャンセル不可
+  if(unit.attacked){
+    showAlert('warn','⚠️ 攻撃後はキャンセルできません。');
+    return;
+  }
+  // 移動済みの場合は元の位置に戻す
+  if(unit.moved&&unit.prevRow!==undefined){
+    unit.row=unit.prevRow;
+    unit.col=unit.prevCol;
+    unit.moved=false;
+    unit.prevRow=undefined;
+    unit.prevCol=undefined;
+  }
+  // 選択を解除する
+  clearSelection();
 }
 
 // 移動可能なセルを計算する（BFS）
@@ -2446,6 +2481,9 @@ function calcAttackableCells(unit){
 function moveUnit(unitId,r,c){
   const unit=battleState.playerUnits.find(u=>u.id===unitId);
   if(!unit)return;
+  // 移動前の位置を記録しておく（キャンセル時に戻るため）
+  unit.prevRow=unit.row;
+  unit.prevCol=unit.col;
   unit.row=r;
   unit.col=c;
   // 移動済みフラグを立てて再移動を防ぐ
@@ -2493,9 +2531,10 @@ function executeAction(actor,target){
     showPopup(target,'damage',`-${dmg}`);
   }
 
-  // 行動済み・移動済みにする（攻撃後は移動も攻撃も不可）
+  // 行動済み・移動済み・攻撃済みにする
   actor.acted=true;
   actor.moved=true;
+  actor.attacked=true;
   clearSelection();
 
   // 戦闘不能チェック
@@ -2559,7 +2598,7 @@ function showUnitInfo(unit){
 function endPlayerPhase(){
   // 全味方ユニットの行動済みフラグをリセット
   // ターン終了時に行動済み・移動済みフラグをリセット
-  battleState.playerUnits.forEach(u=>{u.acted=false;u.moved=false;});
+  battleState.playerUnits.forEach(u=>{u.acted=false;u.moved=false;u.attacked=false;u.prevRow=undefined;u.prevCol=undefined;});
   battleState.phase='enemy';
   clearSelection();
   updateSRPHeader();
@@ -2619,7 +2658,7 @@ async function runEnemyPhase(){
     battleState.turn++;
     battleState.enemyUnits.forEach(u=>u.acted=false);
      // 味方のacted・movedフラグも新ターン開始時にリセットする
-    battleState.playerUnits.forEach(u=>{u.acted=false;u.moved=false;});
+    battleState.playerUnits.forEach(u=>{u.acted=false;u.moved=false;u.attacked=false;u.prevRow=undefined;u.prevCol=undefined;});
     updateSRPHeader();
     addBattleLog(`── Turn ${battleState.turn} 自軍フェーズ ──`);
     renderSRPMap();
@@ -2728,6 +2767,8 @@ function closeBattleResult(){
   battleState=null;
   selectedParty=[];
   saveState();
+  // バトルBGMを停止してギルドBGMに戻す
+  playBGM('guildMain');
   // ギルドメニューに戻る
   showGuildMenu();
 }
@@ -2774,6 +2815,7 @@ const BGM_FILES={
   write:'/audio/bgm_write.mp3',
   guild:'/assets/guild/guild_bgm.mp3',      // ギルドアニメ動画用BGM
   guildMain:'/audio/bgm_guild_main.mp3',    // 受付嬢画面用BGM
+  srpBattle:'/audio/bgm_srp_battle.mp3', // シミュレーションRPGバトル用BGM
 };
 
 function getAudioCtx(){
