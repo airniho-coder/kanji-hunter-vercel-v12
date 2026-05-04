@@ -2382,6 +2382,9 @@ function onPlacementCellClick(r,c){
   if(!placementState||!placementState.selectedCardId)return;
   const terrain=getTerrainByNum(getMapData(placementState.quest.id)[r][c]);
   if(terrain.cost>=99)return; // 通行不可地形には配置不可
+  // 本陣マスには配置不可（本陣は左端中央に固定）
+  const hqRow=Math.floor(MAP_ROWS/2);
+  if(r===hqRow&&c===0)return;
 
   // すでに他のキャラが配置されているセルには配置不可
   if(placementState.placed.some(p=>p.row===r&&p.col===c))return;
@@ -2719,13 +2722,22 @@ function renderSRPMap(){
 
       const isVisible=visibleCells.has(`${r},${c}`);
 
-      // 視認範囲外は霧で隠す
-      if(!isVisible){
+      // 視認範囲外は霧で隠す（ただし本陣は常に表示）
+      const isHQCell=battleState.territories.some(t=>
+        t.type===TERRITORY_TYPE.HQ&&t.row===r&&t.col===c
+      );
+      if(!isVisible&&!isHQCell){
         cell.style.background='#0a0a0a';
         cell.style.border='1px solid rgba(255,255,255,.03)';
         cell.innerHTML='<div style="width:100%;height:100%;background:rgba(0,0,0,.8);"></div>';
         mapEl.appendChild(cell);
         continue;
+      }
+      // 視認範囲外だが本陣は薄い霧をかけて表示
+      if(!isVisible&&isHQCell){
+        cell.style.background='#0a0a0a';
+        cell.style.border='1px solid rgba(255,255,255,.03)';
+        cell.style.opacity='0.7';
       }
 
       // 移動可能・攻撃可能セルのハイライト
@@ -2746,19 +2758,61 @@ function renderSRPMap(){
         cell.style.borderColor='rgba(255,100,100,.3)';
       }
 
-      // 陣地アイコンを描画（旗・砦・本陣）
+      // 陣地アイコンを描画（SVG）
+      // 本陣は常に表示（視認範囲外でも）
+      const hqTerritory=battleState.territories.find(t=>
+        t.type===TERRITORY_TYPE.HQ&&t.row===r&&t.col===c
+      );
       const territory=battleState.territories.find(t=>t.row===r&&t.col===c);
-      if(territory){
-        const terrIcon={
-          [TERRITORY_TYPE.FLAG]:territory.side==='player'?'🚩':'🏴',
-          [TERRITORY_TYPE.FORT]:territory.side==='player'?'🏰':'🏚️',
-          [TERRITORY_TYPE.HQ]:territory.side==='player'?'⭐':'💀',
-        };
-        const iconEl=document.createElement('div');
-        iconEl.style.cssText=`position:absolute;top:1px;left:1px;font-size:12px;z-index:3;
-          ${territory.occupied?'filter:grayscale(1);opacity:0.5':''}`;
-        iconEl.textContent=terrIcon[territory.type]||'🚩';
-        cell.appendChild(iconEl);
+
+      if(hqTerritory){
+        // 本陣は常に表示・マス全体に描画
+        const isPlayer=hqTerritory.side==='player';
+        const color=isPlayer?'#4488cc':'#cc4444';
+        const occupied=hqTerritory.occupied?'opacity:0.5':'';
+        const svgEl=document.createElement('div');
+        svgEl.style.cssText=`position:absolute;inset:0;z-index:3;${occupied}`;
+        svgEl.innerHTML=`<svg width="100%" height="100%" viewBox="0 0 54 54">
+          <circle cx="27" cy="27" r="22" fill="none" stroke="${color}" stroke-width="1.5"/>
+          <circle cx="27" cy="27" r="14" fill="none" stroke="${color}" stroke-width="1"/>
+          <circle cx="27" cy="27" r="6" fill="${color}" fill-opacity="0.5" stroke="${color}" stroke-width="1"/>
+          <polygon points="27,5 30,18 44,18 33,27 37,40 27,32 17,40 21,27 10,18 24,18"
+            fill="none" stroke="${color}" stroke-width="1" opacity="0.8"/>
+          <line x1="27" y1="5" x2="27" y2="49" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,3"/>
+          <line x1="5" y1="27" x2="49" y2="27" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,3"/>
+          <line x1="11" y1="11" x2="43" y2="43" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,3"/>
+          <line x1="43" y1="11" x2="11" y2="43" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,3"/>
+        </svg>`;
+        cell.appendChild(svgEl);
+      }else if(territory&&isVisible){
+        // 旗・砦は視認範囲内のみ表示
+        const isPlayer=territory.side==='player';
+        const color=isPlayer?'#4488cc':'#cc4444';
+        const svgEl=document.createElement('div');
+        svgEl.style.cssText='position:absolute;inset:0;z-index:3;';
+
+        if(territory.type===TERRITORY_TYPE.FLAG){
+          // 旗：マス全体に描画
+          svgEl.innerHTML=`<svg width="100%" height="100%" viewBox="0 0 54 54">
+            <line x1="20" y1="8" x2="20" y2="46" stroke="#c9a84c" stroke-width="3" stroke-linecap="round"/>
+            <polygon points="20,8 44,18 20,28" fill="${color}" stroke="${color}" stroke-width="1"/>
+            <rect x="10" y="44" width="34" height="4" fill="#8b6914" rx="2"/>
+          </svg>`;
+        }else if(territory.type===TERRITORY_TYPE.FORT){
+          // 砦（櫓）：マス全体に描画
+          svgEl.innerHTML=`<svg width="100%" height="100%" viewBox="0 0 54 54">
+            <rect x="12" y="38" width="30" height="8" fill="#8b6914" stroke="#6b4a10" stroke-width="1"/>
+            <rect x="15" y="24" width="5" height="14" fill="#8b6914" stroke="#6b4a10" stroke-width="0.5"/>
+            <rect x="34" y="24" width="5" height="14" fill="#8b6914" stroke="#6b4a10" stroke-width="0.5"/>
+            <rect x="12" y="22" width="30" height="4" fill="#6b4a10" stroke="#4a3008" stroke-width="0.5"/>
+            <polygon points="9,22 17,10 37,10 45,22" fill="${color}" stroke="${color}" stroke-width="1" opacity="0.9"/>
+            <line x1="17" y1="10" x2="37" y2="10" stroke="${color}" stroke-width="2"/>
+            <line x1="27" y1="3" x2="27" y2="11" stroke="#c9a84c" stroke-width="2"/>
+            <polygon points="27,3 40,7 27,11" fill="${color}" stroke="${color}" stroke-width="0.5"/>
+            ${territory.fortifyTurns>0?`<text x="27" y="50" text-anchor="middle" font-size="8" fill="#c9a84c">強化中</text>`:''}
+          </svg>`;
+        }
+        cell.appendChild(svgEl);
       }
 
       // ユニットを描画
@@ -3128,6 +3182,11 @@ function calcMovableCells(unit){
       if(visited.has(key))return;
       const terrain=getTerrainByNum(battleState.map[nr][nc]);
       if(terrain.cost>=99)return; // 通行不可
+      // 本陣マスには移動不可
+      const isHQ=battleState.territories.some(t=>
+        t.type===TERRITORY_TYPE.HQ&&t.row===nr&&t.col===nc
+      );
+      if(isHQ)return;
       const newCost=cost+terrain.cost;
       if(newCost>unit.move)return;
       visited.add(key);
