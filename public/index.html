@@ -1927,6 +1927,56 @@ const JOB_BATTLE_PARAMS={
   '吟遊詩人':{move:3, atkRange:[1],   atkType:'buff'},
   'default': {move:3, atkRange:[1],   atkType:'melee'},
 };
+// 職業別視認範囲（マス数）
+const JOB_VISION_RANGE={
+  '剣士':    4,
+  '聖騎士':  4,
+  '暗黒騎士':4,
+  '竜騎士':  4,
+  '魔法使い':5,
+  '召喚士':  3,
+  '賢者':    5,
+  '僧侶':    3,
+  '忍者':    5,
+  '吟遊詩人':3,
+  '弓使い':  6, // 将来追加予定
+  '狩人':    6, // 将来追加予定
+  'default': 3,
+  'モンスター':3, // 敵の視認範囲
+  'ボス':    4,
+};
+
+// ユニットの視認範囲を取得する
+function getVisionRange(unit){
+  if(unit.side==='enemy'){
+    return unit.isBoss
+      ?JOB_VISION_RANGE['ボス']
+      :JOB_VISION_RANGE['モンスター'];
+  }
+  return JOB_VISION_RANGE[unit.job]||JOB_VISION_RANGE['default'];
+}
+
+// 指定ユニットから見えるセルのセットを計算する
+function calcVisibleCells(unit){
+  const range=getVisionRange(unit);
+  const visible=new Set();
+  for(let r=0;r<MAP_ROWS;r++){
+    for(let c=0;c<MAP_COLS;c++){
+      const dist=Math.abs(unit.row-r)+Math.abs(unit.col-c);
+      if(dist<=range)visible.add(`${r},${c}`);
+    }
+  }
+  return visible;
+}
+
+// 味方全体の視認範囲を合算して返す
+function calcPlayerVisibleCells(){
+  const visible=new Set();
+  battleState.playerUnits.filter(u=>!u.dead).forEach(u=>{
+    calcVisibleCells(u).forEach(cell=>visible.add(cell));
+  });
+  return visible;
+}
 
 // 地形定義
 const TERRAIN={
