@@ -2050,6 +2050,50 @@ const QUEST_ENEMY_COUNT={
   SS:{normal:10,boss:2},
 };
 
+// ===== 旗・砦・本陣システム定数 =====
+
+// 陣地オブジェクトの種類
+const TERRITORY_TYPE={
+  FLAG:'flag',       // 旗
+  FORT:'fort',       // 砦
+  HQ:'hq',          // 本陣
+};
+
+// 陣地の自陣範囲（マス数）
+const TERRITORY_RANGE={
+  flag:2,   // 旗：周囲2マス
+  fort:4,   // 砦：周囲4マス
+  hq:3,     // 本陣：周囲3マス
+};
+
+// 占領・引き抜きに必要な隣接敵数
+const TERRITORY_CAPTURE_THRESHOLD=3;
+
+// 士気の初期値と減少量
+const MORALE_INIT=100;
+const MORALE_LOSS={
+  unitDead:10,      // キャラ戦闘不能
+  flagCaptured:5,   // 旗引き抜き
+  fortDestroyed:10, // 砦破壊
+  hqCaptured:20,    // 本陣占領
+  hqOccupied:5,     // 本陣占領中（毎ターン）
+};
+
+// 士気による攻撃・防御補正
+function getMoraleMultiplier(morale){
+  if(morale>75)return 1.0;
+  if(morale>50)return 0.9;
+  if(morale>25)return 0.75;
+  return 0.6;
+}
+
+// 陣地による攻撃・防御補正
+const TERRITORY_BONUS={
+  own:{def:1.5, atk:1.0},     // 自陣：防御+50%
+  neutral:{def:1.0, atk:1.0}, // 中立：補正なし
+  enemy:{def:0.7, atk:0.8},   // 敵陣：防御-30%・攻撃-20%
+};
+
 // モンスター画像リスト（char/フォルダ）
 const MONSTER_IMAGES=[
   'モンスター_ゴブリン',
