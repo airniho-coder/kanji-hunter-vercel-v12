@@ -2388,7 +2388,8 @@ function startBattleFromPlacement(){
   // マップを描画
   renderSRPMap();
   updateSRPHeader();
-  addBattleLog(`⚔️ 「battleState.quest.name」バトル開始！`);
+  // テンプレートリテラルで正しくクエスト名を展開する
+  addBattleLog(`⚔️ 「${battleState.quest.name}」バトル開始！`);
 }
 
 function initBattleState(quest, partyIds){
