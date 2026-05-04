@@ -2270,11 +2270,12 @@ function openPlacementScreen(quest, partyIds){
     // 現在選択中のカードID
     selectedCardId:null,
   };
-
+  // 配置画面開始時からバトルBGMを再生する
+  playBGM('srpBattle');
   // 配置画面を表示
   const screen=document.getElementById('srp-placement-screen');
   if(screen)screen.style.display='flex';
-
+  
   renderPlacementMap();
   renderPlacementParty();
 }
@@ -2331,7 +2332,29 @@ function renderPlacementMap(){
           </div>`;
         }
       }
-
+      // 本陣を配置画面でも表示する
+      // 味方本陣は左端中央、敵本陣は右端中央に固定表示
+      const hqRow=Math.floor(MAP_ROWS/2);
+      const isPlayerHQ=(r===hqRow&&c===0);
+      const isEnemyHQ=(r===hqRow&&c===MAP_COLS-1);
+      if(isPlayerHQ||isEnemyHQ){
+        const color=isPlayerHQ?'#4488cc':'#cc4444';
+        const svgEl=document.createElement('div');
+        svgEl.style.cssText='position:absolute;inset:0;z-index:3;pointer-events:none;';
+        svgEl.innerHTML=`<svg width="100%" height="100%" viewBox="0 0 54 54">
+          <circle cx="27" cy="27" r="22" fill="none" stroke="${color}" stroke-width="1.5"/>
+          <circle cx="27" cy="27" r="14" fill="none" stroke="${color}" stroke-width="1"/>
+          <circle cx="27" cy="27" r="6" fill="${color}" fill-opacity="0.5" stroke="${color}" stroke-width="1"/>
+          <polygon points="27,5 30,18 44,18 33,27 37,40 27,32 17,40 21,27 10,18 24,18"
+            fill="none" stroke="${color}" stroke-width="1" opacity="0.8"/>
+          <line x1="27" y1="5" x2="27" y2="49" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,3"/>
+          <line x1="5" y1="27" x2="49" y2="27" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,3"/>
+          <line x1="11" y1="11" x2="43" y2="43" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,3"/>
+          <line x1="43" y1="11" x2="11" y2="43" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,3"/>
+        </svg>`;
+        cell.style.cursor='not-allowed';
+        cell.appendChild(svgEl);
+      }
       mapEl.appendChild(cell);
     }
   }
@@ -2952,13 +2975,23 @@ function checkTerritoryCapture(){
   const allUnits=[...battleState.playerUnits,...battleState.enemyUnits].filter(u=>!u.dead);
 
   battleState.territories.forEach(t=>{
-    // 隣接する敵ユニット数を数える
-    const adjacentEnemies=allUnits.filter(u=>{
-      if(u.side===t.side)return false;
-      return Math.abs(u.row-t.row)+Math.abs(u.col-t.col)<=1;
-    });
+    // 隣接する移動可能なマス（上下左右）を取得する
+    const adjacentMovable=[[0,1],[0,-1],[1,0],[-1,0]]
+      .map(([dr,dc])=>({r:t.row+dr,c:t.col+dc}))
+      .filter(({r,c})=>{
+        // マップ範囲外は除外
+        if(r<0||r>=MAP_ROWS||c<0||c>=MAP_COLS)return false;
+        // 通行不可地形は除外
+        const terrain=getTerrainByNum(battleState.map[r][c]);
+        return terrain.cost<99;
+      });
 
-    if(adjacentEnemies.length>=TERRITORY_CAPTURE_THRESHOLD){
+    // 移動可能な隣接マスすべてに敵がいれば占領・破壊・引き抜き可能
+    const canCapture=adjacentMovable.length>0&&adjacentMovable.every(({r,c})=>
+      allUnits.some(u=>u.side!==t.side&&u.row===r&&u.col===c)
+    );
+
+    if(canCapture){
       if(t.type===TERRITORY_TYPE.FLAG){
         // 旗を引き抜く
         addBattleLog(`🚩 ${t.side==='player'?'味方':'敵'}の旗が引き抜かれた！`);
