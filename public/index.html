@@ -3078,6 +3078,14 @@ function checkTerritoryCapture(){
       allUnits.some(u=>u.side!==t.side&&u.row===r&&u.col===c)
     );
 
+    // 旗のマスに守備側ユニットがいる場合は引き抜き不可
+    if(canCapture&&t.type===TERRITORY_TYPE.FLAG){
+      const defender=getUnitAt(t.row,t.col);
+      if(defender&&defender.side===t.side&&!defender.dead){
+        canCapture=false;
+      }
+    }
+
     if(canCapture){
       if(t.type===TERRITORY_TYPE.FLAG){
         // 旗を引き抜く
@@ -3160,6 +3168,23 @@ function checkTerritoryCapture(){
       }
     }
   });
+  // 砦マスに乗っているユニットのHP回復（自陣の砦のみ有効）
+  // ターン開始時に最大HPの10%回復する
+  [...battleState.playerUnits,...battleState.enemyUnits].filter(u=>!u.dead).forEach(u=>{
+    // ユニットがいるマスに自陣の砦があるか確認
+    const ownFort=battleState.territories.find(t=>
+      t.type===TERRITORY_TYPE.FORT&&
+      t.side===u.side&&
+      t.row===u.row&&
+      t.col===u.col
+    );
+    if(ownFort){
+      const healAmt=Math.floor(u.maxHp*0.1);
+      u.hp=Math.min(u.maxHp,u.hp+healAmt);
+      addBattleLog(`💚 ${u.name}が砦で${healAmt}HP回復！`);
+      showPopup(u,'heal',`+${healAmt}`);
+    }
+  });
 }
 
 // 旗を立てるアクション
@@ -3197,6 +3222,12 @@ function pullFlag(unit){
   );
   if(!enemyFlag){
     showAlert('warn','⚠️ 隣接する敵の旗がありません。');
+    return;
+  }
+  // 旗のマスに敵ユニット（守備側）がいる場合は引き抜き不可
+  const defender=getUnitAt(enemyFlag.row,enemyFlag.col);
+  if(defender&&defender.side!==unit.side&&!defender.dead){
+    showAlert('warn','⚠️ 旗のマスに敵ユニットがいるため引き抜けません。');
     return;
   }
   // 旗を引き抜いて自陣の旗に変える
@@ -3646,15 +3677,19 @@ async function runEnemyPhase(){
       continue;
     }
 
-// 隣接する味方の旗があれば引き抜く
+    // 隣接する味方の旗があれば引き抜く（旗のマスに守備ユニットがいない場合のみ）
     const adjPlayerFlag=battleState.territories.find(t=>
       t.type===TERRITORY_TYPE.FLAG&&
       t.side==='player'&&
       Math.abs(t.row-enemy.row)+Math.abs(t.col-enemy.col)<=1
     );
     if(adjPlayerFlag&&!enemy.acted){
-      pullFlag(enemy);
-      continue;
+      // 旗のマスに守備ユニットがいる場合は引き抜かない
+      const defender=getUnitAt(adjPlayerFlag.row,adjPlayerFlag.col);
+      if(!defender||defender.dead||defender.side!=='player'){
+        pullFlag(enemy);
+        continue;
+      }
     }
 
     // 隣接する味方の砦があり、かつ他の敵も隣接していれば破壊開始
