@@ -3074,7 +3074,8 @@ function checkTerritoryCapture(){
       });
 
     // 移動可能な隣接マスすべてに敵がいれば占領・破壊・引き抜き可能
-    const canCapture=adjacentMovable.length>0&&adjacentMovable.every(({r,c})=>
+    // letで宣言して後から変更できるようにする
+    let canCapture=adjacentMovable.length>0&&adjacentMovable.every(({r,c})=>
       allUnits.some(u=>u.side!==t.side&&u.row===r&&u.col===c)
     );
 
