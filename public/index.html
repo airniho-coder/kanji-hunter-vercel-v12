@@ -2060,15 +2060,21 @@ const TERRAIN={
 
 // 難易度別敵数設定
 const QUEST_ENEMY_COUNT={
-  G:{normal:3, boss:0},
-  F:{normal:4, boss:0},
-  E:{normal:5, boss:1},
-  D:{normal:6, boss:1},
-  C:{normal:7, boss:1},
-  B:{normal:8, boss:1},
-  A:{normal:9, boss:1},
-  S:{normal:10,boss:1},
+  G: {normal:3, boss:0},
+  F: {normal:4, boss:0},
+  E: {normal:5, boss:1},
+  D: {normal:6, boss:1},
+  C: {normal:7, boss:1},
+  B: {normal:8, boss:1},
+  A: {normal:9, boss:1},
+  S: {normal:10,boss:1},
   SS:{normal:10,boss:2},
+};
+
+// クエストIDごとの特別敵設定（通常設定を上書き）
+const QUEST_ENEMY_OVERRIDE={
+  'G03':{normal:2, boss:1}, // 廃坑の調査：弱めボス1体追加
+  'G04':{normal:4, boss:1}, // 噂の剣士：ボス1体＋強めの雑魚1体追加
 };
 
 // ===== 旗・砦・本陣システム定数 =====
@@ -2114,6 +2120,30 @@ const TERRITORY_BONUS={
   neutral:{def:1.0, atk:1.0}, // 中立：補正なし
   enemy:{def:0.7, atk:0.8},   // 敵陣：防御-30%・攻撃-20%
 };
+
+// ===== 冒険者ランク別ステータス上限 =====
+const RANK_STAT_CAPS={
+  G: {hp:300,  atk:80,  def:60},
+  F: {hp:500,  atk:120, def:90},
+  E: {hp:800,  atk:180, def:130},
+  D: {hp:1200, atk:260, def:190},
+  C: {hp:1800, atk:360, def:270},
+  B: {hp:2600, atk:480, def:360},
+  A: {hp:3600, atk:620, def:470},
+  S: {hp:5000, atk:800, def:600},
+  SS:{hp:99999,atk:99999,def:99999}, // SS上限なし
+};
+
+// ランク上限を適用したステータスを返す
+function applyRankCap(unit){
+  const rank=unit.cardRef?.adventurerRank||'G';
+  const cap=RANK_STAT_CAPS[rank]||RANK_STAT_CAPS.G;
+  unit.hp    =Math.min(unit.hp,    cap.hp);
+  unit.maxHp =Math.min(unit.maxHp, cap.hp);
+  unit.atk   =Math.min(unit.atk,   cap.atk);
+  unit.def   =Math.min(unit.def,   cap.def);
+  return unit;
+}
 
 // モンスター画像リスト（char/フォルダ）
 const MONSTER_IMAGES=[
@@ -2530,34 +2560,60 @@ function initBattleState(quest, partyIds){
       acted:false,            // このターンに行動済みか
       dead:false,             // 戦闘不能か
     };
+    // 冒険者ランク上限を適用する
+    return applyRankCap(unit);
   }).filter(Boolean);
 
   // 敵ユニットを生成
   const enemyUnits=[];
   const monsterImgs=[...MONSTER_IMAGES];
 
+  // クエストIDごとの特別設定があれば上書き
+  const enemyCount=QUEST_ENEMY_OVERRIDE[quest.id]||QUEST_ENEMY_COUNT[quest.rank]||{normal:3,boss:0};
+
+  // ランク基準のステータスを計算する
+  const rankIdx=ADVENTURER_RANKS.indexOf(quest.rank);
+  const rankCap=RANK_STAT_CAPS[quest.rank]||RANK_STAT_CAPS.G;
+
+  // ランク上限基準の敵ステータス（上限値と一致する強さ）
+  const eliteAtk=rankCap.atk;
+  const eliteDef=rankCap.def;
+  const eliteHp=rankCap.hp;
+
+  // ランク上限の8割の強さ
+  const strongAtk=Math.floor(rankCap.atk*0.8);
+  const strongDef=Math.floor(rankCap.def*0.8);
+  const strongHp=Math.floor(rankCap.hp*0.8);
+
+  // 通常雑魚のステータス
+  const baseAtk=Math.floor(50*(1+rankIdx*0.3));
+  const baseDef=Math.floor(30*(1+rankIdx*0.2));
+  const baseHp=Math.floor(100*(1+rankIdx*0.5));
+
   // 雑魚敵を生成
   for(let i=0;i<enemyCount.normal;i++){
     const imgName=monsterImgs[i%monsterImgs.length];
-    const baseAtk=Math.floor(50*(1+ADVENTURER_RANKS.indexOf(quest.rank)*0.3));
-    const baseDef=Math.floor(30*(1+ADVENTURER_RANKS.indexOf(quest.rank)*0.2));
-    const baseHp=Math.floor(100*(1+ADVENTURER_RANKS.indexOf(quest.rank)*0.5));
+
+    // 最初の1体はランク上限基準、2体目は8割基準、残りは通常
+    let eAtk=baseAtk,eDef=baseDef,eHp=baseHp;
+    if(i===0){eAtk=eliteAtk;eDef=eliteDef;eHp=eliteHp;}
+    else if(i===1){eAtk=strongAtk;eDef=strongDef;eHp=strongHp;}
+
     enemyUnits.push({
       id:`enemy_${i}`,
       name:imgName.replace('モンスター_',''),
       kanji:'敵',
       job:'モンスター',
-      side:'enemy',           // 敵
-      hp:baseHp,
-      maxHp:baseHp,
-      atk:baseAtk,
-      def:baseDef,
+      side:'enemy',
+      hp:eHp,
+      maxHp:eHp,
+      atk:eAtk,
+      def:eDef,
       spd:Math.floor(50+Math.random()*30),
       move:3,
       atkRange:[1],
       atkType:'melee',
       imgPath:`char/${imgName}.png`,
-      // マップ上の位置（初期配置は右端に縦並び）
       // 敵初期位置：右3/4エリアのさらに右半分にランダム配置
       col:Math.floor(MAP_COLS*3/4)+Math.floor(Math.random()*(MAP_COLS/4)),
       row:Math.floor(Math.random()*(MAP_ROWS-2))+1,
@@ -2569,24 +2625,28 @@ function initBattleState(quest, partyIds){
 
   // ボスを生成
   for(let i=0;i<enemyCount.boss;i++){
-    const baseAtk=Math.floor(100*(1+ADVENTURER_RANKS.indexOf(quest.rank)*0.4));
-    const baseDef=Math.floor(60*(1+ADVENTURER_RANKS.indexOf(quest.rank)*0.3));
-    const baseHp=Math.floor(300*(1+ADVENTURER_RANKS.indexOf(quest.rank)*0.6));
+    // ボスはランク上限の1.5倍
+    const bossAtk=Math.floor(rankCap.atk*1.5);
+    const bossDef=Math.floor(rankCap.def*1.5);
+    const bossHp=Math.floor(rankCap.hp*1.5);
+
+    // G03のボスは弱め（上限と同じ強さ）
+    const isWeakBoss=quest.id==='G03';
     enemyUnits.push({
       id:`boss_${i}`,
       name:`${quest.name}のボス`,
       kanji:'魔',
       job:'ボス',
       side:'enemy',
-      hp:baseHp,
-      maxHp:baseHp,
-      atk:baseAtk,
-      def:baseDef,
+      hp:isWeakBoss?eliteHp:bossHp,
+      maxHp:isWeakBoss?eliteHp:bossHp,
+      atk:isWeakBoss?eliteAtk:bossAtk,
+      def:isWeakBoss?eliteDef:bossDef,
       spd:Math.floor(40+Math.random()*20),
       move:2,
       atkRange:[1,2],
       atkType:'melee',
-      imgPath:null,           // Stability AIで後日生成
+      imgPath:null,
       // ボス初期位置：右端エリアにランダム配置
       col:MAP_COLS-1-Math.floor(Math.random()*2),
       row:Math.floor(Math.random()*(MAP_ROWS-2))+1,
@@ -3061,6 +3121,26 @@ function checkTerritoryCapture(){
       addBattleLog(`⚠️ ${t.side==='player'?'味方':'敵'}本陣占領中：士気-${MORALE_LOSS.hqOccupied}`);
     });
 
+  // 砦破壊中のユニットのターン数を進める
+  battleState.playerUnits.concat(battleState.enemyUnits).forEach(u=>{
+    if(u.destroyingFort){
+      u.destroyTurns=(u.destroyTurns||0)+1;
+      if(u.destroyTurns>=2){
+        // 2ターン経過で砦を破壊→自陣の旗に変える
+        const fort=battleState.territories.find(t=>t.id===u.destroyingFort);
+        if(fort){
+          const prevSide=fort.side;
+          fort.type=TERRITORY_TYPE.FLAG;
+          fort.side=u.side; // 自陣の旗に変える
+          addBattleLog(`🏚️ ${u.name}が砦を破壊し、自陣の旗に変えた！`);
+          changeMorale(prevSide,-MORALE_LOSS.fortDestroyed);
+        }
+        u.destroyingFort=null;
+        u.destroyTurns=0;
+      }
+    }
+  });
+
   // 砦強化中のユニットのターン数を進める
   battleState.playerUnits.concat(battleState.enemyUnits).forEach(u=>{
     if(u.fortifying){
@@ -3104,6 +3184,59 @@ function plantFlag(unit){
   unit.acted=true;
   unit.moved=true;
   addBattleLog(`🚩 ${unit.name}が旗を立てた！`);
+  clearSelection();
+  renderSRPMap();
+}
+
+// 旗を手動で引き抜くアクション（1人接触で可能）
+function pullFlag(unit){
+  // 隣接する敵の旗を探す
+  const enemyFlag=battleState.territories.find(t=>
+    t.type===TERRITORY_TYPE.FLAG&&
+    t.side!==unit.side&&
+    Math.abs(t.row-unit.row)+Math.abs(t.col-unit.col)<=1
+  );
+  if(!enemyFlag){
+    showAlert('warn','⚠️ 隣接する敵の旗がありません。');
+    return;
+  }
+  // 旗を引き抜いて自陣の旗に変える
+  enemyFlag.side=unit.side;
+  addBattleLog(`🚩 ${unit.name}が敵の旗を引き抜き、自陣の旗に変えた！`);
+  changeMorale(unit.side==='player'?'enemy':'player',-MORALE_LOSS.flagCaptured);
+  unit.acted=true;
+  unit.moved=true;
+  clearSelection();
+  renderSRPMap();
+}
+
+// 砦を手動で破壊するアクション（2人接触・2ターンかかる）
+function startDestroyFort(unit){
+  // 隣接する敵の砦を探す
+  const enemyFort=battleState.territories.find(t=>
+    t.type===TERRITORY_TYPE.FORT&&
+    t.side!==unit.side&&
+    Math.abs(t.row-unit.row)+Math.abs(t.col-unit.col)<=1
+  );
+  if(!enemyFort){
+    showAlert('warn','⚠️ 隣接する敵の砦がありません。');
+    return;
+  }
+  // 隣接する味方が2人以上いるか確認
+  const allies=battleState.playerUnits.filter(u=>
+    !u.dead&&u.id!==unit.id&&u.side===unit.side&&
+    Math.abs(u.row-enemyFort.row)+Math.abs(u.col-enemyFort.col)<=1
+  );
+  if(allies.length<1){
+    showAlert('warn','⚠️ 砦を破壊するには2人以上が隣接している必要があります。');
+    return;
+  }
+  // 破壊開始フラグを立てる
+  unit.destroyingFort=enemyFort.id;
+  unit.destroyTurns=0;
+  unit.acted=true;
+  unit.moved=true;
+  addBattleLog(`🔨 ${unit.name}が砦の破壊を開始した！（あと2ターン）`);
   clearSelection();
   renderSRPMap();
 }
@@ -3394,6 +3527,25 @@ function showUnitInfo(unit){
   );
 
   // プレイヤーユニットのみアクションメニューを表示
+  // 隣接する敵の旗があるか確認（引き抜き用）
+  const hasAdjacentEnemyFlag=battleState.territories.some(t=>
+    t.type===TERRITORY_TYPE.FLAG&&
+    t.side!==unit.side&&
+    Math.abs(t.row-unit.row)+Math.abs(t.col-unit.col)<=1
+  );
+
+  // 隣接する敵の砦があるか確認（破壊用）
+  const enemyFort=battleState.territories.find(t=>
+    t.type===TERRITORY_TYPE.FORT&&
+    t.side!==unit.side&&
+    Math.abs(t.row-unit.row)+Math.abs(t.col-unit.col)<=1
+  );
+  // 砦破壊に必要な味方が2人以上隣接しているか確認
+  const canDestroyFort=enemyFort&&battleState.playerUnits.filter(u=>
+    !u.dead&&u.side===unit.side&&
+    Math.abs(u.row-enemyFort.row)+Math.abs(u.col-enemyFort.col)<=1
+  ).length>=2;
+
   const actionBtns=unit.side==='player'&&!unit.acted?`
     <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
       ${canPlantFlag?`<button onclick="plantFlag(battleState.playerUnits.find(u=>u.id==='${unit.id}'))"
@@ -3406,7 +3558,18 @@ function showUnitInfo(unit){
         border:1px solid rgba(200,150,50,.4);color:#c9a84c;font-size:10px;cursor:pointer;">
         🔨 砦を強化
       </button>`:''}
+      ${hasAdjacentEnemyFlag?`<button onclick="pullFlag(battleState.playerUnits.find(u=>u.id==='${unit.id}'))"
+        style="padding:4px 10px;border-radius:8px;background:rgba(255,100,100,.2);
+        border:1px solid rgba(255,100,100,.4);color:#e05050;font-size:10px;cursor:pointer;">
+        🏴 旗を引き抜く
+      </button>`:''}
+      ${canDestroyFort?`<button onclick="startDestroyFort(battleState.playerUnits.find(u=>u.id==='${unit.id}'))"
+        style="padding:4px 10px;border-radius:8px;background:rgba(255,150,50,.2);
+        border:1px solid rgba(255,150,50,.4);color:#e08050;font-size:10px;cursor:pointer;">
+        💥 砦を破壊する
+      </button>`:''}
       ${unit.fortifying?`<span style="font-size:10px;color:#c9a84c;">🔨 砦強化中...</span>`:''}
+      ${unit.destroyingFort?`<span style="font-size:10px;color:#e05050;">💥 砦破壊中...</span>`:''}
     </div>`:'';
 
   el.innerHTML=`
@@ -3479,6 +3642,40 @@ async function runEnemyPhase(){
         enemy.fortifying=false;
         enemy.fortifyTurns=0;
       }
+      continue;
+    }
+
+// 隣接する味方の旗があれば引き抜く
+    const adjPlayerFlag=battleState.territories.find(t=>
+      t.type===TERRITORY_TYPE.FLAG&&
+      t.side==='player'&&
+      Math.abs(t.row-enemy.row)+Math.abs(t.col-enemy.col)<=1
+    );
+    if(adjPlayerFlag&&!enemy.acted){
+      pullFlag(enemy);
+      continue;
+    }
+
+    // 隣接する味方の砦があり、かつ他の敵も隣接していれば破壊開始
+    const adjPlayerFort=battleState.territories.find(t=>
+      t.type===TERRITORY_TYPE.FORT&&
+      t.side==='player'&&
+      Math.abs(t.row-enemy.row)+Math.abs(t.col-enemy.col)<=1
+    );
+    if(adjPlayerFort&&!enemy.acted){
+      // 他の敵も隣接しているか確認
+      const alliedEnemies=battleState.enemyUnits.filter(u=>
+        !u.dead&&u.id!==enemy.id&&
+        Math.abs(u.row-adjPlayerFort.row)+Math.abs(u.col-adjPlayerFort.col)<=1
+      );
+      if(alliedEnemies.length>=1){
+        startDestroyFort(enemy);
+        continue;
+      }
+    }
+
+    // 砦破壊中の敵はスキップ
+    if(enemy.destroyingFort){
       continue;
     }
 
