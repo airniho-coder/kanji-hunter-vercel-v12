@@ -2088,8 +2088,8 @@ const TERRITORY_TYPE={
 
 // 陣地の自陣範囲（マス数）
 const TERRITORY_RANGE={
-  flag:2,   // 旗：周囲2マス
-  fort:4,   // 砦：周囲4マス
+  flag:1,   // 旗：周囲1マス
+  fort:2,   // 砦：周囲2マス
   hq:3,     // 本陣：周囲3マス
 };
 
@@ -2978,14 +2978,20 @@ function getUnitAt(r,c){
 
 // 指定座標がどちらの陣地に属するか返す（'player'/'enemy'/'neutral'）
 function getTerritoryOwner(r,c){
-  // 陣地を範囲の広い順に確認（砦→本陣→旗の順）
   const order=['fort','hq','flag'];
   for(const ttype of order){
     const terrs=battleState.territories.filter(t=>t.type===ttype);
     for(const t of terrs){
-      const range=TERRITORY_RANGE[t.type];
-      const dist=Math.abs(t.row-r)+Math.abs(t.col-c);
-      if(dist<=range)return t.side;
+      if(t.type===TERRITORY_TYPE.FORT){
+        // 砦：上下左右斜め2マス（チェビシェフ距離）
+        const chebDist=Math.max(Math.abs(t.row-r),Math.abs(t.col-c));
+        if(chebDist<=2)return t.side;
+      }else{
+        // 旗・本陣：マンハッタン距離
+        const dist=Math.abs(t.row-r)+Math.abs(t.col-c);
+        const range=TERRITORY_RANGE[t.type];
+        if(dist<=range)return t.side;
+      }
     }
   }
   return 'neutral';
