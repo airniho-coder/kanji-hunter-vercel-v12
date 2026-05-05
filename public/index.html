@@ -2088,9 +2088,9 @@ const TERRITORY_TYPE={
 
 // 陣地の自陣範囲（マス数）
 const TERRITORY_RANGE={
-  flag:1,   // 旗：周囲1マス
-  fort:2,   // 砦：周囲2マス
-  hq:3,     // 本陣：周囲3マス
+  flag:1,   // 旗：上下左右周囲1マス
+  fort:1,   // 砦：上下左右斜め1マス（チェビシェフ距離）
+  hq:1,     // 本陣：上下左右斜め1マス（チェビシェフ距離）
 };
 
 // 占領・引き抜きに必要な隣接敵数
@@ -2982,15 +2982,14 @@ function getTerritoryOwner(r,c){
   for(const ttype of order){
     const terrs=battleState.territories.filter(t=>t.type===ttype);
     for(const t of terrs){
-      if(t.type===TERRITORY_TYPE.FORT){
-        // 砦：上下左右斜め2マス（チェビシェフ距離）
+      if(t.type===TERRITORY_TYPE.FORT||t.type===TERRITORY_TYPE.HQ){
+        // 砦・本陣：上下左右斜め1マス（チェビシェフ距離）
         const chebDist=Math.max(Math.abs(t.row-r),Math.abs(t.col-c));
-        if(chebDist<=2)return t.side;
+        if(chebDist<=TERRITORY_RANGE[t.type])return t.side;
       }else{
-        // 旗・本陣：マンハッタン距離
+        // 旗：上下左右1マス（マンハッタン距離）
         const dist=Math.abs(t.row-r)+Math.abs(t.col-c);
-        const range=TERRITORY_RANGE[t.type];
-        if(dist<=range)return t.side;
+        if(dist<=TERRITORY_RANGE[t.type])return t.side;
       }
     }
   }
@@ -3189,6 +3188,21 @@ function checkTerritoryCapture(){
       const healAmt=Math.floor(u.maxHp*0.1);
       u.hp=Math.min(u.maxHp,u.hp+healAmt);
       addBattleLog(`💚 ${u.name}が砦で${healAmt}HP回復！`);
+      showPopup(u,'heal',`+${healAmt}`);
+    }
+  });
+
+  // 本陣範囲内（チェビシェフ距離1マス）にいる味方ユニットを10%回復
+  const hqs=battleState.territories.filter(t=>t.type===TERRITORY_TYPE.HQ);
+  [...battleState.playerUnits,...battleState.enemyUnits].filter(u=>!u.dead).forEach(u=>{
+    const nearOwnHQ=hqs.find(t=>
+      t.side===u.side&&
+      Math.max(Math.abs(t.row-u.row),Math.abs(t.col-u.col))<=1
+    );
+    if(nearOwnHQ){
+      const healAmt=Math.floor(u.maxHp*0.1);
+      u.hp=Math.min(u.maxHp,u.hp+healAmt);
+      addBattleLog(`💚 ${u.name}が本陣で${healAmt}HP回復！`);
       showPopup(u,'heal',`+${healAmt}`);
     }
   });
