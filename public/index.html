@@ -2559,8 +2559,35 @@ function initBattleState(quest, partyIds){
       acted:false,            // このターンに行動済みか
       dead:false,             // 戦闘不能か
     };
-    // 冒険者ランク上限を適用する
-    return applyRankCap(unit);
+    // 冒険者ランク上限を適用する（returnの前に変数に入れてから適用）
+    const unit2={
+      id:String(card.id),
+      cardRef:card,
+      name:card.charName||card.kanji,
+      kanji:card.kanji,
+      job:card.job,
+      side:'player',
+      hp:card.hp,
+      maxHp:card.hp,
+      mp:card.mp||0,
+      maxMp:card.mp||0,
+      atk:card.atk,
+      def:card.def,
+      spd:card.spd,
+      int:card.int||0,
+      lck:card.lck||0,
+      crit:card.crit||0,
+      move:params.move,
+      atkRange:params.atkRange,
+      atkType:params.atkType,
+      artImg:card.artImg||null,
+      rarity:card.rarity,
+      col:0,
+      row:i*2+1,
+      acted:false,
+      dead:false,
+    };
+    return applyRankCap(unit2);
   }).filter(Boolean);
 
   // 敵ユニットを生成
