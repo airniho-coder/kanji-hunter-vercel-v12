@@ -3451,8 +3451,10 @@ function executeAction(actor,target){
     const effDef=getEffectiveDef(target);
     const isCrit=Math.random()*100<(actor.crit||0);
 
-    // 一対一ダメージ減衰係数0.4を適用（大きくHPが減らないように）
-    let dmg=Math.max(1,Math.floor((effAtk-effDef*0.5)*0.4));
+    // ATKの15%を最低保証ダメージとして設定（防御が高くても必ず入る）
+    const rawDmg=Math.floor((effAtk-effDef*0.5)*0.6);
+    const minDmg=Math.floor(effAtk*0.15);
+    let dmg=Math.max(minDmg,rawDmg);
     if(isCrit)dmg=Math.floor(dmg*1.5);
 
     // 地形防御補正
