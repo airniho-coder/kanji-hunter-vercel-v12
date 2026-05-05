@@ -3078,11 +3078,18 @@ function checkTerritoryCapture(){
         return terrain.cost<99;
       });
 
-    // 移動可能な隣接マスすべてに敵がいれば占領・破壊・引き抜き可能
-    // letで宣言して後から変更できるようにする
-    let canCapture=adjacentMovable.length>0&&adjacentMovable.every(({r,c})=>
-      allUnits.some(u=>u.side!==t.side&&u.row===r&&u.col===c)
-    );
+    // 移動可能な隣接マスすべてに敵ユニット・敵の旗・敵の砦があれば占領・破壊・引き抜き可能
+    let canCapture=adjacentMovable.length>0&&adjacentMovable.every(({r,c})=>{
+      // 敵ユニットがいるか
+      const hasEnemyUnit=allUnits.some(u=>u.side!==t.side&&u.row===r&&u.col===c&&!u.dead);
+      // 敵の旗または砦があるか
+      const hasEnemyTerritory=battleState.territories.some(tr=>
+        tr.side!==t.side&&
+        (tr.type===TERRITORY_TYPE.FLAG||tr.type===TERRITORY_TYPE.FORT)&&
+        tr.row===r&&tr.col===c
+      );
+      return hasEnemyUnit||hasEnemyTerritory;
+    });
 
     // 旗のマスに守備側ユニットがいる場合は引き抜き不可
     if(canCapture&&t.type===TERRITORY_TYPE.FLAG){
@@ -3273,13 +3280,19 @@ function startDestroyFort(unit){
     showAlert('warn','⚠️ 隣接する敵の砦がありません。');
     return;
   }
-  // 隣接する味方が2人以上いるか確認
-  const allies=battleState.playerUnits.filter(u=>
+  // 隣接する味方ユニットまたは味方の旗・砦が1つ以上あるか確認（合計2つ以上）
+  const alliedUnits=battleState.playerUnits.filter(u=>
     !u.dead&&u.id!==unit.id&&u.side===unit.side&&
     Math.abs(u.row-enemyFort.row)+Math.abs(u.col-enemyFort.col)<=1
   );
-  if(allies.length<1){
-    showAlert('warn','⚠️ 砦を破壊するには2人以上が隣接している必要があります。');
+  const alliedTerritories=battleState.territories.filter(tr=>
+    tr.side===unit.side&&
+    (tr.type===TERRITORY_TYPE.FLAG||tr.type===TERRITORY_TYPE.FORT)&&
+    Math.abs(tr.row-enemyFort.row)+Math.abs(tr.col-enemyFort.col)<=1
+  );
+  // ユニット自身を含めて合計2つ以上で破壊可能
+  if(alliedUnits.length+alliedTerritories.length<1){
+    showAlert('warn','⚠️ 砦を破壊するには自身を含め2つ以上の味方ユニット・旗・砦が隣接している必要があります。');
     return;
   }
   // 破壊開始フラグを立てる
