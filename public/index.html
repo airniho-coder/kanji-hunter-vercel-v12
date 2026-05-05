@@ -2525,8 +2525,7 @@ function startBattleFromPlacement(){
 
 function initBattleState(quest, partyIds){
   const mapData=getMapData(quest.id);
-  const enemyCount=QUEST_ENEMY_COUNT[quest.rank]||{normal:3,boss:0};
-
+ 
   // 味方ユニットを生成
   const playerUnits=partyIds.map((id,i)=>{
     const card=characters.find(c=>String(c.id)===String(id));
