@@ -464,11 +464,21 @@ body{display:flex;justify-content:center;}
   font-size: 14px; font-weight: 900; z-index: 100; pointer-events: none;
   animation: srpDamage 0.8s ease-out forwards;
 }
+/* 地形・建物のベース色（テクスチャ用） */
+.type-grass { --bg-color: #5a7d36; } .type-water { --bg-color: #3b82f6; } .type-rock { --bg-color: #78716c; } .type-dirt { --bg-color: #92400e; }
+.type-house { --bg-color: #b45309; } .type-castle-floor { --bg-color: #9ca3af; } .type-castle-wall { --bg-color: #4b5563; }
+.type-fort-floor { --bg-color: #a8a29e; } .type-fort-wall { --bg-color: #57534e; } .type-temple-floor { --bg-color: #f3f4f6; } .type-temple-wall { --bg-color: #d1d5db; }
 /* ===== 3Dマップ用 CSS（ここまで） ===== */
 
 </style>
 </head>
 <body>
+
+<div id="custom-map-loader" style="position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(0,0,0,0.8); padding: 10px; border: 1px solid #777; border-radius: 5px;">
+  <label style="color: #FFD700; font-size: 14px; font-weight: bold;">🗺️ 自作マップ(JSON)を読込:</label><br>
+  <input type="file" id="mapJsonInput" accept=".json" style="color: #fff; margin-top: 5px; font-size: 12px;">
+</div>
+
 <div id="app">
 <div class="bg-deco"></div>
 <div class="effect-overlay" id="effect-overlay"></div>
@@ -1058,7 +1068,6 @@ body{display:flex;justify-content:center;}
   </div>
 </div>
 
-<!-- データ保存注意ポップアップ -->
 <!-- データ保存注意ポップアップ -->
 <div id="storage-notice-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:500;align-items:center;justify-content:center;padding:20px">
   <div style="max-width:400px;width:100%;background:#13131a;border:1px solid #2a2a3a;border-radius:20px;padding:28px 24px">
@@ -2323,6 +2332,45 @@ function getTerrainByNum(num){
   return map[num]||TERRAIN.grass;
 }
 
+// エディタで作ったマップデータを保持する変数
+let customMapData = null;
+
+// JSONファイル読み込み処理
+document.getElementById('mapJsonInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    try {
+      const parsedData = JSON.parse(event.target.result);
+      customMapData = parsedData.map;
+      
+      // テクスチャ（CSS）の完全復元
+      if (parsedData.textures) {
+        for (const [styleId, cssString] of Object.entries(parsedData.textures)) {
+          let styleEl = document.getElementById(styleId);
+          if (!styleEl) { 
+            styleEl = document.createElement('style'); 
+            styleEl.id = styleId; 
+            document.head.appendChild(styleEl); 
+          }
+          styleEl.innerHTML = cssString;
+        }
+      }
+      alert("カスタムマップとテクスチャを読み込みました！戦闘を開始してください。");
+      
+      // すでに戦闘画面を開いている場合は即座に再描画
+      if (document.getElementById('srp-map').innerHTML !== '') {
+        renderSRPMap();
+      }
+    } catch(err) {
+      alert("JSONファイルの読み込みに失敗しました。");
+    }
+  };
+  reader.readAsText(file);
+});
+
 // ===== バトル状態管理 =====
 let battleState=null; // 現在のバトル状態オブジェクト
 // ===== マップズーム・スクロール管理 =====
@@ -2824,120 +2872,115 @@ function onMapTouchMove(e){
   }
 }
 
-// マップを描画する（3Dブロック対応版）
+// マップを描画する（カスタムマップ＆建物対応版）
 function renderSRPMap() {
   const mapEl = document.getElementById('srp-map');
   if (!mapEl || !battleState) return;
 
-  // ズーム倍率適用
   const cellSize = 50 * mapScale; 
   mapEl.style.width = `${MAP_COLS * cellSize}px`;
   mapEl.style.height = `${MAP_ROWS * cellSize}px`;
 
-  // 視認範囲
   const visibleCells = calcPlayerVisibleCells();
-  const terrainColors = ['#2d4a1e', '#1a3a0f', '#5a4a3a', '#1a3a5a', '#3a3a3a'];
-
   mapEl.innerHTML = '';
+
   for (let r = 0; r < MAP_ROWS; r++) {
     for (let c = 0; c < MAP_COLS; c++) {
-      const terrainNum = battleState.map[r][c];
       const isVisible = visibleCells.has(`${r},${c}`);
       const isHQCell = battleState.territories.some(t => t.type === TERRITORY_TYPE.HQ && t.row === r && t.col === c);
 
-      // マスのベースとなる3Dタイル
       const tile = document.createElement('div');
       tile.className = 'tile';
-      // ズーム倍率に合わせて配置座標を計算
       tile.style.left = `${c * cellSize}px`;
       tile.style.top = `${r * cellSize}px`;
-      // 全体をズーム倍率で縮小・拡大
       tile.style.transform = `scale(${mapScale})`;
       tile.style.transformOrigin = 'top left';
 
-      // ① 地形レイヤー（とりあえず高さは固定で表現）
-      const h = terrainNum === 2 ? 1 : 0; // 山(2)なら高さ1、他は0
-      const tLayer = document.createElement('div');
-      tLayer.className = `layer terrain-layer`;
-      tLayer.style.setProperty('--bg-color', terrainColors[terrainNum] || terrainColors[0]);
-      tLayer.style.setProperty('--h', h);
+      // 🌟 読み込んだマップデータ（地形・高さ・建物）の反映
+      let h = 0, oh = 0;
+      let tType = 'grass', oType = 'none';
       
-      const faces = ['top', 'front', 'back', 'left', 'right'];
-      faces.forEach(f => {
-        const face = document.createElement('div');
-        face.className = `face face-${f}`;
-        tLayer.appendChild(face);
-      });
-
-      // 霧の表現（視認範囲外）
-      if (!isVisible && !isHQCell) {
-        tLayer.style.filter = 'brightness(0.2) grayscale(100%)';
+      if (customMapData) {
+        const cell = customMapData.find(d => d.x === c && d.y === r);
+        if (cell) {
+          h = cell.h; oh = cell.oh; 
+          tType = cell.terrain; oType = cell.object;
+        }
+      } else {
+        // マップを読み込んでいない時は、本編の自動生成マップを使う（互換処理）
+        const terrainNum = battleState.map[r][c];
+        h = terrainNum === 2 ? 1 : 0;
+        const types = ['grass', 'grass', 'rock', 'water', 'dirt'];
+        tType = types[terrainNum] || 'grass';
       }
 
-      // クリックイベントは上面(top)につける
+      // ① 地形レイヤー
+      const tLayer = document.createElement('div');
+      tLayer.className = `layer terrain-layer type-${tType}`;
+      tLayer.style.setProperty('--h', h);
+      ['top', 'front', 'back', 'left', 'right'].forEach(f => {
+        const face = document.createElement('div'); face.className = `face face-${f}`; tLayer.appendChild(face);
+      });
+      
+      // 霧の表現
+      if (!isVisible && !isHQCell) tLayer.style.filter = 'brightness(0.2) grayscale(100%)';
+      
       const topFace = tLayer.querySelector('.face-top');
       topFace.onclick = () => onCellClick(r, c);
 
-      // 移動・攻撃ハイライト
-      if (battleState.movableCells.some(m => m.r === r && m.c === c)) {
-        topFace.style.backgroundColor = 'rgba(100,180,255,0.4)';
-        topFace.style.border = '2px solid #64b4ff';
-      }
-      if (battleState.attackableCells.some(a => a.r === r && a.c === c)) {
-        topFace.style.backgroundColor = 'rgba(255,80,80,0.4)';
-        topFace.style.border = '2px solid #ff5050';
-      }
-
-      // ② 陣地・アイコン表示（上面に配置）
+      // 移動・攻撃・陣地のハイライト
+      if (battleState.movableCells.some(m => m.r === r && m.c === c)) { topFace.style.backgroundColor = 'rgba(100,180,255,0.4)'; topFace.style.border = '2px solid #64b4ff'; }
+      if (battleState.attackableCells.some(a => a.r === r && a.c === c)) { topFace.style.backgroundColor = 'rgba(255,80,80,0.4)'; topFace.style.border = '2px solid #ff5050'; }
       const terrOwner = getTerritoryOwner(r, c);
       if (terrOwner === 'player') topFace.style.boxShadow = 'inset 0 0 15px rgba(100,150,255,0.8)';
       if (terrOwner === 'enemy') topFace.style.boxShadow = 'inset 0 0 15px rgba(255,100,100,0.8)';
-
+      
       tile.appendChild(tLayer);
 
-      // ③ キャラクターレイヤー
+      // ② 建物レイヤー（地形の高さに合わせて浮かせる）
+      const oLayer = document.createElement('div');
+      oLayer.className = `layer object-layer type-${oType}`;
+      oLayer.style.setProperty('--h', oh);
+      oLayer.style.transform = `translateZ(${h * 20}px)`;
+      oLayer.style.display = oType === 'none' ? 'none' : 'block';
+      ['top', 'front', 'back', 'left', 'right'].forEach(f => {
+        const face = document.createElement('div'); face.className = `face face-${f}`; oLayer.appendChild(face);
+      });
+      if (!isVisible && !isHQCell) oLayer.style.filter = 'brightness(0.2) grayscale(100%)';
+      
+      tile.appendChild(oLayer);
+
+      // ③ キャラクターレイヤー（地形＋建物の高さに合わせて浮かせる）
       const unit = getUnitAt(r, c);
       if (unit && !unit.dead && (isVisible || unit.side === 'player' || unit.isBoss)) {
         const cLayer = document.createElement('div');
         cLayer.className = `layer character-layer`;
-        cLayer.style.transform = `translateZ(${h * 20}px)`; // 地形の高さに乗せる
+        cLayer.style.transform = `translateZ(${(h + oh) * 20}px)`; 
         
         const cSprite = document.createElement('div');
         cSprite.className = `char-sprite`;
-        // カメラの角度に合わせてキャラを正面に向かせる
+        // カメラの角度に合わせて正面を向かせ、15px手前に引き出してめり込み防止
         cSprite.style.transform = `rotateZ(45deg) rotateX(-60deg) translateZ(15px)`;
         
-        // 画像または漢字のセット
         if (unit.artImg || unit.imgPath) {
           cSprite.style.backgroundImage = `url('${unit.artImg || unit.imgPath}')`;
           if (unit.acted) cSprite.style.filter = 'grayscale(100%) brightness(0.5)';
         } else {
-          // 画像がない場合のフォールバック表現
           cSprite.style.backgroundColor = unit.side === 'player' ? '#3b82f6' : '#ef4444';
-          cSprite.style.border = '2px solid #fff';
-          cSprite.style.borderRadius = '5px';
-          cSprite.style.display = 'flex';
-          cSprite.style.alignItems = 'center';
-          cSprite.style.justifyContent = 'center';
-          cSprite.style.color = '#fff';
-          cSprite.style.fontWeight = 'bold';
+          cSprite.style.border = '2px solid #fff'; cSprite.style.borderRadius = '5px';
+          cSprite.style.display = 'flex'; cSprite.style.alignItems = 'center'; cSprite.style.justifyContent = 'center';
+          cSprite.style.color = '#fff'; cSprite.style.fontWeight = 'bold';
           cSprite.innerText = unit.kanji;
         }
 
-        // HPバー
         const hpPct = Math.max(0, unit.hp / unit.maxHp * 100);
         const hpColor = hpPct > 50 ? '#60c060' : hpPct > 25 ? '#c0c060' : '#c06060';
         cSprite.innerHTML += `<div style="position:absolute;bottom:-5px;left:0;width:100%;height:4px;background:rgba(0,0,0,0.8);border-radius:2px;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;"></div></div>`;
-
-        // 選択中ハイライト
-        if (battleState.selectedUnit === unit.id) {
-          cSprite.style.filter = 'drop-shadow(0 0 8px #FFD700)';
-        }
+        if (battleState.selectedUnit === unit.id) cSprite.style.filter = 'drop-shadow(0 0 8px #FFD700)';
 
         cLayer.appendChild(cSprite);
         tile.appendChild(cLayer);
       }
-
       mapEl.appendChild(tile);
     }
   }
