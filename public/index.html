@@ -416,6 +416,56 @@ body{display:flex;justify-content:center;}
   animation:srpDamage .8s ease-out forwards;pointer-events:none;
 }
 
+/* ===== 3Dマップ用 CSS（ここから追加） ===== */
+#srp-map {
+  transform-style: preserve-3d;
+  transform: rotateX(60deg) rotateZ(-45deg);
+  /* ズーム時に中心を維持するための設定 */
+  transform-origin: center center;
+  margin: 100px; /* マップの周囲に余裕を持たせる */
+}
+
+.tile { position: absolute; width: 50px; height: 50px; transform-style: preserve-3d; }
+.layer { position: absolute; width: 50px; height: 50px; transform-style: preserve-3d; transition: transform 0.2s; }
+.face { position: absolute; box-sizing: border-box; background-color: var(--bg-color); }
+
+/* マス目の上面（クリック判定用） */
+.face-top { 
+  width: 50px; height: 50px; 
+  transform: translateZ(calc(var(--h) * 20px)); 
+  border: 1px solid rgba(255,255,255,0.2); 
+  cursor: pointer; 
+}
+.face-top:hover { border: 2px solid #FFD700; background-color: rgba(255,215,0,0.2); }
+
+/* 立体の側面 */
+.face-front { width: 50px; height: calc(var(--h) * 20px); top: 50px; left: 0; transform-origin: top left; transform: translateZ(calc(var(--h) * 20px)) rotateX(-90deg); filter: brightness(0.7); }
+.face-back { width: 50px; height: calc(var(--h) * 20px); top: 0; left: 50px; transform-origin: top left; transform: translateZ(calc(var(--h) * 20px)) rotateZ(180deg) rotateX(-90deg); filter: brightness(0.85); }
+.face-left { width: 50px; height: calc(var(--h) * 20px); top: 0; left: 0; transform-origin: top left; transform: translateZ(calc(var(--h) * 20px)) rotateZ(90deg) rotateX(-90deg); filter: brightness(0.8); }
+.face-right { width: 50px; height: calc(var(--h) * 20px); top: 50px; left: 50px; transform-origin: top left; transform: translateZ(calc(var(--h) * 20px)) rotateZ(-90deg) rotateX(-90deg); filter: brightness(0.5); }
+
+/* キャラクター（ビルボード） */
+.character-layer { 
+  position: absolute; width: 50px; height: 50px; 
+  pointer-events: none; transition: transform 0.3s ease-out; 
+  display: flex; justify-content: center; align-items: flex-end; 
+}
+.char-sprite { 
+  position: absolute; width: 40px; height: 50px; 
+  background-size: contain; background-position: bottom center; background-repeat: no-repeat; 
+  transform-origin: bottom center; transition: transform 0.5s;
+  /* 影をつけて接地感を出す */
+  filter: drop-shadow(0px 5px 2px rgba(0,0,0,0.5));
+}
+
+/* ダメージ等のポップアップ用 */
+.srp-popup {
+  position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
+  font-size: 14px; font-weight: 900; z-index: 100; pointer-events: none;
+  animation: srpDamage 0.8s ease-out forwards;
+}
+/* ===== 3Dマップ用 CSS（ここまで） ===== */
+
 </style>
 </head>
 <body>
@@ -2774,196 +2824,121 @@ function onMapTouchMove(e){
   }
 }
 
-// マップを描画する（視認範囲・ズーム対応）
-function renderSRPMap(){
-  const mapEl=document.getElementById('srp-map');
-  if(!mapEl||!battleState)return;
+// マップを描画する（3Dブロック対応版）
+function renderSRPMap() {
+  const mapEl = document.getElementById('srp-map');
+  if (!mapEl || !battleState) return;
 
-  // 現在のズーム倍率に合わせたセルサイズ
-  const cellSize=Math.floor(MAP_CELL_BASE*mapScale);
-  mapEl.style.gridTemplateColumns=`repeat(${MAP_COLS},${cellSize}px)`;
-  mapEl.style.gridTemplateRows=`repeat(${MAP_ROWS},${cellSize}px)`;
+  // ズーム倍率適用
+  const cellSize = 50 * mapScale; 
+  mapEl.style.width = `${MAP_COLS * cellSize}px`;
+  mapEl.style.height = `${MAP_ROWS * cellSize}px`;
 
-  // 味方全体の視認範囲を計算する
-  const visibleCells=calcPlayerVisibleCells();
+  // 視認範囲
+  const visibleCells = calcPlayerVisibleCells();
+  const terrainColors = ['#2d4a1e', '#1a3a0f', '#5a4a3a', '#1a3a5a', '#3a3a3a'];
 
-  const terrainColors=['#2d4a1e','#1a3a0f','#5a4a3a','#1a3a5a','#3a3a3a'];
+  mapEl.innerHTML = '';
+  for (let r = 0; r < MAP_ROWS; r++) {
+    for (let c = 0; c < MAP_COLS; c++) {
+      const terrainNum = battleState.map[r][c];
+      const isVisible = visibleCells.has(`${r},${c}`);
+      const isHQCell = battleState.territories.some(t => t.type === TERRITORY_TYPE.HQ && t.row === r && t.col === c);
 
-  mapEl.innerHTML='';
-  for(let r=0;r<MAP_ROWS;r++){
-    for(let c=0;c<MAP_COLS;c++){
-      const terrainNum=battleState.map[r][c];
-      const cell=document.createElement('div');
-      cell.className='srp-cell';
-      cell.style.width=`${cellSize}px`;
-      cell.style.height=`${cellSize}px`;
-      cell.style.background=terrainColors[terrainNum]||terrainColors[0];
-      cell.dataset.row=r;
-      cell.dataset.col=c;
-      cell.onclick=()=>onCellClick(r,c);
+      // マスのベースとなる3Dタイル
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      // ズーム倍率に合わせて配置座標を計算
+      tile.style.left = `${c * cellSize}px`;
+      tile.style.top = `${r * cellSize}px`;
+      // 全体をズーム倍率で縮小・拡大
+      tile.style.transform = `scale(${mapScale})`;
+      tile.style.transformOrigin = 'top left';
 
-      const isVisible=visibleCells.has(`${r},${c}`);
+      // ① 地形レイヤー（とりあえず高さは固定で表現）
+      const h = terrainNum === 2 ? 1 : 0; // 山(2)なら高さ1、他は0
+      const tLayer = document.createElement('div');
+      tLayer.className = `layer terrain-layer`;
+      tLayer.style.setProperty('--bg-color', terrainColors[terrainNum] || terrainColors[0]);
+      tLayer.style.setProperty('--h', h);
+      
+      const faces = ['top', 'front', 'back', 'left', 'right'];
+      faces.forEach(f => {
+        const face = document.createElement('div');
+        face.className = `face face-${f}`;
+        tLayer.appendChild(face);
+      });
 
-      // 視認範囲外は霧で隠す（ただし本陣は常に表示）
-      const isHQCell=battleState.territories.some(t=>
-        t.type===TERRITORY_TYPE.HQ&&t.row===r&&t.col===c
-      );
-      if(!isVisible&&!isHQCell){
-        cell.style.background='#0a0a0a';
-        cell.style.border='1px solid rgba(255,255,255,.03)';
-        cell.innerHTML='<div style="width:100%;height:100%;background:rgba(0,0,0,.8);"></div>';
-        mapEl.appendChild(cell);
-        continue;
-      }
-      // 視認範囲外だが本陣は薄い霧をかけて表示
-      if(!isVisible&&isHQCell){
-        cell.style.background='#0a0a0a';
-        cell.style.border='1px solid rgba(255,255,255,.03)';
-        cell.style.opacity='0.7';
-      }
-
-      // 移動可能・攻撃可能セルのハイライト
-      if(battleState.movableCells.some(m=>m.r===r&&m.c===c)){
-        cell.classList.add('movable');
-      }
-      if(battleState.attackableCells.some(a=>a.r===r&&a.c===c)){
-        cell.classList.add('attackable');
+      // 霧の表現（視認範囲外）
+      if (!isVisible && !isHQCell) {
+        tLayer.style.filter = 'brightness(0.2) grayscale(100%)';
       }
 
-      // 陣地の色をオーバーレイ表示する
-      const terrOwner=getTerritoryOwner(r,c);
-      if(terrOwner==='player'){
-        cell.style.boxShadow='inset 0 0 8px rgba(100,150,255,.4)';
-        cell.style.borderColor='rgba(100,150,255,.3)';
-      }else if(terrOwner==='enemy'){
-        cell.style.boxShadow='inset 0 0 8px rgba(255,100,100,.4)';
-        cell.style.borderColor='rgba(255,100,100,.3)';
+      // クリックイベントは上面(top)につける
+      const topFace = tLayer.querySelector('.face-top');
+      topFace.onclick = () => onCellClick(r, c);
+
+      // 移動・攻撃ハイライト
+      if (battleState.movableCells.some(m => m.r === r && m.c === c)) {
+        topFace.style.backgroundColor = 'rgba(100,180,255,0.4)';
+        topFace.style.border = '2px solid #64b4ff';
+      }
+      if (battleState.attackableCells.some(a => a.r === r && a.c === c)) {
+        topFace.style.backgroundColor = 'rgba(255,80,80,0.4)';
+        topFace.style.border = '2px solid #ff5050';
       }
 
-      // 陣地アイコンを描画（SVG）
-      // 本陣は常に表示（視認範囲外でも）
-      const hqTerritory=battleState.territories.find(t=>
-        t.type===TERRITORY_TYPE.HQ&&t.row===r&&t.col===c
-      );
-      const territory=battleState.territories.find(t=>t.row===r&&t.col===c);
+      // ② 陣地・アイコン表示（上面に配置）
+      const terrOwner = getTerritoryOwner(r, c);
+      if (terrOwner === 'player') topFace.style.boxShadow = 'inset 0 0 15px rgba(100,150,255,0.8)';
+      if (terrOwner === 'enemy') topFace.style.boxShadow = 'inset 0 0 15px rgba(255,100,100,0.8)';
 
-      if(hqTerritory){
-        // 本陣は常に表示・マス全体に描画
-        const isPlayer=hqTerritory.side==='player';
-        const color=isPlayer?'#4488cc':'#cc4444';
-        const occupied=hqTerritory.occupied?'opacity:0.5':'';
-        const svgEl=document.createElement('div');
-        svgEl.style.cssText=`position:absolute;inset:0;z-index:3;${occupied}`;
-        svgEl.innerHTML=`<svg width="100%" height="100%" viewBox="0 0 54 54">
-          <circle cx="27" cy="27" r="22" fill="none" stroke="${color}" stroke-width="1.5"/>
-          <circle cx="27" cy="27" r="14" fill="none" stroke="${color}" stroke-width="1"/>
-          <circle cx="27" cy="27" r="6" fill="${color}" fill-opacity="0.5" stroke="${color}" stroke-width="1"/>
-          <polygon points="27,5 30,18 44,18 33,27 37,40 27,32 17,40 21,27 10,18 24,18"
-            fill="none" stroke="${color}" stroke-width="1" opacity="0.8"/>
-          <line x1="27" y1="5" x2="27" y2="49" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,3"/>
-          <line x1="5" y1="27" x2="49" y2="27" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,3"/>
-          <line x1="11" y1="11" x2="43" y2="43" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,3"/>
-          <line x1="43" y1="11" x2="11" y2="43" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,3"/>
-        </svg>`;
-        cell.appendChild(svgEl);
-      }else if(territory&&isVisible){
-        // 旗・砦は視認範囲内のみ表示
-        const isPlayer=territory.side==='player';
-        const color=isPlayer?'#4488cc':'#cc4444';
-        const svgEl=document.createElement('div');
-        svgEl.style.cssText='position:absolute;inset:0;z-index:3;';
+      tile.appendChild(tLayer);
 
-        if(territory.type===TERRITORY_TYPE.FLAG){
-          // 旗：マス全体に描画
-          svgEl.innerHTML=`<svg width="100%" height="100%" viewBox="0 0 54 54">
-            <line x1="20" y1="8" x2="20" y2="46" stroke="#c9a84c" stroke-width="3" stroke-linecap="round"/>
-            <polygon points="20,8 44,18 20,28" fill="${color}" stroke="${color}" stroke-width="1"/>
-            <rect x="10" y="44" width="34" height="4" fill="#8b6914" rx="2"/>
-          </svg>`;
-        }else if(territory.type===TERRITORY_TYPE.FORT){
-          // 砦（櫓）：マス全体に描画
-          svgEl.innerHTML=`<svg width="100%" height="100%" viewBox="0 0 54 54">
-            <rect x="12" y="38" width="30" height="8" fill="#8b6914" stroke="#6b4a10" stroke-width="1"/>
-            <rect x="15" y="24" width="5" height="14" fill="#8b6914" stroke="#6b4a10" stroke-width="0.5"/>
-            <rect x="34" y="24" width="5" height="14" fill="#8b6914" stroke="#6b4a10" stroke-width="0.5"/>
-            <rect x="12" y="22" width="30" height="4" fill="#6b4a10" stroke="#4a3008" stroke-width="0.5"/>
-            <polygon points="9,22 17,10 37,10 45,22" fill="${color}" stroke="${color}" stroke-width="1" opacity="0.9"/>
-            <line x1="17" y1="10" x2="37" y2="10" stroke="${color}" stroke-width="2"/>
-            <line x1="27" y1="3" x2="27" y2="11" stroke="#c9a84c" stroke-width="2"/>
-            <polygon points="27,3 40,7 27,11" fill="${color}" stroke="${color}" stroke-width="0.5"/>
-            ${territory.fortifyTurns>0?`<text x="27" y="50" text-anchor="middle" font-size="8" fill="#c9a84c">強化中</text>`:''}
-          </svg>`;
-        }
-        cell.appendChild(svgEl);
-      }
-
-      // ユニットを描画
-      const unit=getUnitAt(r,c);
-      if(unit&&!unit.dead){
-        const unitEl=document.createElement('div');
-        unitEl.className=`srp-unit${unit.side==='enemy'?' enemy':''}${unit.acted?' acted':''}`;
-
-        // セルサイズに合わせた画像サイズ（マス全体に表示）
-        const imgSize=Math.floor(cellSize*0.92);
-        const fontSize=Math.floor(cellSize*0.5);
-
-        if(unit.side==='player'&&unit.artImg){
-          // Stability AI生成画像：マス全体に表示
-          unitEl.innerHTML=`<img src="${unit.artImg}" alt="${unit.name}"
-            style="width:${imgSize}px;height:${imgSize}px;
-            object-fit:cover;object-position:top;
-            border-radius:4px;border:2px solid #c9a84c;">`;
-        }else if(unit.side==='player'&&unit.kanji){
-          // 画像なしの味方：漢字を大きく表示
-          unitEl.innerHTML=`<div style="width:${imgSize}px;height:${imgSize}px;
-            display:flex;align-items:center;justify-content:center;
-            background:rgba(201,168,76,.2);border:2px solid #c9a84c;
-            border-radius:4px;font-size:${fontSize}px;font-weight:900;
-            color:#c9a84c;">${unit.kanji}</div>`;
-        }else if(unit.side==='enemy'){
-          // 敵ユニット
-          const fallback=unit.isBoss?'👹':'👾';
-          const bossSize=Math.floor(cellSize*0.95);
-          if(unit.imgPath){
-            // まず絵文字で表示してから画像差し替え
-            unitEl.innerHTML=`<div style="width:${imgSize}px;height:${imgSize}px;
-              display:flex;align-items:center;justify-content:center;
-              background:rgba(220,50,50,.2);border:2px solid #e05050;
-              border-radius:4px;font-size:${fontSize}px;">${fallback}</div>`;
-            const img=new Image();
-            img.onload=()=>{
-              unitEl.innerHTML=`<img src="${img.src}"
-                style="width:${imgSize}px;height:${imgSize}px;
-                object-fit:cover;object-position:top;
-                border-radius:4px;border:2px solid #e05050;">`;
-            };
-            img.src=unit.imgPath;
-          }else{
-            unitEl.innerHTML=`<div style="width:${unit.isBoss?bossSize:imgSize}px;
-              height:${unit.isBoss?bossSize:imgSize}px;
-              display:flex;align-items:center;justify-content:center;
-              background:rgba(220,50,50,.2);border:2px solid #e05050;
-              border-radius:4px;font-size:${unit.isBoss?Math.floor(cellSize*0.6):fontSize}px;">
-              ${fallback}</div>`;
-          }
-        }else{
-          unitEl.innerHTML=`<div style="font-size:${fontSize}px">${unit.kanji||'？'}</div>`;
+      // ③ キャラクターレイヤー
+      const unit = getUnitAt(r, c);
+      if (unit && !unit.dead && (isVisible || unit.side === 'player' || unit.isBoss)) {
+        const cLayer = document.createElement('div');
+        cLayer.className = `layer character-layer`;
+        cLayer.style.transform = `translateZ(${h * 20}px)`; // 地形の高さに乗せる
+        
+        const cSprite = document.createElement('div');
+        cSprite.className = `char-sprite`;
+        // カメラの角度に合わせてキャラを正面に向かせる
+        cSprite.style.transform = `rotateZ(45deg) rotateX(-60deg) translateZ(15px)`;
+        
+        // 画像または漢字のセット
+        if (unit.artImg || unit.imgPath) {
+          cSprite.style.backgroundImage = `url('${unit.artImg || unit.imgPath}')`;
+          if (unit.acted) cSprite.style.filter = 'grayscale(100%) brightness(0.5)';
+        } else {
+          // 画像がない場合のフォールバック表現
+          cSprite.style.backgroundColor = unit.side === 'player' ? '#3b82f6' : '#ef4444';
+          cSprite.style.border = '2px solid #fff';
+          cSprite.style.borderRadius = '5px';
+          cSprite.style.display = 'flex';
+          cSprite.style.alignItems = 'center';
+          cSprite.style.justifyContent = 'center';
+          cSprite.style.color = '#fff';
+          cSprite.style.fontWeight = 'bold';
+          cSprite.innerText = unit.kanji;
         }
 
-        // 選択中ユニットのハイライト
-        if(battleState.selectedUnit===unit.id){
-          cell.classList.add('selected');
+        // HPバー
+        const hpPct = Math.max(0, unit.hp / unit.maxHp * 100);
+        const hpColor = hpPct > 50 ? '#60c060' : hpPct > 25 ? '#c0c060' : '#c06060';
+        cSprite.innerHTML += `<div style="position:absolute;bottom:-5px;left:0;width:100%;height:4px;background:rgba(0,0,0,0.8);border-radius:2px;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;"></div></div>`;
+
+        // 選択中ハイライト
+        if (battleState.selectedUnit === unit.id) {
+          cSprite.style.filter = 'drop-shadow(0 0 8px #FFD700)';
         }
 
-        // HPバーを描画
-        const hpPct=Math.max(0,unit.hp/unit.maxHp*100);
-        const hpColor=hpPct>50?'#60c060':hpPct>25?'#c0c060':'#c06060';
-        unitEl.innerHTML+=`<div class="srp-hp-bar"><div class="srp-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>`;
-
-        cell.appendChild(unitEl);
+        cLayer.appendChild(cSprite);
+        tile.appendChild(cLayer);
       }
 
-      mapEl.appendChild(cell);
+      mapEl.appendChild(tile);
     }
   }
 }
