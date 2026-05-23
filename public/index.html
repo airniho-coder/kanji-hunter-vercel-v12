@@ -4805,38 +4805,31 @@ async function confirmGuildRegister() {
   }
   
   try {
-    // 🌟 裏でバトル用の2頭身(SD)画像を自動生成
+    // 🌟 修正1-A：裏でバトル用の2頭身(SD)画像を自動生成し、そのまま保存！
     if (!targetBackup.sdImg && stabilityKey) {
       const sdImgData = await generateSDImage(targetBackup);
       if (sdImgData) {
-        targetBackup.sdImg = `data:image/png;base64,${sdImgData}`;
+        // 余計な文字を足さず、生成された完璧なURLをそのままセットする
+        targetBackup.sdImg = sdImgData; 
       }
     }
     
     // 冒険者ランクの付与
     targetBackup.adventurerRank = 'G';
     
-    // 完了ポップアップの内容をセット（IDがない場合に備えた安全対策）
+    // 完了ポップアップの内容をセット
     const kanjiEl = document.getElementById('guild-complete-kanji');
     const nameEl = document.getElementById('guild-complete-name');
     if (kanjiEl) kanjiEl.textContent = targetBackup.kanji || '？';
     if (nameEl) nameEl.textContent = targetBackup.charName || targetBackup.kanji || '';
     
-    // 🌟 生成されたSDキャラ画像をポップアップにセット
-    // 🌟 最終修正：画像を確実に表示する処理
+    // 🌟 修正1-B：ポップアップには background-image で安全に表示
     const sdImgDiv = document.getElementById('guild-complete-sd-image');
     if (sdImgDiv) {
       if (targetBackup.sdImg) {
-        // base64データだけを取り出す
-        let cleanBase64 = targetBackup.sdImg;
-        if (cleanBase64.includes(',')) {
-          cleanBase64 = cleanBase64.split(',').pop();
-        }
-        
-        // CSS背景ではなく、中身にimgタグを生成して入れる方式に変更（一番確実）
-        sdImgDiv.innerHTML = `<img src="data:image/png;base64,${cleanBase64}" style="width:100%;height:100%;object-fit:contain;">`;
+        sdImgDiv.innerHTML = ''; // 余計なimgタグを消す
+        sdImgDiv.style.backgroundImage = `url('${targetBackup.sdImg}')`;
         sdImgDiv.style.display = 'block';
-        sdImgDiv.style.backgroundImage = 'none'; // 背景画像をクリア
       } else {
         sdImgDiv.style.display = 'none';
       }
