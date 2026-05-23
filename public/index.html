@@ -247,6 +247,11 @@ body{display:flex;justify-content:center;}
 }
 .lv-flash{font-size:24px;font-weight:900;color:#FFD700;text-shadow:0 0 20px #FF8C00;margin-bottom:7px;}
 
+/* マス目やキャラクター枠から画像がはみ出しても絶対に切り取らない設定 */
+.srp-tile, .character-layer, .char-sprite {
+  overflow: visible !important;
+}
+
 /* SETUP */
 .setup-page{padding:20px 16px;}
 .setup-title{font-size:18px;font-weight:700;letter-spacing:2px;margin-bottom:7px;background:linear-gradient(90deg,#FFD700,#FF8C00);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
@@ -3088,7 +3093,7 @@ function renderSRPMap() {
         } else if (unit.artImg || unit.imgPath) {
           finalImgUrl = unit.artImg || unit.imgPath; // SDがない場合は元のカード画像
         }
-
+        
         if (finalImgUrl) {
           // 背景画像ではなく、imgタグを直接埋め込む（一番バグが起きない）
           cSprite.innerHTML = `<img src="${finalImgUrl}" style="width:100%;height:100%;object-fit:contain;pointer-events:none;">`;
