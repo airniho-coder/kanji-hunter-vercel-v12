@@ -217,14 +217,33 @@ body{display:flex;justify-content:center;}
 .exp-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(5,5,8,.96);border:1px solid rgba(255,200,80,.3);border-radius:14px;padding:20px 24px;text-align:center;z-index:300;display:none;min-width:220px;box-shadow:0 0 40px rgba(255,200,80,.2);}
 .exp-popup.show{display:block;animation:popupFadeIn .25s ease;}
 /* 選択中のキャラクターがフワフワ上下に揺れるアニメーション */
-@keyframes activeBob {
-  0%, 100% { transform: var(--base-rot) translateZ(15px); }
-  50% { transform: var(--base-rot) translateZ(25px); filter: brightness(1.2); }
+/* 待機中の呼吸アニメーション */
+@keyframes breathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.05, 0.95); }
 }
 
-/* 選択中キャラに付与するクラス */
+/* 選択中のピョンピョン（ホップ）アニメーション */
+@keyframes activeBob {
+  0%, 100% { transform: translateY(0) scale(1, 1); filter: drop-shadow(0px 5px 2px rgba(0,0,0,0.5)) drop-shadow(0 0 8px #FFD700); }
+  50% { transform: translateY(-10px) scale(0.95, 1.05); filter: drop-shadow(0px 15px 5px rgba(0,0,0,0.3)) drop-shadow(0 0 15px #FFD700); }
+}
+
+.char-sprite { 
+  position: absolute; 
+  width: 100%; 
+  height: 100%; 
+  background-size: contain; 
+  background-position: bottom center; 
+  background-repeat: no-repeat; 
+  transform-origin: bottom center; 
+  filter: drop-shadow(0px 5px 2px rgba(0,0,0,0.5));
+  /* 常時呼吸アニメーションを適用 */
+  animation: breathe 1.5s infinite ease-in-out;
+}
+
 .char-active {
-  animation: activeBob 1s ease-in-out infinite;
+  animation: activeBob 0.8s infinite ease-in-out !important;
 }
 .lv-flash{font-size:24px;font-weight:900;color:#FFD700;text-shadow:0 0 20px #FF8C00;margin-bottom:7px;}
 
@@ -3024,12 +3043,27 @@ function renderSRPMap() {
         cLayer.className = `layer character-layer`;
         cLayer.style.transform = `translateZ(${(h + oh) * 20}px)`; 
         
+        // 🌟 修正：立たせるための透明な箱（ラッパー）を作る
+        const cWrapper = document.createElement('div');
+        cWrapper.style.position = 'absolute';
+        cWrapper.style.width = '70px';
+        cWrapper.style.height = '70px';
+        cWrapper.style.left = '50%';
+        cWrapper.style.top = '50%';
+        cWrapper.style.marginLeft = '-35px';
+        cWrapper.style.marginTop = '-65px';
+        // 箱をカメラに向けて立たせる
+        cWrapper.style.transform = `rotateZ(${-currentMapAngle}deg) rotateX(-60deg) translateZ(15px)`;
+        cWrapper.style.transformOrigin = 'bottom center';
+
+        // 🌟 修正：アニメーション用の画像本体
         const cSprite = document.createElement('div');
         cSprite.className = `char-sprite`;
         
-        // 角度を変数としてCSSに渡し、キャラを立たせたままにする
-        cSprite.style.setProperty('--base-rot', `rotateZ(${-currentMapAngle}deg) rotateX(-60deg)`);
-        cSprite.style.transform = `var(--base-rot) translateZ(15px)`;
+        // 選択中の場合はアクティブなクラスをつける
+        if (battleState.selectedUnit === unit.id) {
+          cSprite.classList.add('char-active');
+        }
         
         if (unit.artImg || unit.imgPath) {
           cSprite.style.backgroundImage = `url('${unit.artImg || unit.imgPath}')`;
@@ -3045,13 +3079,10 @@ function renderSRPMap() {
         const hpPct = Math.max(0, unit.hp / unit.maxHp * 100);
         const hpColor = hpPct > 50 ? '#60c060' : hpPct > 25 ? '#c0c060' : '#c06060';
         cSprite.innerHTML += `<div style="position:absolute;bottom:-5px;left:0;width:100%;height:4px;background:rgba(0,0,0,0.8);border-radius:2px;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;"></div></div>`;
-        if (battleState.selectedUnit === unit.id) {
-         cSprite.style.filter = 'drop-shadow(0 0 8px #FFD700)';
-         // 選択中のキャラにだけフワフワアニメーションを追加！
-         cSprite.classList.add('char-active');
-        }
 
-        cLayer.appendChild(cSprite);
+        // 箱の中に画像を入れ、レイヤーに箱を入れる
+        cWrapper.appendChild(cSprite);
+        cLayer.appendChild(cWrapper);
         tile.appendChild(cLayer);
       }
       mapEl.appendChild(tile);
