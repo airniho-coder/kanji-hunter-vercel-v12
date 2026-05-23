@@ -2383,6 +2383,8 @@ const MAP_CELL_BASE=36;  // 基本マスサイズ(px)
 let pinchStartDist=0;
 let pinchStartScale=1;
 
+let currentMapAngle = -45; // 初期角度
+
 // バトル状態の初期化
 // ===== 初期配置画面 =====
 let placementState=null; // 配置画面の状態管理
@@ -2880,7 +2882,10 @@ function renderSRPMap() {
   const cellSize = 50 * mapScale; 
   mapEl.style.width = `${MAP_COLS * cellSize}px`;
   mapEl.style.height = `${MAP_ROWS * cellSize}px`;
-
+  
+  // マップ全体を現在の角度に傾ける
+  mapEl.style.transform = `rotateX(60deg) rotateZ(${currentMapAngle}deg)`;
+  
   const visibleCells = calcPlayerVisibleCells();
   mapEl.innerHTML = '';
 
@@ -2959,8 +2964,9 @@ function renderSRPMap() {
         
         const cSprite = document.createElement('div');
         cSprite.className = `char-sprite`;
-        // カメラの角度に合わせて正面を向かせ、15px手前に引き出してめり込み防止
-        cSprite.style.transform = `rotateZ(45deg) rotateX(-60deg) translateZ(15px)`;
+        
+        // カメラの回転角度に合わせてキャラを常に正面に向け、15px手前に引き出す
+        cSprite.style.transform = `rotateZ(${-currentMapAngle}deg) rotateX(-60deg) translateZ(15px)`;
         
         if (unit.artImg || unit.imgPath) {
           cSprite.style.backgroundImage = `url('${unit.artImg || unit.imgPath}')`;
@@ -7121,6 +7127,19 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function showLoading(v,t,s){document.getElementById('loading').classList.toggle('show',v);if(t)document.getElementById('loading-text').textContent=t;if(s)document.getElementById('loading-sub').textContent=s;}
 function showAlert(t,m){document.getElementById('alert-area').innerHTML=`<div class="alert alert-${t}">${m}</div>`;}
 function clearAlert(){document.getElementById('alert-area').innerHTML='';}
+
+// QとEキーでカメラ回転を受け付ける
+document.addEventListener('keydown', (e) => {
+  if (!battleState) return; // 戦闘中でなければ無視
+  if (e.key === 'q' || e.key === 'Q') {
+    currentMapAngle -= 90;
+    renderSRPMap(); // 角度を変えて再描画
+  }
+  if (e.key === 'e' || e.key === 'E') {
+    currentMapAngle += 90;
+    renderSRPMap();
+  }
+});
 </script>
 </body>
 </html>
