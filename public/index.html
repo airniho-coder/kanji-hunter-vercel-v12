@@ -3079,10 +3079,24 @@ function renderSRPMap() {
           cSprite.classList.add('char-active');
         }
         
-        if (unit.artImg || unit.imgPath) {
-          cSprite.style.backgroundImage = `url('${unit.artImg || unit.imgPath}')`;
+        // 🌟 SD画像があれば優先し、imgタグで確実に表示する
+        let finalImgUrl = '';
+        if (unit.sdImg) {
+          // プレフィックスの重複を避けてクリーンにする
+          let cleanBase64 = unit.sdImg.includes(',') ? unit.sdImg.split(',').pop() : unit.sdImg;
+          finalImgUrl = `data:image/png;base64,${cleanBase64}`;
+        } else if (unit.artImg || unit.imgPath) {
+          finalImgUrl = unit.artImg || unit.imgPath; // SDがない場合は元のカード画像
+        }
+
+        if (finalImgUrl) {
+          // 背景画像ではなく、imgタグを直接埋め込む（一番バグが起きない）
+          cSprite.innerHTML = `<img src="${finalImgUrl}" style="width:100%;height:100%;object-fit:contain;pointer-events:none;">`;
+          cSprite.style.backgroundColor = 'transparent';
+          cSprite.style.border = 'none';
           if (unit.acted) cSprite.style.filter = 'grayscale(100%) brightness(0.5)';
         } else {
+          // 画像が一切ない場合の文字アイコン
           cSprite.style.backgroundColor = unit.side === 'player' ? '#3b82f6' : '#ef4444';
           cSprite.style.border = '2px solid #fff'; cSprite.style.borderRadius = '5px';
           cSprite.style.display = 'flex'; cSprite.style.alignItems = 'center'; cSprite.style.justifyContent = 'center';
@@ -3090,6 +3104,7 @@ function renderSRPMap() {
           cSprite.innerText = unit.kanji;
         }
 
+        // HPバーの追加（imgタグの下に配置）
         const hpPct = Math.max(0, unit.hp / unit.maxHp * 100);
         const hpColor = hpPct > 50 ? '#60c060' : hpPct > 25 ? '#c0c060' : '#c06060';
         cSprite.innerHTML += `<div style="position:absolute;bottom:-5px;left:0;width:100%;height:4px;background:rgba(0,0,0,0.8);border-radius:2px;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;"></div></div>`;
@@ -4982,7 +4997,8 @@ async function generateSDImage(char) {
   const race = raceDesc[char.race] || 'human';
   const job = jobDesc[char.job] || 'warrior';
   
-  const prompt = `Chibi SD character, 2 heads tall, isometric quarter view from above, standing and waiting pose. ${race} ${job}. Entire body completely visible from head to toe. Pure white simple background. High quality cel-shaded anime RPG style.`;
+  // 🌟 AIが頭を切らないように、「Full body shot (全身)」「No cropping (切り取り禁止)」を強調
+  const prompt = `Chibi SD character, 2 heads tall, isometric quarter view from above, standing and waiting pose. ${race} ${job}. Full body shot, character is fully inside the frame, no cropping. Pure white simple background. High quality cel-shaded anime RPG style.`;
   
   try {
     const res = await fetch('/api/image', {
