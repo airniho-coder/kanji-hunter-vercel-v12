@@ -4970,7 +4970,6 @@ async function generateItemImage(item){
 async function generateSDImage(char) {
   if (!stabilityKey) return null;
   
-  // 日本語の種族と職業を英訳（Stability APIが理解しやすくするため）
   const raceDesc = {'人族':'human','エルフ族':'elf','ハーフエルフ族':'half-elf','ダークエルフ族':'dark elf','ホビット族':'hobbit','ドワーフ族':'dwarf','魔族':'demon','竜族':'dragonkin','モンスター族':'monster'};
   const jobDesc = {'剣士':'warrior','魔法使い':'wizard','忍者':'ninja','僧侶':'priest','竜騎士':'dragon knight','吟遊詩人':'bard','召喚士':'summoner','賢者':'sage','暗黒騎士':'dark knight','聖騎士':'paladin'};
   
@@ -4986,7 +4985,14 @@ async function generateSDImage(char) {
       body: JSON.stringify({ prompt })
     });
     const data = await res.json();
-    return data.image || null;
+    
+    // 🌟 修正ポイント：画像データから接頭辞を一度取り除き、クリーンなBase64だけにする
+    let base64Data = data.image || '';
+    if (base64Data.includes(',')) {
+      base64Data = base64Data.split(',')[1];
+    }
+    
+    return base64Data ? `data:image/png;base64,${base64Data}` : null;
   } catch (e) {
     console.error("SD画像生成エラー:", e);
     return null;
