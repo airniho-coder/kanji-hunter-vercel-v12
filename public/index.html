@@ -216,7 +216,16 @@ body{display:flex;justify-content:center;}
 /* EXP POPUP */
 .exp-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(5,5,8,.96);border:1px solid rgba(255,200,80,.3);border-radius:14px;padding:20px 24px;text-align:center;z-index:300;display:none;min-width:220px;box-shadow:0 0 40px rgba(255,200,80,.2);}
 .exp-popup.show{display:block;animation:popupFadeIn .25s ease;}
-@keyframes popupFadeIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.85)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+/* 選択中のキャラクターがフワフワ上下に揺れるアニメーション */
+@keyframes activeBob {
+  0%, 100% { transform: var(--base-rot) translateZ(15px); }
+  50% { transform: var(--base-rot) translateZ(25px); filter: brightness(1.2); }
+}
+
+/* 選択中キャラに付与するクラス */
+.char-active {
+  animation: activeBob 1s ease-in-out infinite;
+}
 .lv-flash{font-size:24px;font-weight:900;color:#FFD700;text-shadow:0 0 20px #FF8C00;margin-bottom:7px;}
 
 /* SETUP */
@@ -446,17 +455,47 @@ body{display:flex;justify-content:center;}
 
 /* キャラクター（ビルボード） */
 .character-layer { 
-  position: absolute; width: 50px; height: 50px; 
-  pointer-events: none; transition: transform 0.3s ease-out; 
-  display: flex; justify-content: center; align-items: flex-end; 
+  position: absolute; 
+  width: 50px; 
+  height: 50px; 
+  pointer-events: none; 
+  transition: transform 0.3s ease-out; 
+  /* 削除: display: flex などは使わない */
 }
+
 .char-sprite { 
-  position: absolute; width: 40px; height: 50px; 
-  background-size: contain; background-position: bottom center; background-repeat: no-repeat; 
-  transform-origin: bottom center; transition: transform 0.5s;
-  /* 影をつけて接地感を出す */
+  position: absolute; 
+  /* 🌟 サイズを大きく！（40x50 → 70x70） */
+  width: 70px; 
+  height: 70px; 
+  
+  /* 🌟 足元の位置を「マスのど真ん中」に強制セット */
+  left: 50%;
+  top: 50%;
+  margin-left: -35px; /* 幅の半分を左にずらす */
+  margin-top: -65px;  /* 高さ分を上にずらして足元を合わせる（微調整） */
+
+  background-size: contain; 
+  background-position: bottom center; 
+  background-repeat: no-repeat; 
+  transform-origin: bottom center; 
+  transition: transform 0.5s;
   filter: drop-shadow(0px 5px 2px rgba(0,0,0,0.5));
 }
+
+/* 待機時の呼吸アニメーション */
+@keyframes breathe {
+  0%, 100% { transform: var(--base-rot) translateZ(15px) scale3d(1, 1, 1); }
+  50% { transform: var(--base-rot) translateZ(15px) scale3d(1.05, 0.95, 1); }
+}
+
+/* キャラクター全員に呼吸モーションを付与 */
+.char-sprite {
+  animation: breathe 2s infinite ease-in-out;
+}
+
+/* ※もし前回追加した「選択中キャラの activeBob」があれば、
+   選択中のキャラだけはそちらのアニメーションが優先して上書きされます */
 
 /* ダメージ等のポップアップ用 */
 .srp-popup {
@@ -2988,8 +3027,9 @@ function renderSRPMap() {
         const cSprite = document.createElement('div');
         cSprite.className = `char-sprite`;
         
-        // カメラの回転角度に合わせてキャラを常に正面に向け、15px手前に引き出す
-        cSprite.style.transform = `rotateZ(${-currentMapAngle}deg) rotateX(-60deg) translateZ(15px)`;
+        // 角度を変数としてCSSに渡し、キャラを立たせたままにする
+        cSprite.style.setProperty('--base-rot', `rotateZ(${-currentMapAngle}deg) rotateX(-60deg)`);
+        cSprite.style.transform = `var(--base-rot) translateZ(15px)`;
         
         if (unit.artImg || unit.imgPath) {
           cSprite.style.backgroundImage = `url('${unit.artImg || unit.imgPath}')`;
@@ -3005,7 +3045,11 @@ function renderSRPMap() {
         const hpPct = Math.max(0, unit.hp / unit.maxHp * 100);
         const hpColor = hpPct > 50 ? '#60c060' : hpPct > 25 ? '#c0c060' : '#c06060';
         cSprite.innerHTML += `<div style="position:absolute;bottom:-5px;left:0;width:100%;height:4px;background:rgba(0,0,0,0.8);border-radius:2px;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;"></div></div>`;
-        if (battleState.selectedUnit === unit.id) cSprite.style.filter = 'drop-shadow(0 0 8px #FFD700)';
+        if (battleState.selectedUnit === unit.id) {
+         cSprite.style.filter = 'drop-shadow(0 0 8px #FFD700)';
+         // 選択中のキャラにだけフワフワアニメーションを追加！
+         cSprite.classList.add('char-active');
+        }
 
         cLayer.appendChild(cSprite);
         tile.appendChild(cLayer);
