@@ -827,9 +827,9 @@ body{display:flex;justify-content:center;}
 
     <!-- セリフバブル -->
     <div id="guild-speech-bubble" style="margin:0 16px;margin-top:-8px;background:rgba(255,255,255,.06);border:1px solid rgba(201,168,76,.3);border-radius:16px;padding:14px 16px;position:relative;z-index:3;animation:guildFadeIn .5s ease-out;">
-      <div style="font-size:9px;letter-spacing:2px;color:#c9a84c;margin-bottom:6px">受付嬢 リリア</div>
+      <div style="font-size:9px;letter-spacing:2px;color:#c9a84c;margin-bottom:6px">受付嬢</div>
       <div id="guild-speech-text" style="font-size:12px;line-height:1.9;color:rgba(255,255,255,.9)">
-        いらっしゃいませ！ここは冒険者ギルド「暁の剣」へようこそ。<br>本日はどのようなご用件でしょうか？
+        いらっしゃいませ！冒険者ギルド「暁の剣」へようこそ。<br>本日はどのようなご用件でしょうか？
       </div>
    </div>
 
@@ -929,6 +929,12 @@ body{display:flex;justify-content:center;}
         <button onclick="confirmGuildRegister()" style="flex:1;padding:12px;border-radius:10px;background:linear-gradient(135deg,#c9a84c,#e8c97a);border:none;color:#0a0a0f;font-size:12px;font-weight:700;font-family:'Noto Serif JP',serif;cursor:pointer;letter-spacing:1px;">登録する ⚔️</button>
       </div>
     </div>
+  </div>
+
+  <div id="reg-loading-screen" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(10,8,16,0.95);flex-direction:column;align-items:center;justify-content:center;">
+   <video src="assets/guild/registration_anim.mp4" autoplay loop muted playsinline style="width:90%;max-width:400px;border-radius:12px;border:2px solid #c9a84c;margin-bottom:20px;box-shadow:0 0 30px rgba(201,168,76,0.3);"></video>
+   <div style="font-size:18px;font-weight:900;letter-spacing:4px;color:#FFD700;animation:pulse 1s infinite;">冒険者登録中．．．</div>
+   <div style="font-size:11px;opacity:0.6;margin-top:12px;color:#fff;">ギルドの登録手続きと、専用2頭身キャラの錬成を行っています</div>
   </div>
 
   <!-- 登録完了ポップアップ -->
@@ -4794,6 +4800,15 @@ async function confirmGuildRegister() {
     // 完了ポップアップの内容をセット
     document.getElementById('guild-complete-kanji').textContent = targetBackup.kanji || '？';
     document.getElementById('guild-complete-name').textContent = targetBackup.charName || targetBackup.kanji || '';
+    
+    // 🌟 生成されたSDキャラ画像をポップアップにセット
+    const sdImgDiv = document.getElementById('guild-complete-sd-image');
+    if (targetBackup.sdImg) {
+      sdImgDiv.style.backgroundImage = `url('${targetBackup.sdImg}')`;
+      sdImgDiv.style.display = 'block';
+    } else {
+      sdImgDiv.style.display = 'none'; // 画像がない場合は非表示
+    }
     
     // データを保存
     saveState();
