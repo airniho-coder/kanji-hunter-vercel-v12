@@ -4773,17 +4773,18 @@ function closeGuildRegisterModal(){
   guildRegisterTarget=null;
 }
 
-// （ここから書き換え）
 async function confirmGuildRegister() {
   if (!guildRegisterTarget) return;
   
-  // 登録確認モーダルを閉じる前にデータを退避（閉じるとnullになるため）
+  // 登録確認モーダルを閉じる前にデータを退避
   const targetBackup = guildRegisterTarget; 
   closeGuildRegisterModal();
   
-  // 受付嬢ドタバタ動画のローディング画面を表示
+  // 🌟 安全対策：要素が存在するか確認してから表示する
   const loadingScreen = document.getElementById('reg-loading-screen');
-  if (loadingScreen) loadingScreen.style.display = 'flex';
+  if (loadingScreen) {
+    loadingScreen.style.display = 'flex';
+  }
   
   try {
     // 🌟 裏でバトル用の2頭身(SD)画像を自動生成
@@ -4797,17 +4798,21 @@ async function confirmGuildRegister() {
     // 冒険者ランクの付与
     targetBackup.adventurerRank = 'G';
     
-    // 完了ポップアップの内容をセット
-    document.getElementById('guild-complete-kanji').textContent = targetBackup.kanji || '？';
-    document.getElementById('guild-complete-name').textContent = targetBackup.charName || targetBackup.kanji || '';
+    // 完了ポップアップの内容をセット（IDがない場合に備えた安全対策）
+    const kanjiEl = document.getElementById('guild-complete-kanji');
+    const nameEl = document.getElementById('guild-complete-name');
+    if (kanjiEl) kanjiEl.textContent = targetBackup.kanji || '？';
+    if (nameEl) nameEl.textContent = targetBackup.charName || targetBackup.kanji || '';
     
-    // 🌟 生成されたSDキャラ画像をポップアップにセット
+    // 生成されたSDキャラ画像をポップアップにセット
     const sdImgDiv = document.getElementById('guild-complete-sd-image');
-    if (targetBackup.sdImg) {
-      sdImgDiv.style.backgroundImage = `url('${targetBackup.sdImg}')`;
-      sdImgDiv.style.display = 'block';
-    } else {
-      sdImgDiv.style.display = 'none'; // 画像がない場合は非表示
+    if (sdImgDiv) {
+      if (targetBackup.sdImg) {
+        sdImgDiv.style.backgroundImage = `url('${targetBackup.sdImg}')`;
+        sdImgDiv.style.display = 'block';
+      } else {
+        sdImgDiv.style.display = 'none';
+      }
     }
     
     // データを保存
@@ -4815,7 +4820,8 @@ async function confirmGuildRegister() {
     
     // 動画画面を消して、登録完了画面を表示
     if (loadingScreen) loadingScreen.style.display = 'none';
-    document.getElementById('guild-register-complete').style.display = 'flex';
+    const completeScreen = document.getElementById('guild-register-complete');
+    if (completeScreen) completeScreen.style.display = 'flex';
     
   } catch (e) {
     console.error(e);
@@ -4823,7 +4829,6 @@ async function confirmGuildRegister() {
     alert('登録中にエラーが発生しました');
   }
 }
-// （ここまで書き換え）
 
 function closeGuildRegisterComplete(){
   document.getElementById('guild-register-complete').style.display='none';
