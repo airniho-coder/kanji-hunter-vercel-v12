@@ -470,6 +470,19 @@ body{display:flex;justify-content:center;}
 .type-fort-floor { --bg-color: #a8a29e; } .type-fort-wall { --bg-color: #57534e; } .type-temple-floor { --bg-color: #f3f4f6; } .type-temple-wall { --bg-color: #d1d5db; }
 /* ===== 3Dマップ用 CSS（ここまで） ===== */
 
+/* キャラクター配置・移動時のホップアニメーション */
+@keyframes hopIn {
+  0% { transform: translateY(-30px); opacity: 0; }
+  50% { transform: translateY(0); opacity: 1; }
+  75% { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
+}
+
+/* 既存の .char-sprite にアニメーションを紐付ける */
+.char-sprite {
+  animation: hopIn 0.4s ease-out forwards;
+}
+
 </style>
 </head>
 <body>
@@ -2179,6 +2192,16 @@ const TERRITORY_BONUS={
   neutral:{def:1.0, atk:1.0}, // 中立：補正なし
   enemy:{def:0.7, atk:0.8},   // 敵陣：防御-30%・攻撃-20%
 };
+
+// 指定したマスの合計の高さを取得する関数
+function getCellHeight(r, c) {
+  if (customMapData) {
+    const cell = customMapData.find(d => d.x === c && d.y === r);
+    if (cell) return cell.h + cell.oh; // 地形の高さ ＋ 建物の高さ
+  }
+  // カスタムマップがない場合は、従来の山(2)なら高さ1、それ以外は0とする
+  return battleState.map[r][c] === 2 ? 1 : 0; 
+}
 
 // ===== 冒険者ランク別ステータス上限 =====
 const RANK_STAT_CAPS={
@@ -6666,6 +6689,18 @@ async function doAction(attacker,defender,action,atkLv,defLv,atkSide,defSide){
   let defEffect=null,defEffectColor='#ef4444';  // effect on defender card
   let dmgSize='medium'; // small/medium/large for shake intensity
 
+  // 高低差によるダメージ補正
+  const attackerHeight = getCellHeight(attacker.row, attacker.col);
+  const defenderHeight = getCellHeight(defender.row, defender.col);
+  const heightDiff = attackerHeight - defenderHeight;
+
+  if (heightDiff > 0) {
+    // 自分の方が高い場合：1段につき10%ダメージアップ
+    damage = Math.floor(damage * (1 + (heightDiff * 0.1)));
+  } else if (heightDiff < 0) {
+    // 自分の方が低い場合：1段につき10%ダメージダウン
+    damage = Math.floor(damage * (1 - Math.abs(heightDiff) * 0.1));
+  }
   // ===== DETERMINE ACTION =====
   if(action.type==='attack'){
     const isCrit=Math.random()*100<atkCRIT;
