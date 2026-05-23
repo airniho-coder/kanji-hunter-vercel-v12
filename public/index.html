@@ -4808,15 +4808,21 @@ async function confirmGuildRegister() {
     if (nameEl) nameEl.textContent = targetBackup.charName || targetBackup.kanji || '';
     
     // 🌟 生成されたSDキャラ画像をポップアップにセット
+    // 🌟 最終修正：画像を確実に表示する処理
     const sdImgDiv = document.getElementById('guild-complete-sd-image');
-    console.log("SD画像データ:", targetBackup.sdImg); // ← これを追加してF12コンソールを見る
-    
     if (sdImgDiv) {
       if (targetBackup.sdImg) {
-        sdImgDiv.style.backgroundImage = `url('${targetBackup.sdImg}')`;
+        // base64データだけを取り出す
+        let cleanBase64 = targetBackup.sdImg;
+        if (cleanBase64.includes(',')) {
+          cleanBase64 = cleanBase64.split(',').pop();
+        }
+        
+        // CSS背景ではなく、中身にimgタグを生成して入れる方式に変更（一番確実）
+        sdImgDiv.innerHTML = `<img src="data:image/png;base64,${cleanBase64}" style="width:100%;height:100%;object-fit:contain;">`;
         sdImgDiv.style.display = 'block';
+        sdImgDiv.style.backgroundImage = 'none'; // 背景画像をクリア
       } else {
-        console.warn("画像データがありません"); // ← これを追加
         sdImgDiv.style.display = 'none';
       }
     }
