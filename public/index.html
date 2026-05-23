@@ -597,6 +597,11 @@ body{display:flex;justify-content:center;}
   <div class="loading-text" id="loading-text">解析中...</div>
   <div class="loading-sub" id="loading-sub">しばらくお待ちください</div>
 </div>
+<div id="reg-loading-screen" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(10,8,16,0.95);flex-direction:column;align-items:center;justify-content:center;">
+  <video src="assets/guild/registration_anim.mp4" autoplay loop muted playsinline style="width:90%;max-width:400px;border-radius:12px;border:2px solid #c9a84c;margin-bottom:20px;box-shadow:0 0 30px rgba(201,168,76,0.3);"></video>
+  <div style="font-size:18px;font-weight:900;letter-spacing:4px;color:#FFD700;animation:pulse 1s infinite;">冒険者登録中．．．</div>
+  <div style="font-size:11px;opacity:0.6;margin-top:12px;color:#fff;">ギルドの登録手続きと、専用2頭身キャラの錬成を行っています</div>
+</div>
 <!-- EXPポップアップ（レベルアップ・バトル結果表示用） -->
 <div class="exp-popup" id="exp-popup">
   <div id="exp-popup-content"></div>
@@ -4762,23 +4767,48 @@ function closeGuildRegisterModal(){
   guildRegisterTarget=null;
 }
 
-function confirmGuildRegister(){
-  if(!guildRegisterTarget)return;
-  guildRegisterTarget.adventurerRank='G';
-
-  // 完了ポップアップの内容を先にセット（closeGuildRegisterModalの前に行う）
-  document.getElementById('guild-complete-kanji').textContent=guildRegisterTarget.kanji||'？';
-  document.getElementById('guild-complete-name').textContent=guildRegisterTarget.charName||guildRegisterTarget.kanji||'';
-
-  // モーダルを閉じる（この中でguildRegisterTargetがnullになる）
+// （ここから書き換え）
+async function confirmGuildRegister() {
+  if (!guildRegisterTarget) return;
+  
+  // 登録確認モーダルを閉じる前にデータを退避（閉じるとnullになるため）
+  const targetBackup = guildRegisterTarget; 
   closeGuildRegisterModal();
-
-  // データを保存
-  saveState();
-
-  // 完了ポップアップを表示
-  document.getElementById('guild-register-complete').style.display='flex';
+  
+  // 受付嬢ドタバタ動画のローディング画面を表示
+  const loadingScreen = document.getElementById('reg-loading-screen');
+  if (loadingScreen) loadingScreen.style.display = 'flex';
+  
+  try {
+    // 🌟 裏でバトル用の2頭身(SD)画像を自動生成
+    if (!targetBackup.sdImg && stabilityKey) {
+      const sdImgData = await generateSDImage(targetBackup);
+      if (sdImgData) {
+        targetBackup.sdImg = `data:image/png;base64,${sdImgData}`;
+      }
+    }
+    
+    // 冒険者ランクの付与
+    targetBackup.adventurerRank = 'G';
+    
+    // 完了ポップアップの内容をセット
+    document.getElementById('guild-complete-kanji').textContent = targetBackup.kanji || '？';
+    document.getElementById('guild-complete-name').textContent = targetBackup.charName || targetBackup.kanji || '';
+    
+    // データを保存
+    saveState();
+    
+    // 動画画面を消して、登録完了画面を表示
+    if (loadingScreen) loadingScreen.style.display = 'none';
+    document.getElementById('guild-register-complete').style.display = 'flex';
+    
+  } catch (e) {
+    console.error(e);
+    if (loadingScreen) loadingScreen.style.display = 'none';
+    alert('登録中にエラーが発生しました');
+  }
 }
+// （ここまで書き換え）
 
 function closeGuildRegisterComplete(){
   document.getElementById('guild-register-complete').style.display='none';
@@ -4908,6 +4938,33 @@ async function generateItemImage(item){
   const qual={SSR:'legendary ultimate',SR:'epic powerful'}[item.rarity]||'';
   const prompt=`Dragon Quest JRPG anime style, ${qual} ${typeDesc[item.cardType]||'fantasy item'}, ${item.name}, entire object completely visible, white simple background, colorful vibrant, cel-shaded anime, masterpiece`;
   try{const res=await fetch('/api/image',{method:'POST',headers:{'Content-Type':'application/json','x-stability-key':stabilityKey},body:JSON.stringify({prompt})});const data=await res.json();return data.image||null;}catch(e){return null;}
+}
+
+// バトル用2頭身(SD)キャラの画像をAPIで自動生成する関数（ここから追加）
+async function generateSDImage(char) {
+  if (!stabilityKey) return null;
+  
+  // 日本語の種族と職業を英訳（Stability APIが理解しやすくするため）
+  const raceDesc = {'人族':'human','エルフ族':'elf','ハーフエルフ族':'half-elf','ダークエルフ族':'dark elf','ホビット族':'hobbit','ドワーフ族':'dwarf','魔族':'demon','竜族':'dragonkin','モンスター族':'monster'};
+  const jobDesc = {'剣士':'warrior','魔法使い':'wizard','忍者':'ninja','僧侶':'priest','竜騎士':'dragon knight','吟遊詩人':'bard','召喚士':'summoner','賢者':'sage','暗黒騎士':'dark knight','聖騎士':'paladin'};
+  
+  const race = raceDesc[char.race] || 'human';
+  const job = jobDesc[char.job] || 'warrior';
+  
+  const prompt = `Chibi SD character, 2 heads tall, isometric quarter view from above, standing and waiting pose. ${race} ${job}. Entire body completely visible from head to toe. Pure white simple background. High quality cel-shaded anime RPG style.`;
+  
+  try {
+    const res = await fetch('/api/image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-stability-key': stabilityKey },
+      body: JSON.stringify({ prompt })
+    });
+    const data = await res.json();
+    return data.image || null;
+  } catch (e) {
+    console.error("SD画像生成エラー:", e);
+    return null;
+  }
 }
 
 async function generateCharImage(char){
