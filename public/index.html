@@ -940,6 +940,9 @@ body{display:flex;justify-content:center;}
   <!-- 登録完了ポップアップ -->
   <div id="guild-register-complete" style="display:none;position:fixed;inset:0;z-index:320;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:20px;">
     <div style="max-width:360px;width:100%;background:#13131a;border:1px solid rgba(201,168,76,.5);border-radius:20px;padding:28px;text-align:center;box-shadow:0 0 60px rgba(201,168,76,.2);">
+      
+      <div id="guild-complete-sd-image" style="width:120px;height:120px;margin:0 auto 12px;background-size:contain;background-repeat:no-repeat;background-position:center;border:1px solid rgba(201,168,76,.3);border-radius:10px;display:none;"></div>
+      
       <div style="font-size:48px;margin-bottom:12px" id="guild-complete-kanji"></div>
       <div style="font-size:22px;font-weight:900;color:#c9a84c;letter-spacing:4px;margin-bottom:4px">Gランク</div>
       <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,.9);margin-bottom:4px" id="guild-complete-name"></div>
@@ -4804,13 +4807,16 @@ async function confirmGuildRegister() {
     if (kanjiEl) kanjiEl.textContent = targetBackup.kanji || '？';
     if (nameEl) nameEl.textContent = targetBackup.charName || targetBackup.kanji || '';
     
-    // 生成されたSDキャラ画像をポップアップにセット
+    // 🌟 生成されたSDキャラ画像をポップアップにセット
     const sdImgDiv = document.getElementById('guild-complete-sd-image');
+    console.log("SD画像データ:", targetBackup.sdImg); // ← これを追加してF12コンソールを見る
+    
     if (sdImgDiv) {
       if (targetBackup.sdImg) {
         sdImgDiv.style.backgroundImage = `url('${targetBackup.sdImg}')`;
         sdImgDiv.style.display = 'block';
       } else {
+        console.warn("画像データがありません"); // ← これを追加
         sdImgDiv.style.display = 'none';
       }
     }
