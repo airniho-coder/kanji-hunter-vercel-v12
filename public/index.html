@@ -4986,13 +4986,14 @@ async function generateSDImage(char) {
     });
     const data = await res.json();
     
-    // 🌟 修正ポイント：画像データから接頭辞を一度取り除き、クリーンなBase64だけにする
-    let base64Data = data.image || '';
-    if (base64Data.includes(',')) {
-      base64Data = base64Data.split(',')[1];
+    // 🌟 最終最強修正：どんなデータが来てもBase64部分だけを抽出する
+    let base64 = data.image || '';
+    // もし data:image/...;base64, が含まれていたら、最後のカンマ以降だけを残す
+    if (base64.includes(',')) {
+      base64 = base64.split(',').pop();
     }
     
-    return base64Data ? `data:image/png;base64,${base64Data}` : null;
+    return base64 ? `data:image/png;base64,${base64}` : null;
   } catch (e) {
     console.error("SD画像生成エラー:", e);
     return null;
